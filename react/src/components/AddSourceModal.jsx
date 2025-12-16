@@ -69,7 +69,7 @@ function AddSourceModal({ isOpen, onClose }) {
 
                 <div className="modal-body">
                     <p className="modal-description">
-                        소스를 추가하면 NotebookLM이 가장 중요한 정보에 따라 응답을 제공합니다.
+                        소스를 추가하면 KNOWLEARN MAP이 가장 중요한 정보에 따라 응답을 제공합니다.
                         <br />
                         (예: 마케팅 계획, 수업 자료, 연구 노트, 회의 스크립트, 판매 문서 등)
                     </p>
