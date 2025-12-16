@@ -1,0 +1,268 @@
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Modal Container */
+.modal-container {
+    background-color: #ffffff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Modal Header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 24px 16px 24px;
+    border-bottom: 1px solid #e8eaed;
+}
+
+.modal-title {
+    font-size: 22px;
+    font-weight: 400;
+    color: #202124;
+    margin: 0;
+}
+
+.modal-close-btn {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    border: none;
+    background: none;
+    color: #5f6368;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close-btn:hover {
+    background-color: #f1f3f4;
+}
+
+/* Modal Body */
+.modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.modal-description {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #5f6368;
+    margin: 0;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed #dadce0;
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.upload-area:hover {
+    border-color: #1a73e8;
+    background-color: #e8f0fe;
+}
+
+.upload-icon {
+    margin-bottom: 16px;
+}
+
+.upload-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: #202124;
+    margin: 0 0 8px 0;
+}
+
+.upload-subtitle {
+    font-size: 14px;
+    color: #5f6368;
+    margin: 0 0 16px 0;
+}
+
+.link-btn {
+    color: #1a73e8;
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.link-btn:hover {
+    color: #1557b0;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-label {
+    display: inline-block;
+    padding: 10px 24px;
+    background-color: #1a73e8;
+    color: #ffffff;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-label:hover {
+    background-color: #1557b0;
+    box-shadow: 0 2px 4px rgba(26, 115, 232, 0.3);
+}
+
+.upload-formats {
+    font-size: 11px;
+    color: #5f6368;
+    margin: 16px 0 0 0;
+    line-height: 1.4;
+}
+
+/* Connection Options */
+.connection-options {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+}
+
+.option-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    padding: 16px;
+    border: 1px solid #dadce0;
+    border-radius: 12px;
+    background-color: #ffffff;
+}
+
+.option-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #202124;
+}
+
+.option-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    background-color: #ffffff;
+    font-size: 14px;
+    color: #202124;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.option-btn:hover {
+    background-color: #f8f9fa;
+    border-color: #1a73e8;
+}
+
+.option-btn:active {
+    background-color: #e8f0fe;
+}
+
+/* Source Count */
+.source-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #5f6368;
+}
+
+.source-count .count {
+    margin-left: auto;
+    font-weight: 500;
+    color: #202124;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .modal-container {
+        width: 95%;
+        max-height: 95vh;
+        border-radius: 12px;
+    }
+
+    .modal-header {
+        padding: 20px 20px 12px 20px;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .upload-area {
+        padding: 32px 20px;
+    }
+
+    .connection-options {
+        flex-direction: column;
+    }
+}

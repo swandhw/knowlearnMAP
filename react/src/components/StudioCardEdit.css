@@ -1,0 +1,38 @@
+/* Studio card wrapper for positioning edit button */
+.studio-card-wrapper {
+    position: relative;
+}
+
+.card-edit-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 10;
+    opacity: 0;
+}
+
+.studio-card-wrapper:hover .card-edit-btn {
+    opacity: 1;
+}
+
+.card-edit-btn:hover {
+    background-color: #ffffff;
+    border-color: #1a73e8;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2);
+}
+
+.card-edit-btn:active {
+    transform: scale(0.95);
+}
