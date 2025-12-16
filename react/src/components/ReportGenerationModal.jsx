@@ -43,6 +43,14 @@ function ReportGenerationModal({ isOpen, onClose }) {
         };
     }, [isOpen, onClose]);
 
+    // Reset state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setIsCreationModalOpen(false);
+            setSelectedTemplate(null);
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     const reportFormats = [

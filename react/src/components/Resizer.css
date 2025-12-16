@@ -1,0 +1,24 @@
+/* 크기 조절 핸들 스타일 */
+.resizer {
+    width: 4px;
+    background-color: transparent;
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background-color 0.2s;
+    position: relative;
+    z-index: 10;
+}
+
+.resizer:hover {
+    background-color: #1a73e8;
+}
+
+.resizer:active {
+    background-color: #1557b0;
+}
+
+/* 크기 조절 중 커서 스타일 */
+body.resizing {
+    cursor: col-resize !important;
+    user-select: none;
+}

@@ -54,7 +54,7 @@ function SlideCreationModal({ isOpen, onClose }) {
             <div className="modal-container slide-modal" ref={modalRef}>
                 <div className="modal-header">
                     <div className="modal-header-content">
-                        <span className="modal-icon">📊</span>
+                        <span className="modal-icon">📑</span>
                         <h2 className="modal-title">슬라이드 자료 맞춤설정</h2>
                     </div>
                     <button className="modal-close-btn" onClick={onClose}>

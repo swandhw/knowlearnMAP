@@ -27,6 +27,9 @@ function NotebookDetail() {
     const [currentMemoContent, setCurrentMemoContent] = useState('');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showHeadings, setShowHeadings] = useState(false);
+    const [leftPanelWidth, setLeftPanelWidth] = useState(280);
+    const [rightPanelWidth, setRightPanelWidth] = useState(360);
+    const [isResizing, setIsResizing] = useState(null); // 'left' or 'right' or null
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -40,6 +43,37 @@ function NotebookDetail() {
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     }, [activeMemoMenuId, showHeadings]);
+
+    // 크기 조절 핸들러
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (isResizing === 'left') {
+                const newWidth = e.clientX;
+                if (newWidth >= 200 && newWidth <= 600) {
+                    setLeftPanelWidth(newWidth);
+                }
+            } else if (isResizing === 'right') {
+                const newWidth = window.innerWidth - e.clientX;
+                if (newWidth >= 300 && newWidth <= 800) {
+                    setRightPanelWidth(newWidth);
+                }
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(null);
+        };
+
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
 
     console.log("NotebookDetail Render", { id, notebook, memos });
 
@@ -138,8 +172,8 @@ function NotebookDetail() {
 
 
     const studioActions = [
-        { id: 1, title: '리포트', icon: '📊', color: '#1976D2', description: '주요 내용을 요약한 보고서를 생성합니다' },
-        { id: 2, title: '슬라이드', icon: '📑', color: '#E91E63', description: '프레젠테이션용 슬라이드를 만듭니다' },
+        { id: 1, title: '슬라이드', icon: '📑', color: '#C084CC', bgColor: '#F3E8F5' },
+        { id: 2, title: '보고서', icon: '📄', color: '#D4C5A9', bgColor: '#F5F1E8' },
     ];
 
     const handleSourceToggle = (id) => {
@@ -268,7 +302,7 @@ function NotebookDetail() {
             <div className="detail-content">
                 {/* Left Sidebar - Sources */}
                 {leftSidebarOpen ? (
-                    <aside className="sources-sidebar">
+                    <aside className="sources-sidebar" style={{ width: `${leftPanelWidth}px`, flexShrink: 0 }}>
                         <div className="sidebar-header">
                             <div className="sidebar-header-left">
                                 <h2 className="sidebar-title">소스</h2>
@@ -278,11 +312,7 @@ function NotebookDetail() {
                                 onClick={() => setLeftSidebarOpen(false)}
                                 title="출처 닫기"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="9" y1="3" x2="9" y2="21"></line>
-                                    <path d="M10 8l-4 4 4 4"></path>
-                                </svg>
+                                <img src="/icons/sidebar-close-left.png" alt="Close" width="20" height="20" />
                             </button>
                         </div>
 
@@ -375,11 +405,7 @@ function NotebookDetail() {
                             onClick={() => setLeftSidebarOpen(true)}
                             title="출처 열기"
                         >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="9" y1="3" x2="9" y2="21"></line>
-                                <path d="M10 10l4 2-4 2"></path>
-                            </svg>
+                            <img src="/icons/source-panel-open.png" alt="Open" width="20" height="20" />
                         </button>
                         <div className="collapsed-icon-list">
                             {sources.slice(0, 5).map(source => (
@@ -392,6 +418,14 @@ function NotebookDetail() {
                             )}
                         </div>
                     </aside>
+                )}
+
+                {/* 왼쪽 크기 조절 핸들 */}
+                {leftSidebarOpen && (
+                    <div
+                        className="resizer resizer-left"
+                        onMouseDown={() => setIsResizing('left')}
+                    />
                 )}
 
                 {/* Center Content */}
@@ -506,9 +540,17 @@ function NotebookDetail() {
                     )}
                 </main>
 
+                {/* 오른쪽 크기 조절 핸들 */}
+                {rightPanelOpen && (
+                    <div
+                        className="resizer resizer-right"
+                        onMouseDown={() => setIsResizing('right')}
+                    />
+                )}
+
                 {/* Right Panel - Studio */}
                 {rightPanelOpen ? (
-                    <aside className="studio-panel">
+                    <aside className="studio-panel" style={{ width: `${rightPanelWidth}px`, flexShrink: 0 }}>
                         {/* Editor Mode */}
                         {isMemoEditorOpen ? (
                             <div className="memo-editor">
@@ -606,11 +648,7 @@ function NotebookDetail() {
                                         onClick={() => setRightPanelOpen(false)}
                                         title="스튜디오 닫기"
                                     >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                            <line x1="15" y1="3" x2="15" y2="21"></line>
-                                            <path d="M8 8l4 4-4 4"></path>
-                                        </svg>
+                                        <img src="/icons/sidebar-close-right.png" alt="Close" width="20" height="20" />
                                     </button>
                                 </div>
 
@@ -619,31 +657,21 @@ function NotebookDetail() {
                                         <div key={action.id} className="studio-card-wrapper">
                                             <button
                                                 className="studio-card"
-                                                style={{ '--card-color': action.color }}
+                                                style={{
+                                                    '--card-color': action.color,
+                                                    '--card-bg-color': action.bgColor
+                                                }}
                                                 onClick={() => {
-                                                    if (action.id === 1) { // 리포트
+                                                    if (action.id === 1) { // 슬라이드
+                                                        setIsSlideModalOpen(true);
+                                                    } else if (action.id === 2) { // 보고서
                                                         setIsReportModalOpen(true);
                                                     }
                                                 }}
                                             >
                                                 <span className="card-icon">{action.icon}</span>
-                                                <div className="card-content">
-                                                    <h3 className="card-title">{action.title}</h3>
-                                                    <p className="card-description">{action.description}</p>
-                                                </div>
+                                                <h3 className="card-title">{action.title}</h3>
                                             </button>
-                                            {action.id === 2 && ( // 슬라이드
-                                                <button
-                                                    className="card-edit-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setIsSlideModalOpen(true);
-                                                    }}
-                                                    aria-label="슬라이드 수정"
-                                                >
-                                                    ✏️
-                                                </button>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -737,11 +765,7 @@ function NotebookDetail() {
                             onClick={() => setRightPanelOpen(true)}
                             title="스튜디오 열기"
                         >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="15" y1="3" x2="15" y2="21"></line>
-                                <path d="M12 8l-4 4 4 4"></path>
-                            </svg>
+                            <img src="/icons/studio-panel-open.png" alt="Open" width="20" height="20" />
                         </button>
                     </aside>
                 )}
