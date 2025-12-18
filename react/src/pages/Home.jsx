@@ -81,7 +81,7 @@ function Home() {
                         </svg>
                     </button>
                     <div className="logo">
-                        <span className="logo-text">KNOWLEARN MAP</span>
+                        <span className="logo-text">KNOWLEARN MAP2</span>
                     </div>
                 </div>
             </header>
