@@ -1,0 +1,9 @@
+com\amore\migration\agent\dto\GeminiResponse$GeneratedFile.class
+com\amore\migration\agent\service\GeminiService.class
+com\amore\migration\agent\config\MigrationConfig.class
+com\amore\migration\agent\config\MigrationConfig$Gemini.class
+com\amore\migration\agent\JavaMigrationAgentApplication.class
+com\amore\migration\agent\processor\SourceProcessor.class
+com\amore\migration\agent\config\MigrationConfig$Paths.class
+com\amore\migration\agent\dto\GeminiResponse.class
+com\amore\migration\agent\config\MigrationConfig$Build.class

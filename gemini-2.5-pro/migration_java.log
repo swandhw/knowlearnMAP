@@ -1,0 +1,626 @@
+2025-12-23 16:01:58 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication using Java 21.0.9 with PID 29804 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\classes started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:01:58 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:01:59 [main] WARN  o.s.c.a.AnnotationConfigApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'javaMigrationAgentApplication': Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'sourceProcessor' defined in file [C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\classes\com\amore\migration\agent\processor\SourceProcessor.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'geminiService' defined in file [C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\classes\com\amore\migration\agent\service\GeminiService.class]: Unsatisfied dependency expressed through constructor parameter 1: No qualifying bean of type 'com.fasterxml.jackson.databind.ObjectMapper' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+2025-12-23 16:01:59 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-12-23 16:01:59 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Parameter 1 of constructor in com.amore.migration.agent.service.GeminiService required a bean of type 'com.fasterxml.jackson.databind.ObjectMapper' that could not be found.
+
+
+Action:
+
+Consider defining a bean of type 'com.fasterxml.jackson.databind.ObjectMapper' in your configuration.
+
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication using Java 21.0.9 with PID 26936 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\classes started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.298 seconds (process running for 1.65)
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+2025-12-23 16:02:20 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+java.util.regex.PatternSyntaxException: Unescaped trailing backslash near index 1
+\
+	at java.base/java.util.regex.Pattern.error(Pattern.java:2204)
+	at java.base/java.util.regex.Pattern.compile(Pattern.java:1951)
+	at java.base/java.util.regex.Pattern.<init>(Pattern.java:1576)
+	at java.base/java.util.regex.Pattern.compile(Pattern.java:1101)
+	at java.base/java.lang.String.split(String.java:3356)
+	at java.base/java.lang.String.split(String.java:3447)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:71)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:34)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:02:20 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:32:40 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 31092 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:32:40 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.245 seconds (process running for 1.607)
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:32:41 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_MMASTM_PRD_LOT_NO_CREATE, ClassName: PMmastmPrdLotNoCreate
+2025-12-23 16:32:41 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:32:51 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+java.lang.RuntimeException: An error occurred when calling the Gemini API endpoint.
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:262)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.generate(GoogleAiGeminiChatModel.java:155)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:44)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:32)
+	at com.amore.migration.agent.service.GeminiService.generateMigrationCode(GeminiService.java:39)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:151)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:35)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: java.net.SocketTimeoutException: timeout
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.exitAndThrowIfTimedOut(Http2Stream.kt:684)
+	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:143)
+	at okhttp3.internal.http2.Http2ExchangeCodec.readResponseHeaders(Http2ExchangeCodec.kt:97)
+	at okhttp3.internal.connection.Exchange.readResponseHeaders(Exchange.kt:110)
+	at okhttp3.internal.http.CallServerInterceptor.intercept(CallServerInterceptor.kt:93)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:34)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at retrofit2.OkHttpCall.execute(OkHttpCall.java:204)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:237)
+	... 26 common frames omitted
+2025-12-23 16:32:51 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:32:51 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:32:51 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:33:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 20692 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:33:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.386 seconds (process running for 1.883)
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:33:54 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_MMASTM_PRD_LOT_NO_CREATE, ClassName: PMmastmPrdLotNoCreate
+2025-12-23 16:33:54 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:34:05 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+java.lang.RuntimeException: An error occurred when calling the Gemini API endpoint.
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:262)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.generate(GoogleAiGeminiChatModel.java:155)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:44)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:32)
+	at com.amore.migration.agent.service.GeminiService.generateMigrationCode(GeminiService.java:39)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:151)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:35)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: java.net.SocketTimeoutException: timeout
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.exitAndThrowIfTimedOut(Http2Stream.kt:684)
+	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:143)
+	at okhttp3.internal.http2.Http2ExchangeCodec.readResponseHeaders(Http2ExchangeCodec.kt:97)
+	at okhttp3.internal.connection.Exchange.readResponseHeaders(Exchange.kt:110)
+	at okhttp3.internal.http.CallServerInterceptor.intercept(CallServerInterceptor.kt:93)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:34)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at retrofit2.OkHttpCall.execute(OkHttpCall.java:204)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:237)
+	... 26 common frames omitted
+2025-12-23 16:34:05 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:34:05 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:34:05 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:34:52 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 36056 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:34:52 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.573 seconds (process running for 2.198)
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:34:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_MMASTM_PRD_LOT_NO_CREATE, ClassName: PMmastmPrdLotNoCreate
+2025-12-23 16:34:53 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:35:04 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+java.lang.RuntimeException: An error occurred when calling the Gemini API endpoint.
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:262)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.generate(GoogleAiGeminiChatModel.java:155)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:44)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:32)
+	at com.amore.migration.agent.service.GeminiService.generateMigrationCode(GeminiService.java:40)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:151)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:35)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: java.net.SocketTimeoutException: timeout
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.exitAndThrowIfTimedOut(Http2Stream.kt:684)
+	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:143)
+	at okhttp3.internal.http2.Http2ExchangeCodec.readResponseHeaders(Http2ExchangeCodec.kt:97)
+	at okhttp3.internal.connection.Exchange.readResponseHeaders(Exchange.kt:110)
+	at okhttp3.internal.http.CallServerInterceptor.intercept(CallServerInterceptor.kt:93)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:34)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at retrofit2.OkHttpCall.execute(OkHttpCall.java:204)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:237)
+	... 26 common frames omitted
+2025-12-23 16:35:04 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:35:04 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:35:04 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:44:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 14168 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:44:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.711 seconds (process running for 2.249)
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:44:01 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_DAY_PAC_MH, ClassName: PDayPacMh
+2025-12-23 16:44:01 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:44:11 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+java.lang.RuntimeException: An error occurred when calling the Gemini API endpoint.
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:262)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.generate(GoogleAiGeminiChatModel.java:155)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:44)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:32)
+	at com.amore.migration.agent.service.GeminiService.generateMigrationCode(GeminiService.java:40)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:151)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:35)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: java.net.SocketTimeoutException: timeout
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.exitAndThrowIfTimedOut(Http2Stream.kt:684)
+	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:143)
+	at okhttp3.internal.http2.Http2ExchangeCodec.readResponseHeaders(Http2ExchangeCodec.kt:97)
+	at okhttp3.internal.connection.Exchange.readResponseHeaders(Exchange.kt:110)
+	at okhttp3.internal.http.CallServerInterceptor.intercept(CallServerInterceptor.kt:93)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:34)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at retrofit2.OkHttpCall.execute(OkHttpCall.java:204)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:237)
+	... 26 common frames omitted
+2025-12-23 16:44:11 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:44:11 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:44:11 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:48:44 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 38940 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:48:44 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.858 seconds (process running for 2.369)
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:48:45 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_DAY_PAC_MH, ClassName: PDayPacMh
+2025-12-23 16:48:45 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:48:56 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+java.lang.RuntimeException: An error occurred when calling the Gemini API endpoint.
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:262)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.generate(GoogleAiGeminiChatModel.java:155)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:44)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:32)
+	at com.amore.migration.agent.service.GeminiService.generateMigrationCode(GeminiService.java:40)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:151)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:35)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: java.net.SocketTimeoutException: timeout
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.exitAndThrowIfTimedOut(Http2Stream.kt:684)
+	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:143)
+	at okhttp3.internal.http2.Http2ExchangeCodec.readResponseHeaders(Http2ExchangeCodec.kt:97)
+	at okhttp3.internal.connection.Exchange.readResponseHeaders(Exchange.kt:110)
+	at okhttp3.internal.http.CallServerInterceptor.intercept(CallServerInterceptor.kt:93)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:34)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at retrofit2.OkHttpCall.execute(OkHttpCall.java:204)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:237)
+	... 26 common frames omitted
+2025-12-23 16:48:56 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:48:56 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:48:56 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:51:42 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 3736 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:51:42 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:51:42 [main] INFO  c.a.m.agent.service.GeminiService - Using API Key starting with: AIzaSyDE...
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.743 seconds (process running for 2.281)
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:51:43 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_DAY_PAC_MH, ClassName: PDayPacMh
+2025-12-23 16:51:43 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:51:53 [main] ERROR c.a.m.a.processor.SourceProcessor - Error processing file: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+java.lang.RuntimeException: An error occurred when calling the Gemini API endpoint.
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:262)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.generate(GoogleAiGeminiChatModel.java:155)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:44)
+	at dev.langchain4j.model.chat.ChatLanguageModel.generate(ChatLanguageModel.java:32)
+	at com.amore.migration.agent.service.GeminiService.generateMigrationCode(GeminiService.java:44)
+	at com.amore.migration.agent.processor.SourceProcessor.processSingleFile(SourceProcessor.java:151)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.run(JavaMigrationAgentApplication.java:35)
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:786)
+	at org.springframework.boot.SpringApplication.lambda$callRunners$3(SpringApplication.java:770)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:765)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:330)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.amore.migration.agent.JavaMigrationAgentApplication.main(JavaMigrationAgentApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: java.net.SocketTimeoutException: timeout
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+	at okhttp3.internal.http2.Http2Stream$StreamTimeout.exitAndThrowIfTimedOut(Http2Stream.kt:684)
+	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:143)
+	at okhttp3.internal.http2.Http2ExchangeCodec.readResponseHeaders(Http2ExchangeCodec.kt:97)
+	at okhttp3.internal.connection.Exchange.readResponseHeaders(Exchange.kt:110)
+	at okhttp3.internal.http.CallServerInterceptor.intercept(CallServerInterceptor.kt:93)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:34)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at retrofit2.OkHttpCall.execute(OkHttpCall.java:204)
+	at dev.langchain4j.model.googleai.GoogleAiGeminiChatModel.chat(GoogleAiGeminiChatModel.java:237)
+	... 26 common frames omitted
+2025-12-23 16:51:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:51:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:51:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:53:22 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 37992 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 16:53:22 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 16:53:22 [main] INFO  c.a.m.agent.service.GeminiService - Using API Key starting with: AIzaSyDE...
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.868 seconds (process running for 2.403)
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 16:53:23 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_DAY_PAC_MH, ClassName: PDayPacMh
+2025-12-23 16:53:23 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 16:54:15 [main] INFO  c.a.m.agent.service.GeminiService - Received response from Gemini (truncated): An expert Java migration agent has converted the Oracle PL/SQL procedure `P_DAY_PAC_MH` into a modern Spring Boot REST API.
+
+Here are the generated files, following the specified architecture and best practices.
+
+### Summary of Changes:
+1.  **Stateless API**: The procedure's logic, which relies on `SYSDATE-1`, has been converted into a flexible REST endpoint. It now accepts an optional `workDate` parameter. If omitted, it defaults to the previous day, preserving the original behavior.
+2.  **Tran...
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\controller\PDayPacMhController.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\service\PDayPacMhService.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhRequest.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhResponse.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhStatDto.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhDayOffDto.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\mapper\PDayPacMhMapper.java
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\resources\mapper\MES\PDayPacMhMapper.xml
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 16:54:15 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:01:59 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 29604 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 17:01:59 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 17:01:59 [main] INFO  c.a.m.agent.service.GeminiService - Using API Key starting with: AIzaSyDE...
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.71 seconds (process running for 2.197)
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 17:02:00 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_MMASTM_PRD_LOT_NO_CREATE, ClassName: PMmastmPrdLotNoCreate
+2025-12-23 17:02:00 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 17:03:33 [main] INFO  c.a.m.agent.service.GeminiService - Received response from Gemini (truncated): An expert Java migration agent has converted the Oracle PL/SQL procedure `P_MMASTM_PRD_LOT_NO_CREATE` into a modern Spring Boot REST API, following all specified requirements.
+
+### Summary of Migration Strategy
+
+The provided PL/SQL procedure, responsible for creating finished product LOT numbers, contains extensive business logic with distinct paths for "Production" and "Purchase" scenarios. The migration translates this logic into a layered Spring Boot application:
+
+1.  **Controller (`PMmastmPr...
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\controller\PMmastmPrdLotNoCreateController.java
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\service\PMmastmPrdLotNoCreateService.java
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PMmastmPrdLotNoCreateRequest.java
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PMmastmPrdLotNoCreateResponse.java
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\CheckBatchLotNo.java
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\mapper\PMmastmPrdLotNoCreateMapper.java
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\resources\mapper\MES\PMmastmPrdLotNoCreateMapper.xml
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 17:03:33 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:05:12 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 16464 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 17:05:12 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 17:05:13 [main] INFO  c.a.m.agent.service.GeminiService - Using API Key starting with: AIzaSyDE...
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.611 seconds (process running for 2.068)
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Cleaning existing target directory...
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_RSTDTM_MNU_EQUP_REG.SQL
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 17:05:13 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_RSTDTM_MNU_EQUP_REG, ClassName: PRstdtmMnuEqupReg
+2025-12-23 17:05:13 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 17:05:53 [main] INFO  c.a.m.agent.service.GeminiService - Received response from Gemini (truncated): An expert Java migration agent provides the following Spring Boot REST API conversion of the Oracle PL/SQL procedure `P_RSTDTM_MNU_EQUP_REG`.
+
+```json
+{
+  "files": [
+    {
+      "path": "src/main/java/com/amore/migration/MES/controller/PRstdtmMnuEqupRegController.java",
+      "content": "package com.amore.migration.MES.controller;\n\nimport com.amore.migration.MES.dto.PRstdtmMnuEqupRegRequest;\nimport com.amore.migration.MES.dto.PRstdtmMnuEqupRegResponse;\nimport com.amore.migration.MES.service....
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\controller\PRstdtmMnuEqupRegController.java
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\service\PRstdtmMnuEqupRegService.java
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PRstdtmMnuEqupRegRequest.java
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PRstdtmMnuEqupRegResponse.java
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\mapper\PRstdtmMnuEqupRegMapper.java
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\resources\mapper\MES\PRstdtmMnuEqupRegMapper.xml
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 17:05:53 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:11:36 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 13124 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 17:11:36 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 17:11:37 [main] INFO  c.a.m.agent.service.GeminiService - Using API Key starting with: AIzaSyDE...
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.746 seconds (process running for 2.238)
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent (Full Clean: false)
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Incremental mode: Preserving existing files.
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_DAY_PAC_MH.SQL
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 17:11:37 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_DAY_PAC_MH, ClassName: PDayPacMh
+2025-12-23 17:11:37 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 17:12:44 [main] INFO  c.a.m.agent.service.GeminiService - Received response from Gemini (truncated): An expert Java migration agent has converted the Oracle PL/SQL procedure into a Spring Boot REST API. Here are the generated files and their content.
+
+### Summary of Changes
+- **Procedure to REST API**: The `P_DAY_PAC_MH` procedure, which updates daily personnel statistics, is converted into a `POST` endpoint at `/api/mes/p-day-pac-mh`.
+- **Implicit Input to Explicit Parameter**: The procedure's internal logic of using `SYSDATE-1` is exposed as an explicit `wrkDate` request parameter, making the...
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\controller\PDayPacMhController.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\service\PDayPacMhService.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhRequest.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhResponse.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhCursor1Dto.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PDayPacMhCursor2Dto.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\mapper\PDayPacMhMapper.java
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\resources\mapper\MES\PDayPacMhMapper.xml
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 17:12:44 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:14:14 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Starting JavaMigrationAgentApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 29272 (C:\Amore_Workspace_Agent__for_java\java_migration_agent\target\java-migration-agent-0.0.1-SNAPSHOT.jar started by 82102 in C:\Amore_Workspace_Agent__for_java\java_migration_agent)
+2025-12-23 17:14:14 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-23 17:14:15 [main] INFO  c.a.m.agent.service.GeminiService - Using API Key starting with: AIzaSyDE...
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Started JavaMigrationAgentApplication in 1.864 seconds (process running for 2.35)
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🚀 Java Migration Agent Started
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - Mode: Single File Migration
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.processor.SourceProcessor - Preparing target directory: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent (Full Clean: false)
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Incremental mode: Preserving existing files.
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Created pom.xml skeleton.
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.processor.SourceProcessor - 
+Processing: c:\Amore_Workspace_Agent__for_java\legacy-source\procedures\MES\P_MMASTM_PRD_LOT_NO_CREATE.SQL
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Target Package: com.amore.migration.MES
+2025-12-23 17:14:16 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Procedure: P_MMASTM_PRD_LOT_NO_CREATE, ClassName: PMmastmPrdLotNoCreate
+2025-12-23 17:14:16 [main] INFO  c.a.m.agent.service.GeminiService - Sending prompt to Gemini...
+2025-12-23 17:15:04 [main] INFO  c.a.m.agent.service.GeminiService - Received response from Gemini (truncated): An expert Java migration agent would typically adopt a phased approach for migrating a complex PL/SQL procedure like this one. The safest and most common initial phase is to create a "wrapper" API. This approach encapsulates the existing, trusted PL/SQL logic within a modern Spring Boot REST API, ensuring business continuity while providing a modern interface for new applications. A direct reimplementation of this level of complexity into Java without extensive analysis, domain knowledge, and a ...
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PMmastmPrdLotNoCreateRequest.java
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\dto\PMmastmPrdLotNoCreateResponse.java
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\controller\PMmastmPrdLotNoCreateController.java
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\service\PMmastmPrdLotNoCreateService.java
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\java\com\amore\migration\MES\mapper\PMmastmPrdLotNoCreateMapper.java
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.processor.SourceProcessor -  -> Saved: c:\Amore_Workspace_Agent__for_java\target-java-project-javaAgent\src\main\resources\mapper\MES\PMmastmPrdLotNoCreateMapper.xml
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - 🎉 Migration Process Completed
+2025-12-23 17:15:04 [main] INFO  c.a.m.a.JavaMigrationAgentApplication - ================================================================

@@ -1,15 +1,26 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import './LoginModal.css';
 
 function LoginModal({ isOpen, onClose }) {
     if (!isOpen) return null;
 
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Mock login
+
+        // Mock login - 실제로는 API 호출
+        const userData = {
+            email: email,
+            username: email.split('@')[0],
+            // admin@test.com으로 로그인하면 관리자 권한 부여
+            role: email === 'admin@test.com' ? 'ADMIN' : 'USER'
+        };
+
+        login(userData);
         onClose();
     };
 

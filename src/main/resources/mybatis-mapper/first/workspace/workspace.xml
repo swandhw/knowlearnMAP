@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.knowlearnmap.workspace.mapper.WorkspaceMapper">
+    
+    <!-- 워크스페이스 목록 조회 (복잡한 조건이 필요한 경우 사용) -->
+    <select id="selectWorkspaceList" 
+            parameterType="com.knowlearnmap.workspace.domain.WorkspaceEntity" 
+            resultType="com.knowlearnmap.workspace.domain.WorkspaceEntity">
+        SELECT 
+            id,
+            name,
+            description,
+            icon,
+            color,
+            is_active AS isActive,
+            workspace_type AS workspaceType,
+            arango_db_name AS arangoDbName,
+            folder_name AS folderName,
+            prompt_code AS promptCode,
+            created_at AS createdAt,
+            created_by AS createdBy
+        FROM workspaces
+        WHERE is_active = true
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 워크스페이스별 문서 개수 조회 -->
+    <select id="selectDocumentCountByWorkspaceId" parameterType="Long" resultType="int">
+        SELECT COUNT(*)
+        FROM documents
+        WHERE workspace_id = #{workspaceId}
+    </select>
+
+</mapper>

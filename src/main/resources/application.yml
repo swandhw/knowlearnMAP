@@ -1,0 +1,121 @@
+spring:
+  application:
+    name: knowlearnmap-backend
+  profiles:
+    active: ${ACTIVE_PROFILE:local}
+  
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+    open-in-view: false
+  
+  ai:
+    aistudio:
+      api-key: ${AISTUDIO_API_KEY:}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+
+
+
+# Server Configuration
+server:
+  port: ${PORT:8080}
+  tomcat:
+    uri-encoding: UTF-8
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# Logging
+logging:
+  level:
+    com.knowlearnmap: DEBUG
+    org.springframework: INFO
+    org.hibernate: INFO
+
+# Management Endpoints (Actuator)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Pipeline Configuration
+pipeline:
+  parallel:
+    thread-pool-size: 10
+    max-pool-size: 20
+    max-queue-size: 100
+  retry:
+    max-attempts: 3
+    backoff-delay: 1000
+  monitoring:
+    enabled: true
+    metrics-interval: 5000
+
+# Document Upload Configuration
+app:
+  document:
+    upload-directory: D:/SpringAI/workspace/knowlearnMAP/uploads
+
+
+
+---
+# Local Profile
+spring:
+  config:
+    activate:
+      on-profile: local
+  
+  first:
+    datasource:
+      jdbc-url: jdbc:postgresql://172.30.1.57:15433/knowlearn_map
+      username: postgres
+      password: elvlfoq@1@
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        minimum-idle: 5
+        maximum-pool-size: 20
+        idle-timeout: 300000
+        connection-timeout: 20000
+        leak-detection-threshold: 60000
+        auto-commit: true
+
+---
+# Dev Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  first:
+    datasource:
+      jdbc-url: jdbc:postgresql://172.30.1.57:15433/knowlearn_map
+      username: postgres
+      password: elvlfoq@1@
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        minimum-idle: 10
+        maximum-pool-size: 30
+        idle-timeout: 600000
+        connection-timeout: 30000
+        leak-detection-threshold: 60000
+        auto-commit: true

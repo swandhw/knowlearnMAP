@@ -1,10 +1,77 @@
 import { useState, useEffect, useRef } from 'react';
 import './AddSourceModal.css';
 
-function AddSourceModal({ isOpen, onClose }) {
+function AddSourceModal({ isOpen, onClose, workspaceId }) {
     const [currentView, setCurrentView] = useState('main'); // main, website, youtube, text, drive
     const [inputValue, setInputValue] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
     const modalRef = useRef(null);
+
+    // Demo mode handler
+    const handleDemoClick = (e) => {
+        e.stopPropagation();
+        alert('데모에서는 지원하지 않습니다.');
+    };
+
+    // File upload handler
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
+
+        if (!file) return;
+
+        // PDF만 허용 (데모)
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('데모에서는 PDF 파일만 업로드 가능합니다.');
+            event.target.value = ''; // Reset input
+            return;
+        }
+
+        if (!workspaceId) {
+            alert('워크스페이스 정보를 찾을 수 없습니다.');
+            return;
+        }
+
+        setUploading(true);
+        setSelectedFile(file);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('workspaceId', workspaceId);
+
+            const response = await fetch(`${import.meta.env.VITE_APP_API_URL || 'http://localhost:8080'}/api/documents/upload`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '파일 업로드에 실패했습니다.');
+            }
+
+            const result = await response.json();
+            console.log('업로드 성공:', result);
+
+            alert('파일이 성공적으로 업로드되었습니다!');
+
+            // 모달 닫기 및 상태 초기화
+            event.target.value = ''; // Reset file input
+            setSelectedFile(null);
+            onClose();
+
+            // 페이지 새로고침하여 소스 목록 갱신
+            window.location.reload();
+
+        } catch (error) {
+            console.error('업로드 오류:', error);
+            alert(error.message || '파일 업로드 중 오류가 발생했습니다.');
+            event.target.value = ''; // Reset input on error
+        } finally {
+            setUploading(false);
+            setSelectedFile(null);
+        }
+    };
 
     // Reset view when opening
     useEffect(() => {
@@ -114,62 +181,72 @@ function AddSourceModal({ isOpen, onClose }) {
                     <p className="upload-subtitle">
                         업로드할 <button className="link-btn">파일 선택</button>하거나 드래그 앤 드롭하세요.
                     </p>
-                    <input type="file" id="file-upload" className="file-input" multiple />
-                    <label htmlFor="file-upload" className="file-label">파일 선택</label>
+                    <input
+                        type="file"
+                        id="file-upload"
+                        className="file-input"
+                        accept=".pdf"
+                        onChange={handleFileUpload}
+                        disabled={uploading}
+                    />
+                    <label htmlFor="file-upload" className="file-label">
+                        {uploading ? '업로드 중...' : '파일 선택'}
+                    </label>
                     <p className="upload-formats">
-                        지원되는 파일 형식: PDF, txt, Markdown, 오디오(mp3), .docx, .avif, .bmp, .gif, .ico, .jp2, .png, .webp, .tif, .tiff, .heic, .heif, .jpeg, .jpg, .jpe
+                        지원되는 파일 형식: PDF, <span className="unsupported-format">txt, Markdown, 오디오(mp3), .docx, .avif, .bmp, .gif, .ico, .jp2, .png, .webp, .tif, .tiff, .heic, .heif, .jpeg, .jpg, .jpe</span>
                     </p>
+                    <p className="demo-notice">※ 데모에서는 PDF만 지원됩니다.</p>
                 </div>
 
                 <div className="connection-options">
-                    <div className="option-section">
+                    <div className="option-section demo-disabled">
                         <div className="option-header">
                             <svg width="20" height="20" viewBox="0 0 20 20">
-                                <path fill="#4285F4" d="M19.6 10.23c0-.82-.1-1.42-.25-2.05H10v3.72h5.5c-.15.96-.74 2.31-2.04 3.22v2.45h3.16c1.89-1.73 2.98-4.3 2.98-7.34z" />
-                                <path fill="#34A853" d="M13.46 15.13c-.83.59-1.96 1-3.46 1-2.64 0-4.88-1.74-5.68-4.15H1.07v2.52C2.72 17.75 6.09 20 10 20c2.7 0 4.96-.89 6.62-2.42l-3.16-2.45z" />
-                                <path fill="#FBBC05" d="M3.99 10c0-.69.12-1.35.32-1.97V5.51H1.07A9.973 9.973 0 000 10c0 1.61.39 3.14 1.07 4.49l3.24-2.52c-.2-.62-.32-1.28-.32-1.97z" />
-                                <path fill="#EA4335" d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 6.09 0 2.72 2.25 1.07 5.51l3.24 2.52C5.12 5.62 7.36 3.88 10 3.88z" />
+                                <path fill="#9e9e9e" d="M19.6 10.23c0-.82-.1-1.42-.25-2.05H10v3.72h5.5c-.15.96-.74 2.31-2.04 3.22v2.45h3.16c1.89-1.73 2.98-4.3 2.98-7.34z" />
+                                <path fill="#9e9e9e" d="M13.46 15.13c-.83.59-1.96 1-3.46 1-2.64 0-4.88-1.74-5.68-4.15H1.07v2.52C2.72 17.75 6.09 20 10 20c2.7 0 4.96-.89 6.62-2.42l-3.16-2.45z" />
+                                <path fill="#9e9e9e" d="M3.99 10c0-.69.12-1.35.32-1.97V5.51H1.07A9.973 9.973 0 000 10c0 1.61.39 3.14 1.07 4.49l3.24-2.52c-.2-.62-.32-1.28-.32-1.97z" />
+                                <path fill="#9e9e9e" d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 6.09 0 2.72 2.25 1.07 5.51l3.24 2.52C5.12 5.62 7.36 3.88 10 3.88z" />
                             </svg>
                             <span>Google Workspace</span>
                         </div>
-                        <button className="option-btn" onClick={() => setCurrentView('drive')}>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#4285F4">
+                        <button className="option-btn demo-disabled-btn" onClick={handleDemoClick}>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#9e9e9e">
                                 <path d="M11.5 6L7 10.5l4.5 4.5L13 13.5l-3-3 3-3z" />
                             </svg>
                             Google Drive
                         </button>
                     </div>
 
-                    <div className="option-section">
+                    <div className="option-section demo-disabled">
                         <div className="option-header">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#5f6368">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#9e9e9e">
                                 <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm5-6h4c2.76 0 5 2.24 5 5s-2.24 5-5 5h-4v-1.9h4c1.71 0 3.1-1.39 3.1-3.1 0-1.71-1.39-3.1-3.1-3.1h-4V7z" />
                             </svg>
                             <span>링크</span>
                         </div>
-                        <button className="option-btn" onClick={() => setCurrentView('website')}>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#1a73e8">
+                        <button className="option-btn demo-disabled-btn" onClick={handleDemoClick}>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#9e9e9e">
                                 <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2z" />
                             </svg>
                             웹사이트
                         </button>
-                        <button className="option-btn" onClick={() => setCurrentView('youtube')}>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#FF0000">
+                        <button className="option-btn demo-disabled-btn" onClick={handleDemoClick}>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#9e9e9e">
                                 <path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm3.61 6.34c1.07 0 1.93.86 1.93 1.93 0 .27-.05.52-.15.75.58.31 1.15.68 1.69 1.11.05-.42.11-.84.11-1.27 0-2.98-2.42-5.4-5.4-5.4-.44 0-.86.06-1.27.11.42.54.8 1.11 1.11 1.69.23-.1.48-.15.75-.15.18 0 .36.03.53.08zm-3.61 9.3c-2.98 0-5.4-2.42-5.4-5.4 0-.18.03-.36.08-.53.05-.18.03-.36-.08-.53-.54-.42-1.11-.8-1.69-1.11-.42.54-.68 1.15-.91 1.77.27 3.51 3.2 6.25 6.71 6.52.62-.23 1.23-.49 1.77-.91-.17-.11-.35-.13-.53-.08-.17.05-.35.08-.53.08z" />
                             </svg>
                             YouTube
                         </button>
                     </div>
 
-                    <div className="option-section">
+                    <div className="option-section demo-disabled">
                         <div className="option-header">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#5f6368">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#9e9e9e">
                                 <path d="M14 2H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H7V9h6v2z" />
                             </svg>
                             <span>텍스트 붙여넣기</span>
                         </div>
-                        <button className="option-btn" onClick={() => setCurrentView('text')}>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#7c4dff">
+                        <button className="option-btn demo-disabled-btn" onClick={handleDemoClick}>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="#9e9e9e">
                                 <path d="M14 2H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H7V9h6v2z" />
                             </svg>
                             복사한 텍스트

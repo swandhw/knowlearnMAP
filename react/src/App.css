@@ -112,6 +112,15 @@
   border-bottom-color: var(--color-accent);
 }
 
+.tab.admin-tab {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.tab.admin-tab:hover {
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
 /* Toolbar */
 .toolbar {
   display: flex;
