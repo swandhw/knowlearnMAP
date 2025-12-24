@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Document 엔티티
@@ -33,6 +35,22 @@ public class DocumentEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)
     private WorkspaceEntity workspace;
+
+    /**
+     * Document에 속한 페이지들
+     * cascade = ALL: Document 삭제 시 모든 페이지도 함께 삭제
+     * orphanRemoval = true: 컬렉션에서 제거된 페이지는 자동 삭제
+     */
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DocumentPage> pages = new ArrayList<>();
+
+    /**
+     * Document에 속한 청크들
+     * cascade = ALL: Document 삭제 시 모든 청크도 함께 삭제
+     * orphanRemoval = true: 컬렉션에서 제거된 청크는 자동 삭제
+     */
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DocumentChunk> chunks = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

@@ -59,11 +59,9 @@ public class WorkspaceEntity {
     @Column(name = "workspace_type", length = 50)
     private String workspaceType;
 
-    /**
-     * ArangoDB 데이터베이스 이름 (향후 그래프 DB 연동용)
-     */
-    @Column(name = "arango_db_name", length = 100)
-    private String arangoDbName;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private com.knowlearnmap.domain.domain.DomainEntity domain;
 
     /**
      * 파일 저장 폴더명 (UUID 기반으로 자동 생성)

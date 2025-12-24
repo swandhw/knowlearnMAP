@@ -6,8 +6,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 
+import org.hibernate.type.SqlTypes;
+
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DocumentChunk 엔티티
@@ -49,6 +52,16 @@ public class DocumentChunk {
      */
     @Column(name = "page_number")
     private Integer pageNumber;
+
+    // ===== Vector Embedding =====
+
+    /**
+     * 벡터 임베딩 데이터 (JSON 형식으로 저장)
+     * pgvector 사용 시 vector 타입으로 캐스팅하여 사용 가능
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "embedding_vector", columnDefinition = "jsonb")
+    private List<Double> embedding;
 
     // ===== LLM 처리 관련 =====
 

@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public class WorkspaceServiceImpl implements WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
+    private final com.knowlearnmap.domain.repository.DomainRepository domainRepository; // Injected
     // TODO: DocumentRepository 추가 후 문서 개수 조회 기능 구현
 
     @Override
@@ -73,7 +74,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         workspace.setIcon(requestDto.getIcon() != null ? requestDto.getIcon() : "📄");
         workspace.setColor(requestDto.getColor() != null ? requestDto.getColor() : "default");
         workspace.setWorkspaceType(requestDto.getWorkspaceType());
-        workspace.setArangoDbName(requestDto.getArangoDbName());
+        if (requestDto.getDomainId() != null) {
+            com.knowlearnmap.domain.domain.DomainEntity domain = domainRepository.findById(requestDto.getDomainId())
+                    .orElseThrow(() -> new IllegalArgumentException("도메인을 찾을 수 없습니다: " + requestDto.getDomainId()));
+            workspace.setDomain(domain);
+        }
         workspace.setFolderName(requestDto.getFolderName());
         workspace.setPromptCode(requestDto.getPromptCode());
         // TODO: 사용자 인증 구현 후 createdBy 설정
@@ -102,7 +107,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         workspace.setIcon(requestDto.getIcon());
         workspace.setColor(requestDto.getColor());
         workspace.setWorkspaceType(requestDto.getWorkspaceType());
-        workspace.setArangoDbName(requestDto.getArangoDbName());
+        if (requestDto.getDomainId() != null) {
+            com.knowlearnmap.domain.domain.DomainEntity domain = domainRepository.findById(requestDto.getDomainId())
+                    .orElseThrow(() -> new IllegalArgumentException("도메인을 찾을 수 없습니다: " + requestDto.getDomainId()));
+            workspace.setDomain(domain);
+        }
         workspace.setPromptCode(requestDto.getPromptCode());
 
         // folderName 업데이트 (제공된 경우에만)

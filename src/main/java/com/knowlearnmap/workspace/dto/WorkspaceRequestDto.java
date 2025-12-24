@@ -29,7 +29,7 @@ public class WorkspaceRequestDto {
 
     private String workspaceType;
 
-    private String arangoDbName;
+    private Long domainId;
 
     private String folderName;
 

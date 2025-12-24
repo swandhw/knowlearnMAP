@@ -10,6 +10,7 @@ import KnowledgeMapView from './KnowledgeMapView';
 import DictionaryView from './DictionaryView';
 import DocumentSourceItem from './DocumentSourceItem';
 import DocumentViewer from './DocumentViewer';
+import RenameDialog from './RenameDialog';
 
 function NotebookDetail() {
     const { id } = useParams();
@@ -40,6 +41,12 @@ function NotebookDetail() {
     const [loadingDocuments, setLoadingDocuments] = useState(false);
     const [documentProgress, setDocumentProgress] = useState({});
     const pollingIntervalsRef = useRef({});
+
+    // 체크박스 및 제목 수정 관련 상태
+    const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+    const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+    const [documentToRename, setDocumentToRename] = useState(null);
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -366,6 +373,97 @@ function NotebookDetail() {
         alert('소스로 변환되었습니다.');
     };
 
+    // 체크박스 전체 선택/해제
+    const handleSelectAllDocuments = (e) => {
+        if (e.target.checked) {
+            const allIds = documents.map(doc => doc.id);
+            setSelectedDocumentIds(allIds);
+        } else {
+            setSelectedDocumentIds([]);
+        }
+    };
+
+    // 개별 체크박스 토글
+    const handleCheckDocument = (documentId) => {
+        setSelectedDocumentIds(prev => {
+            if (prev.includes(documentId)) {
+                return prev.filter(id => id !== documentId);
+            } else {
+                return [...prev, documentId];
+            }
+        });
+    };
+
+    // 제목 수정 다이얼로그 열기
+    const handleRenameDocument = (document) => {
+        setDocumentToRename(document);
+        setIsRenameDialogOpen(true);
+    };
+
+    // 제목 수정 확인
+    const handleConfirmRename = async (newFilename) => {
+        if (!documentToRename) return;
+
+        try {
+            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+            const response = await fetch(`${API_URL}/api/documents/${documentToRename.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ filename: newFilename }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update document');
+            }
+
+            // 문서 목록 갱신
+            setDocuments(prev => prev.map(doc =>
+                doc.id === documentToRename.id
+                    ? { ...doc, filename: newFilename }
+                    : doc
+            ));
+
+            setIsRenameDialogOpen(false);
+            setDocumentToRename(null);
+        } catch (error) {
+            console.error('제목 수정 실패:', error);
+            alert('제목 수정에 실패했습니다.');
+        }
+    };
+
+    // 문서 삭제
+    const handleDeleteDocument = async (document) => {
+        if (!confirm(`"${document.filename}"을(를) 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+            const response = await fetch(`${API_URL}/api/documents/${document.id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete document');
+            }
+
+            // 문서 목록에서 제거
+            setDocuments(prev => prev.filter(doc => doc.id !== document.id));
+            setSelectedDocumentIds(prev => prev.filter(id => id !== document.id));
+
+            // 선택된 문서였다면 뷰어 닫기
+            if (selectedDocument?.id === document.id) {
+                setSelectedDocument(null);
+            }
+        } catch (error) {
+            console.error('문서 삭제 실패:', error);
+            alert('문서 삭제에 실패했습니다.');
+        }
+    };
+
+
     return (
         <div className="notebook-detail">
             {selectedDocument ? (
@@ -459,6 +557,27 @@ function NotebookDetail() {
                                     </div>
                                 </div>
 
+                                {/* 모두 선택 체크박스 */}
+                                {documents.length > 0 && (
+                                    <div style={{
+                                        padding: '8px 16px',
+                                        borderBottom: '1px solid #e0e0e0',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                            onChange={handleSelectAllDocuments}
+                                            style={{ cursor: 'pointer' }}
+                                        />
+                                        <label style={{ cursor: 'pointer', fontSize: '14px', color: '#666' }}>
+                                            모두 선택
+                                        </label>
+                                    </div>
+                                )}
+
                                 <div className="sources-list">
                                     {loadingDocuments ? (
                                         <div className="loading-sources">
@@ -489,6 +608,10 @@ function NotebookDetail() {
                                                 document={document}
                                                 progress={documentProgress[document.id]}
                                                 onSelect={() => setSelectedDocument(document)}
+                                                isChecked={selectedDocumentIds.includes(document.id)}
+                                                onCheckChange={handleCheckDocument}
+                                                onRename={handleRenameDocument}
+                                                onDelete={handleDeleteDocument}
                                             />
                                         ))
                                     )}
@@ -885,6 +1008,15 @@ function NotebookDetail() {
                         isOpen={isSlideModalOpen}
                         onClose={() => setIsSlideModalOpen(false)}
                     />
+
+                    {/* Rename Dialog */}
+                    {isRenameDialogOpen && (
+                        <RenameDialog
+                            document={documentToRename}
+                            onClose={() => setIsRenameDialogOpen(false)}
+                            onConfirm={handleConfirmRename}
+                        />
+                    )}
                 </>
             )}
         </div>

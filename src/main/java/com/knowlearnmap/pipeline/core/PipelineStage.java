@@ -23,9 +23,10 @@ public enum PipelineStage {
     PARSE(2, "PDF Parsing", false, false),
     CHUNK(3, "LLM Chunking", false, false),
     VECTORIZE(4, "Vector Embedding to PostgreSQL", true, true), // Parallel, Terminal
-    ONTOLOGY(4, "Ontology Extraction", true, false), // Parallel, continues to ARANGO_SYNC
-    ARANGO_SYNC(5, "ArangoDB Sync", false, false),
-    EMBED(6, "ArangoDB Vectorization", false, true); // Terminal
+    LLM_PROCESSING(4, "LLM Processing (ChunkToLlm)", true, false), // Parallel with Vectorize
+    ONTOLOGY(5, "Ontology Extraction", false, false), // Depends on LLM_PROCESSING, continues to ARANGO_SYNC
+    ARANGO_SYNC(6, "ArangoDB Sync", false, false),
+    EMBED(7, "ArangoDB Vectorization", false, true); // Terminal
 
     private final int order;
     private final String displayName;

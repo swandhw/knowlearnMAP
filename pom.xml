@@ -129,6 +129,20 @@
             <artifactId>langchain4j-google-ai-gemini</artifactId>
             <version>0.36.2</version>
         </dependency>
+
+        <!-- LangChain4j Open AI -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>0.36.2</version>
+        </dependency>
+
+        <!-- ArangoDB Driver -->
+        <dependency>
+            <groupId>com.arangodb</groupId>
+            <artifactId>arangodb-java-driver</artifactId>
+            <version>7.5.1</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -1,7 +1,9 @@
 package com.knowlearnmap.document.controller;
 
 import com.knowlearnmap.common.dto.ApiResponse;
+import com.knowlearnmap.document.dto.DocumentPageDto;
 import com.knowlearnmap.document.dto.DocumentResponseDto;
+import com.knowlearnmap.document.dto.DocumentUpdateRequest;
 import com.knowlearnmap.document.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -99,6 +101,26 @@ public class DocumentController {
             return ResponseEntity.ok(ApiResponse.success(null));
         } catch (IllegalArgumentException e) {
             log.error("Document 삭제 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * Document 정보 수정 (제목)
+     */
+    @PutMapping("/{documentId}")
+    public ResponseEntity<ApiResponse<DocumentResponseDto>> updateDocument(
+            @PathVariable Long documentId,
+            @RequestBody DocumentUpdateRequest request) {
+
+        log.debug("PUT /api/documents/{} - filename={}", documentId, request.getFilename());
+
+        try {
+            DocumentResponseDto response = documentService.updateDocument(documentId, request);
+            return ResponseEntity.ok(ApiResponse.success(response));
+        } catch (IllegalArgumentException e) {
+            log.error("Document 수정 실패: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage()));
         }

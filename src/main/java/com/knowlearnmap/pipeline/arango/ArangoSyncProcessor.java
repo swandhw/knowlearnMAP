@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ArangoSyncProcessor implements StageProcessor {
 
-    // TODO: Inject OntologyToArangoService from reference code
+    private final com.knowlearnmap.ontologyToArango.service.OntologyToArangoService ontologyToArangoService;
 
     @Override
     public void process(PipelineContext context) throws PipelineException {
@@ -28,7 +28,9 @@ public class ArangoSyncProcessor implements StageProcessor {
                 context.getWorkspaceId(), context.getDocumentId());
 
         try {
-            // TODO: Implement actual ArangoDB sync using reference OntologyToArangoService
+            // Ontology 추출이 완료된 후 실행됨
+            // 전체 워크스페이스 동기화 (Drop existing = false)
+            ontologyToArangoService.syncOntologyToArango(context.getWorkspaceId(), false);
 
             context.addMetadata("arango_synced", true);
             context.setProgress(80);

@@ -1,7 +1,9 @@
 package com.knowlearnmap.document.service;
 
 import com.knowlearnmap.document.domain.DocumentEntity;
+import com.knowlearnmap.document.dto.DocumentPageDto;
 import com.knowlearnmap.document.dto.DocumentResponseDto;
+import com.knowlearnmap.document.dto.DocumentUpdateRequest;
 import com.knowlearnmap.document.repository.DocumentChunkRepository;
 import com.knowlearnmap.document.repository.DocumentPageRepository;
 import com.knowlearnmap.document.repository.DocumentRepository;
@@ -142,23 +144,42 @@ public class DocumentService {
     }
 
     /**
-     * Document 삭제 (Soft Delete)
+     * Document 삭제 (Hard Delete - cascade로 pages, chunks도 삭제됨)
      */
     @Transactional
     public void deleteDocument(Long documentId) {
         DocumentEntity document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다: " + documentId));
 
-        document.setIsActive(false);
-        documentRepository.save(document);
-        log.info("Document 삭제 완료 (soft delete): id={}", documentId);
+        // Hard delete - JPA cascade 설정에 따라 document_page, document_chunk도 삭제됨
+        documentRepository.delete(document);
+        log.info("Document 삭제 완료 (hard delete): id={}", documentId);
+    }
+
+    /**
+     * Document 정보 수정 (제목)
+     */
+    @Transactional
+    public DocumentResponseDto updateDocument(Long documentId,
+            com.knowlearnmap.document.dto.DocumentUpdateRequest request) {
+        DocumentEntity document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다: " + documentId));
+
+        if (request.getFilename() != null && !request.getFilename().isEmpty()) {
+            document.setFilename(request.getFilename());
+        }
+
+        DocumentEntity updated = documentRepository.save(document);
+        log.info("Document 수정 완료: id={}, newFilename={}", documentId, request.getFilename());
+
+        return DocumentResponseDto.from(updated);
     }
 
     /**
      * Document의 모든 페이지 조회
      */
     @Transactional(readOnly = true)
-    public List<com.knowlearnmap.document.dto.DocumentPageDto> getDocumentPages(Long documentId) {
+    public List<DocumentPageDto> getDocumentPages(Long documentId) {
         // Document 존재 확인
         if (!documentRepository.existsById(documentId)) {
             throw new IllegalArgumentException("문서를 찾을 수 없습니다: " + documentId);
@@ -166,12 +187,20 @@ public class DocumentService {
 
         // 페이지 조회 및 DTO 변환
         return documentPageRepository.findByDocumentIdOrderByPageNumber(documentId).stream()
-                .map(page -> com.knowlearnmap.document.dto.DocumentPageDto.builder()
-                        .id(page.getId())
-                        .pageNumber(page.getPageNumber())
-                        .content(page.getContent())
-                        .wordCount(page.getWordCount())
-                        .build())
+                .map(page -> {
+                    // content 기반으로 간단한 단어 수 계산
+                    int wordCount = 0;
+                    if (page.getContent() != null && !page.getContent().isEmpty()) {
+                        wordCount = page.getContent().split("\\s+").length;
+                    }
+
+                    return DocumentPageDto.builder()
+                            .id(page.getId())
+                            .pageNumber(page.getPageNumber())
+                            .content(page.getContent())
+                            .wordCount(wordCount)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 }

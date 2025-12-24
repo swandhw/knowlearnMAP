@@ -22,11 +22,14 @@ spring:
   
   ai:
     aistudio:
-      api-key: ${AISTUDIO_API_KEY:}
+      api-key: ${GOOGLE_API_KEY}
     openai:
-      api-key: ${OPENAI_API_KEY:}
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-3.5-turbo
     anthropic:
-      api-key: ${ANTHROPIC_API_KEY:}
+      api-key: ${ANTHROPIC_API_KEY}
 
 
 
@@ -75,6 +78,16 @@ pipeline:
 app:
   document:
     upload-directory: D:/SpringAI/workspace/knowlearnMAP/uploads
+  ai:
+    embedding:
+      provider: openai
+
+arangodb:
+  host: 172.30.1.57
+  port: 8529
+  user: root # 변경 필요
+  password: password # 변경 필요
+  max-connections: 10
 
 
 

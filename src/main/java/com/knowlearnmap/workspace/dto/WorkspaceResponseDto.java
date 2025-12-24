@@ -32,6 +32,7 @@ public class WorkspaceResponseDto {
     private Boolean isActive;
     private String workspaceType;
     private String arangoDbName;
+    private Long domainId;
     private String folderName;
     private String promptCode;
     private Integer documentCount; // 문서 개수
@@ -52,7 +53,10 @@ public class WorkspaceResponseDto {
         dto.setRole("Owner"); // 기본값 (향후 권한 관리 시 변경)
         dto.setIsActive(entity.getIsActive());
         dto.setWorkspaceType(entity.getWorkspaceType());
-        dto.setArangoDbName(entity.getArangoDbName());
+        if (entity.getDomain() != null) {
+            dto.setArangoDbName(entity.getDomain().getArangoDbName());
+            dto.setDomainId(entity.getDomain().getId());
+        }
         dto.setFolderName(entity.getFolderName());
         dto.setPromptCode(entity.getPromptCode());
         dto.setCreatedAt(entity.getCreatedAt());
