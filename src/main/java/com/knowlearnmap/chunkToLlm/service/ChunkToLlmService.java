@@ -50,12 +50,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ChunkToLlmService {
 
     private final DocumentChunkRepository chunkRepository;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
     private final PromptTestService promptTestService;
-
-    // Self-injection for Transactional method calls within async threads
-    @Lazy
-    @Autowired
-    private ChunkToLlmService self;
 
     private static final int MAX_RETRY = 3;
     private static final int THREAD_POOL_SIZE = 5;
@@ -67,38 +63,45 @@ public class ChunkToLlmService {
      * @param chunkId  처리할 청크 ID
      * @param llmModel LLM 모델 (ANTHROPIC, OPENAI, AISTUDIO)
      */
-    @Transactional
     public void processChunkWithLlm(Long chunkId, String llmModel) {
-        DocumentChunk chunk = chunkRepository.findById(chunkId)
-                .orElseThrow(() -> new RuntimeException("Chunk를 찾을 수 없습니다: " + chunkId));
-
         log.info("=== Chunk LLM 처리 시작 ===");
         log.info("Chunk ID: {}, Model: {}", chunkId, llmModel);
 
         int attempt = 0;
         boolean success = false;
         String lastErrorMessage = null;
+        String contentToProcess = null;
 
         while (attempt < MAX_RETRY && !success) {
             attempt++;
             try {
-                // 상태 업데이트 (별도 트랜잭션이 필요할 수도 있으나, 여기서는 같은 트랜잭션 내 처리)
-                // 주의: 긴 처리 시간 동안 DB Connection을 점유할 수 있음.
-                // 프로덕션 레벨에서는 상태 업데이트와 LLM 호출을 분리하는 것이 좋음.
-                chunk.setLlmStatus("PROCESSING");
-                chunkRepository.saveAndFlush(chunk); // 즉시 반영
+                // 1. 상태 업데이트 (Short Transaction)
+                // LLM 호출 전 내용을 조회하고 상태를 PROCESSING으로 변경
+                contentToProcess = transactionTemplate.execute(status -> {
+                    DocumentChunk chunk = chunkRepository.findById(chunkId)
+                            .orElseThrow(() -> new RuntimeException("Chunk를 찾을 수 없습니다: " + chunkId));
+                    chunk.setLlmStatus("PROCESSING");
+                    chunkRepository.saveAndFlush(chunk);
+                    return chunk.getContent();
+                });
 
                 log.info("LLM 호출 시도 {}/{} - Chunk ID: {}", attempt, MAX_RETRY, chunkId);
 
-                // LLM 호출 (시간 소요)
-                String llmResult = callLlm(chunk.getContent());
+                // 2. LLM 호출 (Long duration - No Transaction)
+                // DB 커넥션을 점유하지 않음
+                String llmResult = callLlm(contentToProcess);
 
-                // 결과 저장
-                chunk.setLlmResult(llmResult);
-                chunk.setLlmStatus("COMPLETED");
-                chunk.setLlmProcessedAt(LocalDateTime.now());
-                chunk.setLlmErrorMessage(null);
-                chunkRepository.save(chunk);
+                // 3. 결과 저장 (Short Transaction)
+                transactionTemplate.execute(status -> {
+                    DocumentChunk chunk = chunkRepository.findById(chunkId)
+                            .orElseThrow(() -> new RuntimeException("Chunk를 찾을 수 없습니다: " + chunkId));
+                    chunk.setLlmResult(llmResult);
+                    chunk.setLlmStatus("COMPLETED");
+                    chunk.setLlmProcessedAt(LocalDateTime.now());
+                    chunk.setLlmErrorMessage(null);
+                    chunkRepository.save(chunk);
+                    return null;
+                });
 
                 success = true;
                 log.info("Chunk LLM 처리 완료 - Chunk ID: {}, 시도: {}/{}", chunkId, attempt, MAX_RETRY);
@@ -123,9 +126,16 @@ public class ChunkToLlmService {
 
         // 최종 실패 처리
         if (!success) {
-            chunk.setLlmStatus("FAILED");
-            chunk.setLlmErrorMessage(lastErrorMessage);
-            chunkRepository.save(chunk);
+            String finalError = lastErrorMessage;
+            transactionTemplate.execute(status -> {
+                DocumentChunk chunk = chunkRepository.findById(chunkId).orElse(null);
+                if (chunk != null) {
+                    chunk.setLlmStatus("FAILED");
+                    chunk.setLlmErrorMessage(finalError);
+                    chunkRepository.save(chunk);
+                }
+                return null;
+            });
 
             log.error("Chunk LLM 처리 최종 실패 - Chunk ID: {}, Error: {}", chunkId, lastErrorMessage);
             throw new RuntimeException("Chunk LLM 처리 실패: " + lastErrorMessage);
@@ -197,8 +207,8 @@ public class ChunkToLlmService {
         for (DocumentChunk chunk : chunks) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
-                    // Self-injection을 이용해 트랜잭션 적용
-                    self.processChunkWithLlm(chunk.getId(), "ANTHROPIC");
+                    // TransactionTemplate을 사용하므로 self 호출 불필요
+                    processChunkWithLlm(chunk.getId(), "ANTHROPIC");
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     log.error("청크 {} 비동기 처리 중 오류: {}", chunk.getId(), e.getMessage());

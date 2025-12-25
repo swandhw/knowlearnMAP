@@ -10,7 +10,9 @@ import KnowledgeMapView from './KnowledgeMapView';
 import DictionaryView from './DictionaryView';
 import DocumentSourceItem from './DocumentSourceItem';
 import DocumentViewer from './DocumentViewer';
+
 import RenameDialog from './RenameDialog';
+import KnowledgeGraphModal from './KnowledgeGraphModal';
 
 function NotebookDetail() {
     const { id } = useParams();
@@ -25,6 +27,8 @@ function NotebookDetail() {
     const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(initialOpenAddSource);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isSlideModalOpen, setIsSlideModalOpen] = useState(false);
+
+    const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
     const [currentTab, setCurrentTab] = useState('chat'); // chat, knowledge, dictionary
     const [memos, setMemos] = useState([]);
     const [activeMemoMenuId, setActiveMemoMenuId] = useState(null);
@@ -539,6 +543,25 @@ function NotebookDetail() {
                                         <span>모두 선택</span>
                                     </label>
 
+                                    <button
+                                        className="icon-btn"
+                                        onClick={() => setIsGraphModalOpen(true)}
+                                        title="지식맵 보기 (선택된 문서 기준)"
+                                        style={{ marginLeft: '10px', color: '#ff4d4f' }}
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <path d="M12 9V5"></path>
+                                            <path d="M12 15v4"></path>
+                                            <path d="M9 12H5"></path>
+                                            <path d="M15 12h4"></path>
+                                            <circle cx="12" cy="3" r="2"></circle>
+                                            <circle cx="12" cy="21" r="2"></circle>
+                                            <circle cx="3" cy="12" r="2"></circle>
+                                            <circle cx="21" cy="12" r="2"></circle>
+                                        </svg>
+                                    </button>
+
                                     <div className="sidebar-view-buttons">
                                         <button
                                             className={`icon-view-btn ${currentTab === 'knowledge' ? 'active' : ''}`}
@@ -695,13 +718,13 @@ function NotebookDetail() {
                             {/* Content based on Tab */}
                             {!isEmpty && currentTab === 'knowledge' && (
                                 <div className="tab-content full-height">
-                                    <KnowledgeMapView sources={sources} title={notebook.title} />
+                                    <KnowledgeMapView sources={documents} title={notebook.title} />
                                 </div>
                             )}
 
                             {!isEmpty && currentTab === 'dictionary' && (
                                 <div className="tab-content full-height">
-                                    <DictionaryView />
+                                    <DictionaryView workspaceId={id} />
                                 </div>
                             )}
 
@@ -1018,6 +1041,14 @@ function NotebookDetail() {
                         />
                     )}
                 </>
+            )}
+            {isGraphModalOpen && (
+                <KnowledgeGraphModal
+                    isOpen={isGraphModalOpen}
+                    onClose={() => setIsGraphModalOpen(false)}
+                    workspaceId={id}
+                    selectedDocumentIds={selectedDocumentIds}
+                />
             )}
         </div>
     );

@@ -1,63 +1,112 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './DictionaryView.css';
 
-function DictionaryView() {
+function DictionaryView({ workspaceId }) {
     const [viewMode, setViewMode] = useState('concept'); // 'concept' or 'relation'
-    const [selectedCategory, setSelectedCategory] = useState({ id: 'Abbreviation', name: 'Abbreviation', label: '약어' });
+    const [selectedCategory, setSelectedCategory] = useState({ id: 'All', name: 'All', label: '전체' });
     const [searchTerm, setSearchTerm] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const [categories, setCategories] = useState([{ id: 'All', name: 'All', label: '전체' }]);
 
     // Modal & Edit State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTerm, setEditingTerm] = useState(null);
 
-    // Initial Data
-    const initialTerms = [
-        { id: 1, label: '땀', labelEn: 'Sweat', synonym: '', desc: '피부의 땀샘에서 분비되는 체액', status: 'active' },
-        { id: 2, label: '샘 분비물', labelEn: 'Gland Secretion', synonym: '샘분비물', desc: '샘(gland)에서 분비되는 물질', status: 'active' },
-        { id: 3, label: '아포크린 분비물', labelEn: 'Apocrine Secretion', synonym: '아포크린분비물', desc: '아포크린 샘에서 분비되는 물질, 주로 겨드랑이에서 발견됨', status: 'active' },
-        { id: 4, label: '피지 분비물', labelEn: 'Sebum Secretion', synonym: '피지분비물', desc: '피지샘에서 분비되는 기름진 물질', status: 'active' },
-    ];
+    const [terms, setTerms] = useState([]);
+    const [relations, setRelations] = useState([]);
 
-    const initialRelations = [
-        { id: 1, label: '포함한다', labelEn: 'Includes', synonym: '', desc: '', status: 'active' },
-        { id: 2, label: '위험 가진다', labelEn: 'Has Risk', synonym: '위험가진다', desc: '', status: 'active' },
-        { id: 3, label: '향상시킨다', labelEn: 'Improves', synonym: '', desc: '', status: 'active' },
-        { id: 4, label: '준수한다', labelEn: 'Complies With', synonym: '', desc: '', status: 'active' },
-        { id: 5, label: '의 파생물임', labelEn: 'Is Derivative Of', synonym: '의파생물임', desc: '주제 객체가 대상 객체의 파생물이거나 관련 그룹에 속함을 나타냄', status: 'active' },
-        { id: 6, label: '준수하지 않는다', labelEn: 'Does Not Comply With', synonym: '준수하지않는다', desc: '', status: 'active' },
-        { id: 7, label: '아래에 발행된다', labelEn: 'Issued Under', synonym: '아래에발행된다', desc: '', status: 'active' },
-        { id: 8, label: '위반한다', labelEn: 'Violates', synonym: '', desc: '', status: 'active' },
-        { id: 9, label: '요구한다', labelEn: 'Requires', synonym: '', desc: '', status: 'active' },
-        { id: 10, label: '간주된다', labelEn: 'Is Considered', synonym: '', desc: '', status: 'active' },
-    ];
 
-    const [terms, setTerms] = useState(initialTerms);
-    const [relations, setRelations] = useState(initialRelations);
 
-    const categories = [
-        { id: 'Abbreviation', name: 'Abbreviation', label: '약어' },
-        { id: 'Benefit', name: 'Benefit', label: '이익' },
-        { id: 'BiologicalProcess', name: 'BiologicalProcess', label: '생물학적 과정' },
-        { id: 'BiologicalSample', name: 'BiologicalSample', label: '생물학적 샘플' },
-        { id: 'BiologicalSecretion', name: 'BiologicalSecretion', label: '생물학적 분비물' },
-        { id: 'BiologicalStructure', name: 'BiologicalStructure', label: '생물학적 구조' },
-        { id: 'BiologicalSystem', name: 'BiologicalSystem', label: '생물학적 시스템' },
-        { id: 'Brand', name: 'Brand', label: '브랜드' },
-        { id: 'CombiningRule', name: 'CombiningRule', label: '결합 규칙' },
-        { id: 'Formulation', name: 'Formulation', label: '제형' },
-        { id: 'General', name: 'General', label: '일반' }
-    ];
+    const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
 
-    const currentData = viewMode === 'concept' ? terms : relations;
+    useEffect(() => {
+        if (workspaceId) {
+            fetchData();
+            fetchCategories();
+        }
+    }, [workspaceId, viewMode]);
+
+    const fetchCategories = async () => {
+        try {
+            const endpoint = viewMode === 'concept' ? 'concepts/categories' : 'relations/categories';
+            const response = await fetch(`${API_URL}/api/dictionary/${endpoint}?workspaceId=${workspaceId}`);
+            if (!response.ok) throw new Error('Failed to fetch categories');
+            const data = await response.json();
+
+            const dynamicCategories = data.map(cat => ({
+                id: cat,
+                name: cat,
+                label: cat
+            }));
+
+            setCategories([{ id: 'All', name: 'All', label: '전체' }, ...dynamicCategories]);
+        } catch (error) {
+            console.error("Category fetch error:", error);
+        }
+    };
+
+
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const endpoint = viewMode === 'concept' ? 'concepts' : 'relations';
+            const response = await fetch(`${API_URL}/api/dictionary/${endpoint}?workspaceId=${workspaceId}`);
+            if (!response.ok) throw new Error('Failed to fetch dictionary data');
+            const data = await response.json();
+
+            if (viewMode === 'concept') {
+                setTerms(data);
+            } else {
+                setRelations(data);
+            }
+        } catch (error) {
+            console.error("Dictionary fetch error:", error);
+            alert("데이터를 불러오는데 실패했습니다.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const currentData = (viewMode === 'concept' ? terms : relations).filter(item => {
+        // Category Filter
+        if (selectedCategory.id !== 'All' && item.category !== selectedCategory.id) return false;
+
+        // Search Filter
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            return (
+                (item.label && item.label.toLowerCase().includes(lowerTerm)) ||
+                (item.labelEn && item.labelEn.toLowerCase().includes(lowerTerm)) ||
+                (item.synonym && item.synonym.toLowerCase().includes(lowerTerm)) ||
+                (item.description && item.description.toLowerCase().includes(lowerTerm))
+            );
+        }
+        return true;
+    });
+
     const listTitle = viewMode === 'concept' ? '사전 항목 목록' : '관계 항목 목록';
 
     // Handlers
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('정말 삭제하시겠습니까?')) {
-            if (viewMode === 'concept') {
-                setTerms(prev => prev.filter(t => t.id !== id));
-            } else {
-                setRelations(prev => prev.filter(r => r.id !== id));
+            try {
+                const endpoint = viewMode === 'concept' ? 'concepts' : 'relations';
+                const response = await fetch(`${API_URL}/api/dictionary/${endpoint}/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to delete item');
+
+                if (viewMode === 'concept') {
+                    setTerms(prev => prev.filter(t => t.id !== id));
+                } else {
+                    setRelations(prev => prev.filter(r => r.id !== id));
+                }
+            } catch (error) {
+                console.error("Delete error:", error);
+                alert("삭제에 실패했습니다.");
             }
         }
     };
@@ -71,14 +120,33 @@ function DictionaryView() {
         setEditingTerm(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleSaveEdit = () => {
-        if (viewMode === 'concept') {
-            setTerms(prev => prev.map(t => t.id === editingTerm.id ? editingTerm : t));
-        } else {
-            setRelations(prev => prev.map(r => r.id === editingTerm.id ? editingTerm : r));
+    const handleSaveEdit = async () => {
+        try {
+            const endpoint = viewMode === 'concept' ? 'concepts' : 'relations';
+            const response = await fetch(`${API_URL}/api/dictionary/${endpoint}/${editingTerm.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(editingTerm)
+            });
+
+            if (!response.ok) throw new Error('Failed to update item');
+
+            const updatedItem = await response.json();
+
+            if (viewMode === 'concept') {
+                setTerms(prev => prev.map(t => t.id === updatedItem.id ? updatedItem : t));
+            } else {
+                setRelations(prev => prev.map(r => r.id === updatedItem.id ? updatedItem : r));
+            }
+            setIsEditModalOpen(false);
+            setEditingTerm(null);
+            alert("저장되었습니다.");
+        } catch (error) {
+            console.error("Update error:", error);
+            alert("수정에 실패했습니다.");
         }
-        setIsEditModalOpen(false);
-        setEditingTerm(null);
     };
 
     return (
@@ -137,57 +205,61 @@ function DictionaryView() {
                     </div>
 
                     <div className="term-table-container">
-                        <table className="term-table">
-                            <thead>
-                                <tr>
-                                    <th>라벨(EN)</th>
-                                    <th>라벨(KR)</th>
-                                    <th>유의어</th>
-                                    <th>설명</th>
-                                    <th>상태</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {currentData.map(term => (
-                                    <tr key={term.id}>
-                                        <td>{term.labelEn}</td>
-                                        <td>{term.label}</td>
-                                        <td>{term.synonym}</td>
-                                        <td className="desc-cell">{term.desc}</td>
-                                        <td className="status-cell">
-                                            <div className="action-buttons">
-                                                <button
-                                                    className="icon-btn edit"
-                                                    title="수정"
-                                                    onClick={() => handleEditClick(term)}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    className="icon-btn delete"
-                                                    title="삭제"
-                                                    onClick={() => handleDelete(term.id)}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <span className={`status-tag ${term.status}`}>{term.status}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {currentData.length === 0 && (
+                        {loading ? (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>
+                        ) : (
+                            <table className="term-table">
+                                <thead>
                                     <tr>
-                                        <td colSpan="5" className="empty-table">데이터가 없습니다.</td>
+                                        <th>라벨(EN)</th>
+                                        <th>라벨(KR)</th>
+                                        <th>유의어</th>
+                                        <th>설명</th>
+                                        <th>상태</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {currentData.map(term => (
+                                        <tr key={term.id}>
+                                            <td>{term.labelEn}</td>
+                                            <td>{term.label}</td>
+                                            <td>{term.synonym}</td>
+                                            <td className="desc-cell">{term.description || term.desc}</td>
+                                            <td className="status-cell">
+                                                <div className="action-buttons">
+                                                    <button
+                                                        className="icon-btn edit"
+                                                        title="수정"
+                                                        onClick={() => handleEditClick(term)}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        className="icon-btn delete"
+                                                        title="삭제"
+                                                        onClick={() => handleDelete(term.id)}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <span className={`status-tag ${term.status}`}>{term.status}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {currentData.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="empty-table">데이터가 없습니다.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             </div>
@@ -214,19 +286,21 @@ function DictionaryView() {
                                     onChange={(e) => handleModalChange('labelEn', e.target.value)}
                                 />
                             </div>
+                            {/* Synonym edit disabled for MVP complexity reduced, or just show readonly */}
                             <div className="form-group">
-                                <label>유의어</label>
+                                <label>유의어 (수정 불가)</label>
                                 <input
                                     type="text"
-                                    value={editingTerm.synonym}
-                                    onChange={(e) => handleModalChange('synonym', e.target.value)}
+                                    value={editingTerm.synonym || ''}
+                                    readOnly
+                                    style={{ backgroundColor: '#f5f5f5' }}
                                 />
                             </div>
                             <div className="form-group">
                                 <label>설명</label>
                                 <textarea
-                                    value={editingTerm.desc}
-                                    onChange={(e) => handleModalChange('desc', e.target.value)}
+                                    value={editingTerm.description || editingTerm.desc || ''}
+                                    onChange={(e) => handleModalChange('description', e.target.value)}
                                     rows="3"
                                 />
                             </div>

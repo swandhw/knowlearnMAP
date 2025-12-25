@@ -70,7 +70,7 @@ public class OntologyPersistenceService {
                 return existing.get();
             }
 
-            if (!(dict.getTermEn().equals(termEn))) {
+            if (!termEn.equals(dict.getTermEn())) {
                 existing = objectDictRepository
                         .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, termEn);
                 if (existing.isPresent()) {
@@ -99,7 +99,7 @@ public class OntologyPersistenceService {
                 return existing.get();
             }
 
-            if (!(dict.getTermKo().equals(termKo))) {
+            if (!termKo.equals(dict.getTermKo())) {
                 existing = objectDictRepository
                         .findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, termKo);
                 if (existing.isPresent()) {
@@ -136,7 +136,7 @@ public class OntologyPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveObjectSynonymIfNecessary(Long workspaceId, String category, Long objectId, String originalTerm,
             String normalizedTerm, String language) {
-        if (!(originalTerm.equals(normalizedTerm))) {
+        if (originalTerm != null && !normalizedTerm.equals(originalTerm)) {
             try {
                 if (objectSynonymsRepository
                         .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, normalizedTerm).isEmpty()) {
@@ -179,7 +179,7 @@ public class OntologyPersistenceService {
                 return existing.get();
             }
 
-            if (!(dict.getRelationEn().equals(relationEn))) {
+            if (!relationEn.equals(dict.getRelationEn())) {
                 existing = relationDictRepository
                         .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category, relationEn);
                 if (existing.isPresent()) {
@@ -208,7 +208,7 @@ public class OntologyPersistenceService {
                 return existing.get();
             }
 
-            if (!(dict.getRelationKo().equals(relationKo))) {
+            if (!relationKo.equals(dict.getRelationKo())) {
                 existing = relationDictRepository
                         .findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category, relationKo);
                 if (existing.isPresent()) {
@@ -247,7 +247,7 @@ public class OntologyPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveRelationSynonymIfNecessary(Long workspaceId, String category, Long relationId, String originalTerm,
             String normalizedTerm, String language) {
-        if (!(originalTerm.equals(normalizedTerm))) {
+        if (originalTerm != null && !normalizedTerm.equals(originalTerm)) {
             try {
                 if (relationSynonymsRepository
                         .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, normalizedTerm).isEmpty()) {
@@ -354,4 +354,3 @@ public class OntologyPersistenceService {
     // }
     // }
 }
-

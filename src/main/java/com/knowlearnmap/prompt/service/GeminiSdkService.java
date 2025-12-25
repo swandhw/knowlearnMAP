@@ -29,16 +29,16 @@ public class GeminiSdkService {
      * @param topK        Top K (양수)
      * @return LLM 응답 텍스트
      */
-    public String callGemini25Pro(String prompt, double temperature, double topP,
+    public String callGemini25Pro(String modelName, String prompt, double temperature, double topP,
             int maxTokens, int topK) {
         try {
-            log.info("Gemini 2.5 Pro 호출 시작 - temperature: {}, topP: {}, maxTokens: {}, topK: {}",
-                    temperature, topP, maxTokens, topK);
+            log.info("Gemini SDK 호출 시작 - model: {}, temperature: {}, topP: {}, maxTokens: {}, topK: {}",
+                    modelName, temperature, topP, maxTokens, topK);
 
             // 파라미터를 반영한 모델 생성
             GoogleAiGeminiChatModel model = GoogleAiGeminiChatModel.builder()
                     .apiKey(apiKey)
-                    .modelName("gemini-2.5-pro") // 또는 "gemini-2.5-pro" (사용 가능한 모델명 확인 필요)
+                    .modelName(modelName)
                     .temperature(temperature)
                     .topP(topP)
                     .topK(topK)

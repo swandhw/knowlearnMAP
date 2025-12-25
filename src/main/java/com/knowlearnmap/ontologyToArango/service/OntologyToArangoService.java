@@ -28,6 +28,8 @@ public class OntologyToArangoService {
     private final OntologyKnowlearnTypeRepository knowlearnTypeRepository;
     private final OntologyObjectSynonymsRepository objectSynonymsRepository;
     private final OntologyRelationSynonymsRepository relationSynonymsRepository;
+    private final com.knowlearnmap.document.repository.DocumentChunkRepository documentChunkRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final ArangoDB arangoDB;
 
     @Transactional(readOnly = true)
@@ -229,8 +231,15 @@ public class OntologyToArangoService {
         // Lookup Maps
         Map<Long, OntologyObjectDict> objectMap = objectDicts.stream()
                 .collect(Collectors.toMap(OntologyObjectDict::getId, Function.identity()));
-        Map<Long, OntologyRelationDict> relationMap = relationDicts.stream()
+        Map<Long, OntologyRelationDict> relationMap = relationDictRepository.findByWorkspaceId(workspaceId).stream()
                 .collect(Collectors.toMap(OntologyRelationDict::getId, Function.identity()));
+
+        // Chunk ID -> Document ID Map (Bulk Fetch)
+        Map<Long, Long> chunkToDocMap = new HashMap<>();
+        List<Object[]> chunkDocs = documentChunkRepository.findAllChunkIdAndDocumentId();
+        for (Object[] row : chunkDocs) {
+            chunkToDocMap.put((Long) row[0], (Long) row[1]);
+        }
 
         List<Map<String, Object>> batch = new ArrayList<>();
         for (OntologyKnowlearnType triple : triples) {
@@ -301,6 +310,31 @@ public class OntologyToArangoService {
                 edge.put("object_synonyms_en", objSynEn);
                 edge.put("relation_synonyms_ko", relSynKo);
                 edge.put("relation_synonyms_en", relSynEn);
+                edge.put("relation_synonyms_ko", relSynKo);
+                edge.put("relation_synonyms_en", relSynEn);
+
+                // Source & Document IDs Mapping
+                try {
+                    String sourceJson = triple.getSource();
+                    if (sourceJson != null && !sourceJson.isEmpty()) {
+                        List<String> chunkIdsStr = objectMapper.readValue(sourceJson,
+                                new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
+                                });
+                        List<Long> chunkIds = chunkIdsStr.stream().map(Long::valueOf).collect(Collectors.toList());
+                        Set<Long> docIds = new HashSet<>();
+                        for (Long cId : chunkIds) {
+                            Long dId = chunkToDocMap.get(cId);
+                            if (dId != null) {
+                                docIds.add(dId);
+                            }
+                        }
+                        edge.put("chunk_ids", chunkIds); // Original Source (Chunks)
+                        edge.put("document_ids", new ArrayList<>(docIds)); // Derived Source (Documents)
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse source or map document IDs for edge {}: {}", triple.getId(),
+                            e.getMessage());
+                }
             }
 
             batch.add(edge);

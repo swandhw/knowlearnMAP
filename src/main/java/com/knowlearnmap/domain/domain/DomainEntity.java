@@ -1,9 +1,7 @@
 package com.knowlearnmap.domain.domain;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +10,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class DomainEntity {
 
     @Id
@@ -27,16 +27,32 @@ public class DomainEntity {
     @Column(length = 1000)
     private String description;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "is_active")
+    @Builder.Default
+    private Boolean isActive = true;
+
+    @Column(name = "created_id", length = 50)
+    private String createdId;
+
+    @Column(name = "updated_id", length = 50)
+    private String updatedId;
+
+    @Column(name = "created_datetime")
+    private LocalDateTime createdDatetime;
+
+    @Column(name = "updated_datetime")
+    private LocalDateTime updatedDatetime;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdDatetime == null)
+            createdDatetime = LocalDateTime.now();
+        if (updatedDatetime == null)
+            updatedDatetime = LocalDateTime.now();
     }
 
-    public DomainEntity(String name, String arangoDbName) {
-        this.name = name;
-        this.arangoDbName = arangoDbName;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedDatetime = LocalDateTime.now();
     }
 }

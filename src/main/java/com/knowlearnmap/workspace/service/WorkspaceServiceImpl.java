@@ -26,8 +26,8 @@ import java.util.stream.Collectors;
 public class WorkspaceServiceImpl implements WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
-    private final com.knowlearnmap.domain.repository.DomainRepository domainRepository; // Injected
-    // TODO: DocumentRepository 추가 후 문서 개수 조회 기능 구현
+    private final com.knowlearnmap.domain.repository.DomainRepository domainRepository;
+    private final com.knowlearnmap.document.repository.DocumentRepository documentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -38,8 +38,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         return workspaces.stream()
                 .map(entity -> {
-                    // TODO: 실제 문서 개수 조회로 변경
-                    int documentCount = 0;
+                    // 실제 문서 개수 조회
+                    int documentCount = documentRepository.countByWorkspaceIdAndIsActiveTrue(entity.getId());
                     return WorkspaceResponseDto.from(entity, documentCount);
                 })
                 .collect(Collectors.toList());
@@ -53,8 +53,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         WorkspaceEntity workspace = workspaceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스를 찾을 수 없습니다: " + id));
 
-        // TODO: 실제 문서 개수 조회로 변경
-        int documentCount = 0;
+        // 실제 문서 개수 조회
+        int documentCount = documentRepository.countByWorkspaceIdAndIsActiveTrue(workspace.getId());
 
         return WorkspaceResponseDto.from(workspace, documentCount);
     }
@@ -74,11 +74,12 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         workspace.setIcon(requestDto.getIcon() != null ? requestDto.getIcon() : "📄");
         workspace.setColor(requestDto.getColor() != null ? requestDto.getColor() : "default");
         workspace.setWorkspaceType(requestDto.getWorkspaceType());
-        if (requestDto.getDomainId() != null) {
-            com.knowlearnmap.domain.domain.DomainEntity domain = domainRepository.findById(requestDto.getDomainId())
-                    .orElseThrow(() -> new IllegalArgumentException("도메인을 찾을 수 없습니다: " + requestDto.getDomainId()));
-            workspace.setDomain(domain);
-        }
+        // TEST: 도메인 ID가 없으면 1번 도메인으로 강제 설정 (사용자 요청: 도메인 ID 1인 사용자로 가정)
+        Long domainId = requestDto.getDomainId() != null ? requestDto.getDomainId() : 1L;
+        com.knowlearnmap.domain.domain.DomainEntity domain = domainRepository.findById(domainId)
+                .orElseThrow(
+                        () -> new IllegalArgumentException("도메인을 찾을 수 없습니다 (ID: " + domainId + "). 도메인을 먼저 생성해주세요."));
+        workspace.setDomain(domain);
         workspace.setFolderName(requestDto.getFolderName());
         workspace.setPromptCode(requestDto.getPromptCode());
         // TODO: 사용자 인증 구현 후 createdBy 설정

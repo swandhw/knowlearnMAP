@@ -55,4 +55,7 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
         List<DocumentChunk> findByLlmStatusIsNull();
 
         List<DocumentChunk> findByDocumentId(Long documentId, org.springframework.data.domain.Pageable pageable);
+
+        @Query("SELECT c.id, c.document.id FROM DocumentChunk c")
+        List<Object[]> findAllChunkIdAndDocumentId();
 }

@@ -25,12 +25,14 @@ public class PromptTestService {
     private final PromptLlmConfigRepository llmConfigRepository;
     private final DirectLlmCallService directLlmCallService;
     private final ObjectMapper objectMapper;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     /**
      * 테스트 실행 (단건)
+     * 트랜잭션을 분리하여 LLM 호출 시 DB 커넥션을 점유하지 않도록 함
      */
-    @Transactional
     public TestExecutionResponse executeTest(String promptCode, ExecuteTestRequest request) {
+        // 1. DB Read (짧은 트랜잭션 - Repository 기본 적용)
         PromptVersion version = versionRepository.findById(request.getVersionId())
                 .orElseThrow(() -> new RuntimeException("버전을 찾을 수 없습니다."));
 
@@ -50,27 +52,33 @@ public class PromptTestService {
                             .build());
         }
 
+        // 2. LLM Call (Long duration - No Transaction)
+        // 이 구간에서 DB 커넥션을 잡지 않으므로 Connection Leak 경고 방지
         TestResponseDto testResponse = callLlmDirect(processedContent, llmConfig);
 
-        PromptTestSnapshot snapshot = PromptTestSnapshot.builder()
-                .code(promptCode)
-                .versionId(version.getId())
-                .content(processedContent)
-                .variables(convertVariablesToJson(request.getVariables()))
-                .llmConfig(convertLlmConfigToJson(llmConfig))
-                .response(convertTestResponseToJson(testResponse))
-                .build();
+        // 3. DB Write (짧은 트랜잭션)
+        LlmConfigDto finalLlmConfig = llmConfig;
+        return transactionTemplate.execute(status -> {
+            PromptTestSnapshot snapshot = PromptTestSnapshot.builder()
+                    .code(promptCode)
+                    .versionId(version.getId())
+                    .content(processedContent)
+                    .variables(convertVariablesToJson(request.getVariables()))
+                    .llmConfig(convertLlmConfigToJson(finalLlmConfig))
+                    .response(convertTestResponseToJson(testResponse))
+                    .build();
 
-        llmConfigRepository.findByVersionId(version.getId())
-                .ifPresent(config -> snapshot.setLlmConfigId(config.getId()));
+            llmConfigRepository.findByVersionId(version.getId())
+                    .ifPresent(config -> snapshot.setLlmConfigId(config.getId()));
 
-        PromptTestSnapshot savedSnapshot = snapshotRepository.save(snapshot);
-        updateVersionStatistics(version.getId());
+            PromptTestSnapshot savedSnapshot = snapshotRepository.save(snapshot);
+            updateVersionStatistics(version.getId());
 
-        return TestExecutionResponse.builder()
-                .snapshotId(savedSnapshot.getId())
-                .response(testResponse)
-                .build();
+            return TestExecutionResponse.builder()
+                    .snapshotId(savedSnapshot.getId())
+                    .response(testResponse)
+                    .build();
+        });
     }
 
     @Transactional

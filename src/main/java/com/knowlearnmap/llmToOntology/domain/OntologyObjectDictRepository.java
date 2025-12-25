@@ -12,23 +12,26 @@ import java.util.Optional;
 @Repository
 public interface OntologyObjectDictRepository extends JpaRepository<OntologyObjectDict, Long> {
 
-    /**
-     * workspace와 카테고리, 영문 용어로 조회
-     */
-    Optional<OntologyObjectDict> findByWorkspaceIdAndCategoryAndTermEn(
-            Long workspaceId, String category, String termEn);
+        /**
+         * workspace와 카테고리, 영문 용어로 조회
+         */
+        Optional<OntologyObjectDict> findByWorkspaceIdAndCategoryAndTermEn(
+                        Long workspaceId, String category, String termEn);
 
-    Optional<OntologyObjectDict> findByWorkspaceIdAndCategoryAndTermKo(
-            Long workspaceId, String category, String termKo);
-    
-    /**
-     * workspace별 목록 조회
-     */
-    List<OntologyObjectDict> findByWorkspaceId(Long workspaceId);
+        Optional<OntologyObjectDict> findByWorkspaceIdAndCategoryAndTermKo(
+                        Long workspaceId, String category, String termKo);
 
-    /**
-     * workspace와 카테고리로 조회
-     */
-    Optional<OntologyObjectDict> findById(Long id);
+        /**
+         * workspace별 목록 조회
+         */
+        List<OntologyObjectDict> findByWorkspaceId(Long workspaceId);
+
+        /**
+         * workspace와 카테고리로 조회
+         */
+        Optional<OntologyObjectDict> findById(Long id);
+
+        @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o.category FROM OntologyObjectDict o WHERE o.workspaceId = :workspaceId AND o.category IS NOT NULL ORDER BY o.category ASC")
+        List<String> findDistinctCategoriesByWorkspaceId(
+                        @org.springframework.data.repository.query.Param("workspaceId") Long workspaceId);
 }
-

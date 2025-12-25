@@ -48,8 +48,9 @@ public class DirectLlmCallService {
         } else if ("GEMINI_2_5_PRO".equalsIgnoreCase(llmModel) ||
                 "GEMINI-2.5-PRO".equalsIgnoreCase(llmModel)) {
             // LangChain4j SDK를 통한 Gemini 2.5 Pro 호출
-            log.info("Gemini 2.5 Pro (SDK) 호출");
-            return geminiSdkService.callGemini25Pro(prompt, temperature, topP, maxOutputTokens, topK);
+            String targetModel = "gemini-2.5-pro";
+            log.info("Gemini 2.5 Pro (SDK) 호출 -> 모델명: {}", targetModel);
+            return geminiSdkService.callGemini25Pro(targetModel, prompt, temperature, topP, maxOutputTokens, topK);
         } else if ("OPENAI".equalsIgnoreCase(llmModel) || "GPT4".equalsIgnoreCase(llmModel)) {
             return callOpenAiWithRetry(prompt, temperature, maxOutputTokens, n);
         } else if ("ANTHROPIC".equalsIgnoreCase(llmModel)) {
