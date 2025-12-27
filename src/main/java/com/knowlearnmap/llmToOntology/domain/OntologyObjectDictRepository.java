@@ -22,6 +22,12 @@ public interface OntologyObjectDictRepository extends JpaRepository<OntologyObje
                         Long workspaceId, String category, String termKo);
 
         /**
+         * workspace별 목록 조회 (Paging)
+         */
+        org.springframework.data.domain.Page<OntologyObjectDict> findByWorkspaceId(Long workspaceId,
+                        org.springframework.data.domain.Pageable pageable);
+
+        /**
          * workspace별 목록 조회
          */
         List<OntologyObjectDict> findByWorkspaceId(Long workspaceId);
@@ -30,6 +36,8 @@ public interface OntologyObjectDictRepository extends JpaRepository<OntologyObje
          * workspace와 카테고리로 조회
          */
         Optional<OntologyObjectDict> findById(Long id);
+
+        List<OntologyObjectDict> findBySourceContaining(String sourcePattern);
 
         @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o.category FROM OntologyObjectDict o WHERE o.workspaceId = :workspaceId AND o.category IS NOT NULL ORDER BY o.category ASC")
         List<String> findDistinctCategoriesByWorkspaceId(

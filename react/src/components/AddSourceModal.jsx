@@ -42,15 +42,23 @@ function AddSourceModal({ isOpen, onClose, workspaceId }) {
 
             const response = await fetch(`${import.meta.env.VITE_APP_API_URL || 'http://localhost:8080'}/api/documents/upload`, {
                 method: 'POST',
+                credentials: 'include',
                 body: formData,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || '파일 업로드에 실패했습니다.');
+            const responseText = await response.text();
+            let result;
+            try {
+                result = responseText ? JSON.parse(responseText) : {};
+            } catch (e) {
+                console.warn('Response was not JSON:', responseText);
+                result = { message: responseText };
             }
 
-            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || '파일 업로드에 실패했습니다.');
+            }
+
             console.log('업로드 성공:', result);
 
             alert('파일이 성공적으로 업로드되었습니다!');

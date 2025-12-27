@@ -1,0 +1,81 @@
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import './Login.css';
+
+const SetPassword = () => {
+    const [searchParams] = useSearchParams();
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [status, setStatus] = useState('');
+    const [token, setToken] = useState('');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const t = searchParams.get('token');
+        if (t) {
+            setToken(t);
+        } else {
+            setStatus('Invalid Link');
+        }
+    }, [searchParams]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (password !== confirmPassword) {
+            setStatus('Passwords do not match');
+            return;
+        }
+
+        try {
+            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+            await axios.post(`${API_URL}/api/auth/set-password`, { token, password });
+            alert('Password set successfully. Please login.');
+            navigate('/login');
+        } catch (err) {
+            setStatus('Failed to set password. Token may be invalid or expired.');
+        }
+    };
+
+    if (!token) {
+        return (
+            <div className="login-container">
+                <div className="login-card">
+                    <div className="error-message">Invalid Link (No Token)</div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="login-container">
+            <div className="login-card">
+                <h1>Set Password</h1>
+                {status && <div className="error-message">{status}</div>}
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label>New Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Confirm Password</label>
+                        <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button type="submit" className="login-btn">Set Password</button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default SetPassword;

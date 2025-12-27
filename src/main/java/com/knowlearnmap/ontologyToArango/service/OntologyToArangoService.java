@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OntologyToArangoService {
 
+    private static final int BATCH_SIZE = 50;
+
     private final WorkspaceRepository workspaceRepository;
     private final OntologyObjectDictRepository objectDictRepository;
     private final OntologyRelationDictRepository relationDictRepository;
@@ -31,11 +33,22 @@ public class OntologyToArangoService {
     private final com.knowlearnmap.document.repository.DocumentChunkRepository documentChunkRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final ArangoDB arangoDB;
+    private final com.knowlearnmap.ai.service.EmbeddingService embeddingService;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
-    @Transactional(readOnly = true)
     public void syncOntologyToArango(Long workspaceId, boolean dropExist) {
+        // 1. Fetch all data from PostgreSQL (Short-lived Transaction)
+        // Use TransactionTemplate to ensure this runs in a transaction despite being an
+        // internal call
+        OntologyData data = transactionTemplate.execute(status -> fetchAllOntologyData(workspaceId));
 
-        // 1. PostgreSQL에서 Workspace 및 Domain 정보 조회
+        // 2. ArangoDB Setup & Sync (No DB Transaction needed here)
+        if (data != null) {
+            processArangoSync(data, workspaceId, dropExist);
+        }
+    }
+
+    protected OntologyData fetchAllOntologyData(Long workspaceId) {
         WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace " + workspaceId + "를 찾을 수 없습니다."));
 
@@ -44,13 +57,44 @@ public class OntologyToArangoService {
         }
 
         String targetDbName = workspace.getDomain().getArangoDbName();
-
+        // Initialize lazy loaded property inside transaction
         if (targetDbName == null || targetDbName.isEmpty()) {
             throw new IllegalArgumentException(
                     "Domain " + workspace.getDomain().getName() + "에 ArangoDB 이름이 설정되지 않았습니다.");
         }
 
-        // 2. ArangoDB 인스턴스 관리
+        log.info("Fetching all data for workspace {}...", workspaceId);
+        List<OntologyObjectDict> objectDicts = objectDictRepository.findByWorkspaceId(workspaceId);
+        List<OntologyRelationDict> relationDicts = relationDictRepository.findByWorkspaceId(workspaceId);
+        List<OntologyKnowlearnType> triples = knowlearnTypeRepository.findByWorkspaceId(workspaceId);
+
+        // Object Synonyms Map
+        Map<Long, List<OntologyObjectSynonyms>> objectSynonymsMap = new HashMap<>();
+        for (OntologyObjectDict obj : objectDicts) {
+            objectSynonymsMap.put(obj.getId(), objectSynonymsRepository.findByObjectId(obj.getId()));
+        }
+
+        // Relation Synonyms Map
+        Map<Long, List<OntologyRelationSynonyms>> relationSynonymsMap = new HashMap<>();
+        for (OntologyRelationDict rel : relationDicts) {
+            relationSynonymsMap.put(rel.getId(), relationSynonymsRepository.findByRelationId(rel.getId()));
+        }
+
+        // Chunk to Doc Map
+        Map<Long, Long> chunkToDocMap = new HashMap<>();
+        List<Object[]> chunkDocs = documentChunkRepository.findAllChunkIdAndDocumentId();
+        for (Object[] row : chunkDocs) {
+            chunkToDocMap.put((Long) row[0], (Long) row[1]);
+        }
+
+        return new OntologyData(targetDbName, objectDicts, relationDicts, triples, objectSynonymsMap,
+                relationSynonymsMap, chunkToDocMap);
+    }
+
+    private void processArangoSync(OntologyData data, Long workspaceId, boolean dropExist) {
+        String targetDbName = data.targetDbName;
+
+        // ArangoDB Connection Management
         if (arangoDB.db(targetDbName).exists()) {
             if (dropExist) {
                 log.info("Dropping existing ArangoDB database: {}", targetDbName);
@@ -67,40 +111,31 @@ public class OntologyToArangoService {
 
         ArangoDatabase db = arangoDB.db(targetDbName);
 
-        // 컬렉션 생성
         ensureCollection(db, "ObjectNodes");
         ensureCollection(db, "RelationNodes");
         ensureEdgeCollection(db, "KnowlearnEdges");
-
-        // 그래프 생성
         ensureGraph(db, "KnowlearnGraph", "KnowlearnEdges", "ObjectNodes");
 
-        // 3. 데이터 조회 (Bulk Fetching for Performance)
-        log.info("Fetching all data for workspace {}...", workspaceId);
-        List<OntologyObjectDict> objectDicts = objectDictRepository.findByWorkspaceId(workspaceId);
-        List<OntologyRelationDict> relationDicts = relationDictRepository.findByWorkspaceId(workspaceId);
+        // Execute Sync
+        Map<Long, String> objectIdToKeyMap = syncObjectNodes(db, data.objectDicts, data.objectSynonymsMap, workspaceId);
+        syncRelationNodes(db, data.relationDicts, data.relationSynonymsMap, workspaceId);
+        syncKnowlearnEdges(db, workspaceId, data.objectDicts, data.relationDicts, data.triples, data.objectSynonymsMap,
+                data.relationSynonymsMap, objectIdToKeyMap, data.chunkToDocMap);
 
-        // Object Synonyms Map 구성
-        Map<Long, List<OntologyObjectSynonyms>> objectSynonymsMap = new HashMap<>();
-        for (OntologyObjectDict obj : objectDicts) {
-            objectSynonymsMap.put(obj.getId(), objectSynonymsRepository.findByObjectId(obj.getId()));
-        }
-
-        // Relation Synonyms Map 구성
-        Map<Long, List<OntologyRelationSynonyms>> relationSynonymsMap = new HashMap<>();
-        for (OntologyRelationDict rel : relationDicts) {
-            relationSynonymsMap.put(rel.getId(), relationSynonymsRepository.findByRelationId(rel.getId()));
-        }
-
-        // 4. 동기화 실행
-        Map<Long, String> objectIdToKeyMap = syncObjectNodes(db, objectDicts, objectSynonymsMap, workspaceId);
-        syncRelationNodes(db, relationDicts, relationSynonymsMap, workspaceId);
-        syncKnowlearnEdges(db, workspaceId, objectDicts, relationDicts, objectSynonymsMap, relationSynonymsMap,
-                objectIdToKeyMap);
-
-        log.info("=================================================");
         log.info("Ontology Sync to ArangoDB Completed Successfully.");
-        log.info("=================================================");
+    }
+
+    // Internal DTO class to hold fetched data
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class OntologyData {
+        String targetDbName;
+        List<OntologyObjectDict> objectDicts;
+        List<OntologyRelationDict> relationDicts;
+        List<OntologyKnowlearnType> triples;
+        Map<Long, List<OntologyObjectSynonyms>> objectSynonymsMap;
+        Map<Long, List<OntologyRelationSynonyms>> relationSynonymsMap;
+        Map<Long, Long> chunkToDocMap;
     }
 
     private void ensureCollection(ArangoDatabase db, String collectionName) {
@@ -165,8 +200,25 @@ public class OntologyToArangoService {
             doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
             doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
 
+            List<String> docIds = parseDocumentIds(dict.getSource());
+            doc.put("document_ids", docIds);
+
+            // Embedding Generation
+            try {
+                String textToEmbed = String.format("%s (%s): %s",
+                        dict.getTermKo(),
+                        dict.getTermEn(),
+                        dict.getDescription() != null ? dict.getDescription() : "");
+                List<Double> vector = embeddingService.embed(textToEmbed);
+                doc.put("embedding_vector", vector);
+            } catch (Exception e) {
+                log.error("Failed to generate embedding for object {}: {}", dict.getId(), e.getMessage());
+                // Continue without embedding
+            }
+
             batch.add(doc);
-            if (batch.size() >= 1000) {
+            batch.add(doc);
+            if (batch.size() >= BATCH_SIZE) {
                 collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
                         .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
                 batch.clear();
@@ -204,8 +256,12 @@ public class OntologyToArangoService {
             doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
             doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
 
+            List<String> docIds = parseDocumentIds(dict.getSource());
+            doc.put("document_ids", docIds);
+
             batch.add(doc);
-            if (batch.size() >= 1000) {
+            batch.add(doc);
+            if (batch.size() >= BATCH_SIZE) {
                 collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
                         .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
                 batch.clear();
@@ -220,26 +276,20 @@ public class OntologyToArangoService {
     private void syncKnowlearnEdges(ArangoDatabase db, Long workspaceId,
             List<OntologyObjectDict> objectDicts,
             List<OntologyRelationDict> relationDicts,
+            List<OntologyKnowlearnType> triples,
             Map<Long, List<OntologyObjectSynonyms>> objectSynonymsMap,
             Map<Long, List<OntologyRelationSynonyms>> relationSynonymsMap,
-            Map<Long, String> objectIdToKeyMap) {
+            Map<Long, String> objectIdToKeyMap,
+            Map<Long, Long> chunkToDocMap) {
 
-        List<OntologyKnowlearnType> triples = knowlearnTypeRepository.findByWorkspaceId(workspaceId);
         ArangoCollection collection = db.collection("KnowlearnEdges");
         log.info("Syncing {} KnowlearnEdges...", triples.size());
 
         // Lookup Maps
         Map<Long, OntologyObjectDict> objectMap = objectDicts.stream()
                 .collect(Collectors.toMap(OntologyObjectDict::getId, Function.identity()));
-        Map<Long, OntologyRelationDict> relationMap = relationDictRepository.findByWorkspaceId(workspaceId).stream()
+        Map<Long, OntologyRelationDict> relationMap = relationDicts.stream()
                 .collect(Collectors.toMap(OntologyRelationDict::getId, Function.identity()));
-
-        // Chunk ID -> Document ID Map (Bulk Fetch)
-        Map<Long, Long> chunkToDocMap = new HashMap<>();
-        List<Object[]> chunkDocs = documentChunkRepository.findAllChunkIdAndDocumentId();
-        for (Object[] row : chunkDocs) {
-            chunkToDocMap.put((Long) row[0], (Long) row[1]);
-        }
 
         List<Map<String, Object>> batch = new ArrayList<>();
         for (OntologyKnowlearnType triple : triples) {
@@ -289,10 +339,26 @@ public class OntologyToArangoService {
                 edge.put("object_id", object.getId());
 
                 // Composite Sentence
-                edge.put("sentence_ko",
-                        String.format("%s %s %s", subject.getTermKo(), relation.getRelationKo(), object.getTermKo()));
-                edge.put("sentence_en",
-                        String.format("%s %s %s", subject.getTermEn(), relation.getRelationEn(), object.getTermEn()));
+                String sentenceKo = String.format("%s %s %s", subject.getTermKo(), relation.getRelationKo(),
+                        object.getTermKo());
+                String sentenceEn = String.format("%s %s %s", subject.getTermEn(), relation.getRelationEn(),
+                        object.getTermEn());
+
+                edge.put("sentence_ko", sentenceKo);
+                edge.put("sentence_en", sentenceEn);
+
+                // Embedding Generation for Edge (Fact)
+                try {
+                    // Use Korean sentence for embedding as it is the primary language
+                    if (sentenceKo != null && !sentenceKo.trim().isEmpty()) {
+                        List<Double> vector = embeddingService.embed(sentenceKo);
+                        edge.put("embedding_vector", vector);
+                    } else {
+                        log.warn("Skipping embedding for edge {}: sentenceKo is null or empty", triple.getId());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to generate embedding for edge {}: {}", triple.getId(), e.getMessage());
+                }
 
                 // Synonyms Enrichment
                 List<String> subjSynKo = getSynonyms(objectSynonymsMap, subject.getId(), "ko");
@@ -314,31 +380,13 @@ public class OntologyToArangoService {
                 edge.put("relation_synonyms_en", relSynEn);
 
                 // Source & Document IDs Mapping
-                try {
-                    String sourceJson = triple.getSource();
-                    if (sourceJson != null && !sourceJson.isEmpty()) {
-                        List<String> chunkIdsStr = objectMapper.readValue(sourceJson,
-                                new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
-                                });
-                        List<Long> chunkIds = chunkIdsStr.stream().map(Long::valueOf).collect(Collectors.toList());
-                        Set<Long> docIds = new HashSet<>();
-                        for (Long cId : chunkIds) {
-                            Long dId = chunkToDocMap.get(cId);
-                            if (dId != null) {
-                                docIds.add(dId);
-                            }
-                        }
-                        edge.put("chunk_ids", chunkIds); // Original Source (Chunks)
-                        edge.put("document_ids", new ArrayList<>(docIds)); // Derived Source (Documents)
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to parse source or map document IDs for edge {}: {}", triple.getId(),
-                            e.getMessage());
-                }
+                List<String> docIds = parseDocumentIds(triple.getSource());
+                edge.put("document_ids", docIds);
             }
 
             batch.add(edge);
-            if (batch.size() >= 1000) {
+            batch.add(edge);
+            if (batch.size() >= BATCH_SIZE) {
                 collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
                         .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
                 batch.clear();
@@ -371,5 +419,31 @@ public class OntologyToArangoService {
                     return "";
                 })
                 .collect(Collectors.toList());
+    }
+
+    private List<String> parseDocumentIds(String sourceJson) {
+        if (sourceJson == null || sourceJson.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(sourceJson,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
+                    });
+        } catch (Exception e) {
+            // Try to parse as single value if list parsing fails
+            try {
+                String single = objectMapper.readValue(sourceJson, String.class);
+                return Collections.singletonList(single);
+            } catch (Exception ex) {
+                // If it's a raw number not in quotes
+                try {
+                    Long id = objectMapper.readValue(sourceJson, Long.class);
+                    return Collections.singletonList(String.valueOf(id));
+                } catch (Exception ex2) {
+                    // Fallback: Treat as raw string identifier (e.g. "initial_data")
+                    return Collections.singletonList(sourceJson);
+                }
+            }
+        }
     }
 }

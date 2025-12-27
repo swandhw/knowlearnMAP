@@ -214,7 +214,7 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    opacity: 0.6;
+    opacity: 1;
 }
 
 .icon-view-btn:hover {

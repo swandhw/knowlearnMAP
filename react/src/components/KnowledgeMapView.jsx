@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './KnowledgeMapView.css';
+import KnowledgeGraphModal from './KnowledgeGraphModal';
 
 function KnowledgeMapView({ sources, title }) {
     // Mock data for the graph
@@ -11,11 +12,15 @@ function KnowledgeMapView({ sources, title }) {
         depth: 3,
         limit: 250
     });
+    const [kgModalOpen, setKgModalOpen] = useState(false);
 
     return (
         <div className="knowledge-map-view">
             {/* Left Panel: Graph Visualization */}
             <div className="graph-panel">
+                <button className="open-kg-modal" onClick={() => setKgModalOpen(true)}>
+                    그래프 보기 (Mock)
+                </button>
                 <div className="graph-header">
                     <span className="graph-view-title">지식그래프 - {title}</span>
                 </div>
@@ -58,6 +63,7 @@ function KnowledgeMapView({ sources, title }) {
                     </div>
                 </div>
             </div>
+            <KnowledgeGraphModal isOpen={kgModalOpen} onClose={() => setKgModalOpen(false)} />
 
             {/* Right Panel: Graph Settings */}
             <div className="graph-settings-panel">

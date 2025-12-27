@@ -58,4 +58,8 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
 
         @Query("SELECT c.id, c.document.id FROM DocumentChunk c")
         List<Object[]> findAllChunkIdAndDocumentId();
+
+        List<DocumentChunk> findByDocumentWorkspaceId(Long workspaceId);
+
+        List<DocumentChunk> findByDocumentIdIn(List<Long> documentIds);
 }

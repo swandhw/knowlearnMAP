@@ -22,6 +22,12 @@ public interface OntologyRelationDictRepository extends JpaRepository<OntologyRe
                         Long workspaceId, String category, String relationKo);
 
         /**
+         * workspace별 목록 조회 (Paging)
+         */
+        org.springframework.data.domain.Page<OntologyRelationDict> findByWorkspaceId(Long workspaceId,
+                        org.springframework.data.domain.Pageable pageable);
+
+        /**
          * workspace별 목록 조회
          */
         List<OntologyRelationDict> findByWorkspaceId(Long workspaceId);
@@ -30,6 +36,8 @@ public interface OntologyRelationDictRepository extends JpaRepository<OntologyRe
          * workspace와 카테고리로 조회
          */
         List<OntologyRelationDict> findByWorkspaceIdAndCategory(Long workspaceId, String category);
+
+        List<OntologyRelationDict> findBySourceContaining(String sourcePattern);
 
         @org.springframework.data.jpa.repository.Query("SELECT DISTINCT r.category FROM OntologyRelationDict r WHERE r.workspaceId = :workspaceId AND r.category IS NOT NULL ORDER BY r.category ASC")
         List<String> findDistinctCategoriesByWorkspaceId(

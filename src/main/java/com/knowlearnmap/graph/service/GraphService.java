@@ -45,6 +45,17 @@ public class GraphService {
         // Supports both global view (documentIds empty) and filtered view
         boolean filterByDoc = documentIds != null && !documentIds.isEmpty();
 
+        // [DEBUG] Inspect what kind of document_ids exist in the DB
+        try {
+            String debugAql = "FOR e IN KnowlearnEdges LIMIT 5 RETURN e.document_ids";
+            ArangoCursor<Object> debugCursor = db.query(debugAql, Object.class, null,
+                    new com.arangodb.model.AqlQueryOptions());
+            List<Object> debugList = debugCursor.asListRemaining();
+            log.info("[DEBUG] Sample document_ids in DB: {}", debugList);
+        } catch (Exception e) {
+            log.warn("Debug query failed: {}", e.getMessage());
+        }
+
         String aql = "LET edges = ( " +
                 "  FOR e IN KnowlearnEdges " +
                 "  FILTER e.workspace_id == @wsId " +
@@ -65,18 +76,32 @@ public class GraphService {
         Map<String, Object> bindVars = new HashMap<>();
         bindVars.put("wsId", workspaceId);
         if (filterByDoc) {
-            bindVars.put("docIds", documentIds);
+            // ArangoDB stores document_ids as Strings (from JSON), so we need to match
+            // types
+            List<String> stringDocIds = documentIds.stream()
+                    .map(String::valueOf)
+                    .collect(java.util.stream.Collectors.toList());
+            bindVars.put("docIds", stringDocIds);
+            log.info("Filtering graph by Document IDs: {}", stringDocIds);
+        } else {
+            log.info("Fetching full graph (no document filter)");
         }
 
         try {
+            log.debug("Executing Graph AQL. BindVars: {}", bindVars);
             ArangoCursor<GraphDataDto> cursor = db.query(
                     aql,
                     GraphDataDto.class,
                     bindVars,
                     new com.arangodb.model.AqlQueryOptions());
             if (cursor.hasNext()) {
-                return cursor.next();
+                GraphDataDto result = cursor.next();
+                log.info("Graph query successful. Nodes: {}, Links: {}",
+                        result.getNodes() != null ? result.getNodes().size() : 0,
+                        result.getLinks() != null ? result.getLinks().size() : 0);
+                return result;
             }
+            log.info("Graph query returned empty result.");
         } catch (Exception e) {
             log.error("Failed to query graph data for workspace {}", workspaceId, e);
             throw new RuntimeException("Graph Query Error", e);

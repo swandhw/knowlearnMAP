@@ -146,8 +146,20 @@ public class LlmToOntologyService {
     private void processObject(Long workspaceId, DocumentChunk chunk, JsonObject obj) {
         OntologyObjectDict dict = new OntologyObjectDict();
         dict.setCategory(getJsonString(obj, "category"));
-        dict.setTermEn(getJsonString(obj, "term_en"));
-        dict.setTermKo(getJsonString(obj, "term_ko"));
+
+        String termEn = getJsonString(obj, "term_en");
+        String termKo = getJsonString(obj, "term_ko");
+
+        // Fallback logic for term_ko
+        if (termKo == null || termKo.trim().isEmpty()) {
+            termKo = termEn;
+        }
+        if (termKo == null || termKo.trim().isEmpty()) {
+            termKo = "Unknown";
+        }
+
+        dict.setTermEn(termEn);
+        dict.setTermKo(termKo);
         dict.setDescription(getJsonString(obj, "description_ko"));
 
         ontologyPersistenceService.findAndSaveObjectDict(workspaceId, chunk, dict);
@@ -156,8 +168,20 @@ public class LlmToOntologyService {
     private void processRelation(Long workspaceId, DocumentChunk chunk, JsonObject obj) {
         OntologyRelationDict dict = new OntologyRelationDict();
         dict.setCategory(getJsonString(obj, "category"));
-        dict.setRelationEn(getJsonString(obj, "relation_en"));
-        dict.setRelationKo(getJsonString(obj, "relation_ko"));
+
+        String relationEn = getJsonString(obj, "relation_en");
+        String relationKo = getJsonString(obj, "relation_ko");
+
+        // Fallback logic for relation_ko
+        if (relationKo == null || relationKo.trim().isEmpty()) {
+            relationKo = relationEn;
+        }
+        if (relationKo == null || relationKo.trim().isEmpty()) {
+            relationKo = "Unknown";
+        }
+
+        dict.setRelationEn(relationEn);
+        dict.setRelationKo(relationKo);
         dict.setDescription(getJsonString(obj, "description_ko"));
 
         ontologyPersistenceService.findAndSaveRelationDict(workspaceId, chunk, dict);
@@ -236,4 +260,3 @@ public class LlmToOntologyService {
         return chunkRepository.findByLlmStatus("COMPLETED");
     }
 }
-

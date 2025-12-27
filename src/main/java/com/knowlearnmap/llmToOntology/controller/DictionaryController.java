@@ -18,13 +18,19 @@ public class DictionaryController {
     private final DictionaryService dictionaryService;
 
     @GetMapping("/concepts")
-    public ResponseEntity<List<DictionaryDto>> getConcepts(@RequestParam Long workspaceId) {
-        return ResponseEntity.ok(dictionaryService.getConcepts(workspaceId));
+    public ResponseEntity<org.springframework.data.domain.Page<DictionaryDto>> getConcepts(
+            @RequestParam Long workspaceId,
+            @RequestParam(required = false) List<Long> documentIds,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(dictionaryService.getConcepts(workspaceId, documentIds, pageable));
     }
 
     @GetMapping("/relations")
-    public ResponseEntity<List<DictionaryDto>> getRelations(@RequestParam Long workspaceId) {
-        return ResponseEntity.ok(dictionaryService.getRelations(workspaceId));
+    public ResponseEntity<org.springframework.data.domain.Page<DictionaryDto>> getRelations(
+            @RequestParam Long workspaceId,
+            @RequestParam(required = false) List<Long> documentIds,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(dictionaryService.getRelations(workspaceId, documentIds, pageable));
     }
 
     @PutMapping("/concepts/{id}")
@@ -50,11 +56,22 @@ public class DictionaryController {
     }
 
     @GetMapping("/categories")
-    public ResponseEntity<List<String>> getCategories(@RequestParam String type, @RequestParam Long workspaceId) {
+    public ResponseEntity<List<String>> getCategories(@RequestParam String type, @RequestParam Long workspaceId,
+            @RequestParam(required = false) List<Long> documentIds) {
         if ("concept".equals(type)) {
-            return ResponseEntity.ok(dictionaryService.getConceptCategories(workspaceId));
+            return ResponseEntity.ok(dictionaryService.getConceptCategories(workspaceId, documentIds));
         } else {
-            return ResponseEntity.ok(dictionaryService.getRelationCategories(workspaceId));
+            return ResponseEntity.ok(dictionaryService.getRelationCategories(workspaceId, documentIds));
         }
+    }
+
+    @PostMapping("/concepts/merge")
+    public ResponseEntity<Void> mergeConcepts(@RequestBody java.util.Map<String, Object> request) {
+        Long sourceId = Long.valueOf(request.get("sourceId").toString());
+        Long targetId = Long.valueOf(request.get("targetId").toString());
+        Long workspaceId = Long.valueOf(request.get("workspaceId").toString());
+
+        dictionaryService.mergeConcepts(sourceId, targetId, workspaceId);
+        return ResponseEntity.ok().build();
     }
 }

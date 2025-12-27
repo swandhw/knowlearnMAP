@@ -1,53 +1,81 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    // 로컬 스토리지에서 사용자 정보 로드
-    useEffect(() => {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            try {
-                const userData = JSON.parse(savedUser);
-                setUser(userData);
-                setIsAuthenticated(true);
-            } catch (error) {
-                console.error('Failed to parse user data:', error);
-                localStorage.removeItem('user');
+    // Set default axios config
+    axios.defaults.withCredentials = true;
+    const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+
+    const checkAuth = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/api/auth/check`);
+            if (response.status === 200) {
+                // response.data is only the username (string) based on my backend code
+                // Let's assume it returns just the email string or an object if I change it later
+                // For now backend returns String.
+                setUser({ email: response.data, role: response.data === 'admin' ? 'ADMIN' : 'USER' });
+                // Note: The backend checkAuth returns authentication.getName() which is email.
+                // Role is not currently returned by /check, but I can improve backend later.
+                // For now, let's assume valid user.
             }
+        } catch (error) {
+            setUser(null);
+        } finally {
+            setLoading(false);
         }
+    };
+
+    useEffect(() => {
+        checkAuth();
     }, []);
 
-    const login = (userData) => {
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(userData));
+    const login = async (email, password) => {
+        try {
+            await axios.post(`${API_URL}/api/auth/login`, { email, password });
+            await checkAuth();
+            return true;
+        } catch (error) {
+            console.error('Login failed', error);
+            throw error;
+        }
     };
 
-    const logout = () => {
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('user');
+    const signup = async (email) => { // Removed password param
+        try {
+            await axios.post(`${API_URL}/api/auth/signup`, { email }); // Send only email
+            return true;
+        } catch (error) {
+            console.error('Signup failed', error);
+            throw error;
+        }
     };
 
-    const isAdmin = () => {
-        return user && (user.role === 'ADMIN' || user.role === 'admin');
+    const logout = async () => {
+        try {
+            await axios.post(`${API_URL}/api/auth/logout`);
+            setUser(null);
+        } catch (error) {
+            console.error('Logout failed', error);
+        }
     };
 
     const value = {
         user,
-        isAuthenticated,
-        isAdmin: isAdmin(),
+        loading,
         login,
-        logout
+        signup,
+        logout,
+        isAuthenticated: !!user
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 };

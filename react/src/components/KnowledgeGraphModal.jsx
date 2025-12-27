@@ -1,270 +1,489 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import './KnowledgeGraphModal.css';
 
-const KnowledgeGraphModal = ({ isOpen, onClose, workspaceId, selectedDocumentIds }) => {
-    const [graphData, setGraphData] = useState({ nodes: [], links: [] });
-    const [loading, setLoading] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [suggestions, setSuggestions] = useState([]);
-    const graphRef = useRef();
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
 
-    const handleSearchChange = (e) => {
-        const term = e.target.value;
-        setSearchTerm(term);
-        if (term.trim() === '') {
-            setSuggestions([]);
+export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, initialSelectedDocIds = [], documents = [] }) {
+    const [fullGraphData, setFullGraphData] = useState({ nodes: [], links: [] });
+    const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+    const graphRef = useRef();
+    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    const containerRef = useRef(null);
+
+    // Search States
+    const [searchQuery, setSearchQuery] = useState('');
+    const [depth, setDepth] = useState(1);
+    const [suggestions, setSuggestions] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedDocumentIds, setSelectedDocumentIds] = useState(initialSelectedDocIds || []);
+    const [isDocDropdownOpen, setIsDocDropdownOpen] = useState(false);
+
+    // ... (existing constants)
+
+    // ...
+
+    const fetchGraphData = async (docIds = selectedDocumentIds) => {
+        // [User Requirement] If no document is selected, show nothing.
+        if (!docIds || docIds.length === 0) {
+            setFullGraphData({ nodes: [], links: [] });
+            setGraphData({ nodes: [], links: [] });
             return;
         }
-        const lowerTerm = term.toLowerCase();
-        // Wildcard/Partial match logic
-        const filtered = graphData.nodes.filter(n =>
-            (n.name && n.name.toLowerCase().includes(lowerTerm))
-        ).slice(0, 10); // Limit suggestions
-        setSuggestions(filtered);
-    };
 
-    const handleSelectNode = (node) => {
-        setSearchTerm(node.name);
-        setSuggestions([]);
-        if (graphRef.current) {
-            graphRef.current.centerAt(node.x, node.y, 1000);
-            graphRef.current.zoom(8, 2000);
+        setIsLoading(true);
+        try {
+            console.log(`Fetching graph data from: ${API_URL}/api/graph/workspace/${workspaceId}`);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+            let url = `${API_URL}/api/graph/workspace/${workspaceId}`;
+            if (docIds && docIds.length > 0) {
+                const queryParams = new URLSearchParams();
+                docIds.forEach(id => queryParams.append('documentIds', id));
+                url += `?${queryParams.toString()}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    credentials: 'include',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    console.error('Graph fetch failed:', response.status, response.statusText);
+                    throw new Error('Failed to fetch graph data');
+                }
+
+                const data = await response.json();
+                console.log('Graph data received:', data);
+
+                const rawNodes = Array.isArray(data.nodes) ? data.nodes : [];
+                const rawLinks = Array.isArray(data.links) ? data.links : [];
+
+                const nodes = rawNodes.map(n => ({
+                    ...n,
+                    id: n._id,
+                    name: n.label_ko || n.label_en || n.term_ko || n._key,
+                    val: 1
+                }));
+
+                const links = rawLinks.map(l => ({
+                    ...l,
+                    source: l._from,
+                    target: l._to
+                }));
+
+                console.log('Processed Nodes:', nodes.length, 'Links:', links.length);
+                const initialData = { nodes, links };
+                setFullGraphData(initialData);
+                setGraphData(initialData);
+            } catch (fetchError) {
+                if (fetchError.name === 'AbortError') {
+                    console.error("Graph fetch timed out");
+                    alert("데이터 요청 시간이 초과되었습니다.");
+                } else {
+                    throw fetchError;
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load graph data", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        if (isOpen && workspaceId) {
-            fetchGraphData();
+        if (isOpen && containerRef.current) {
+            const updateDimensions = () => {
+                if (containerRef.current) {
+                    setDimensions({
+                        width: containerRef.current.clientWidth,
+                        height: containerRef.current.clientHeight
+                    });
+                }
+            };
+            updateDimensions();
+            window.addEventListener('resize', updateDimensions);
+            return () => window.removeEventListener('resize', updateDimensions);
         }
-    }, [isOpen, workspaceId, selectedDocumentIds]);
+    }, [isOpen]);
 
-    const fetchGraphData = async () => {
-        setLoading(true);
-        try {
-            // Build Query Params
-            let url = `/api/graph/workspace/${workspaceId}`;
-            if (selectedDocumentIds && selectedDocumentIds.length > 0) {
-                const params = new URLSearchParams();
-                selectedDocumentIds.forEach(id => params.append('documentIds', id));
-                url += `?${params.toString()}`;
-            }
+    // Data Load on Mount & Selection Change
+    useEffect(() => {
+        fetchGraphData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedDocumentIds]);
 
-            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
-            const response = await fetch(`${API_URL}${url}`);
-            if (!response.ok) throw new Error('Failed to fetch graph data');
+    const handleDocumentToggle = (docId) => {
+        const newSelected = selectedDocumentIds.includes(docId)
+            ? selectedDocumentIds.filter(id => id !== docId)
+            : [...selectedDocumentIds, docId];
 
-            const data = await response.json();
+        setSelectedDocumentIds(newSelected);
+    };
 
-            // Transform data for react-force-graph
-            // API returns { nodes: [...], links: [...] } matching the library format
-            // But we might need to process IDs or colors
-            const processedNodes = data.nodes.map(node => ({
-                ...node,
-                id: node._key || node.id,
-                name: node.label_ko || node.label_en || node.term_ko || node.term_en || 'Node',
-                val: 1 // Default size
-            }));
-
-            const processedLinks = data.links.map(link => ({
-                ...link,
-                source: link._from.split('/')[1], // ArangoDB returns "ObjectNodes/Key"
-                target: link._to.split('/')[1]
-            }));
-
-            setGraphData({ nodes: processedNodes, links: processedLinks });
-        } catch (error) {
-            console.error("Graph fetch error:", error);
-        } finally {
-            setLoading(false);
+    const handleSelectAllDocs = () => {
+        if (selectedDocumentIds.length === documents.length) {
+            setSelectedDocumentIds([]);
+        } else {
+            const allIds = documents.map(d => d.id);
+            setSelectedDocumentIds(allIds);
         }
     };
 
-    if (!isOpen) return null;
+    // Filter Logic
+    const handleSearch = () => {
+        if (!searchQuery.trim()) {
+            setGraphData(fullGraphData);
+            setTimeout(() => {
+                if (graphRef.current) {
+                    graphRef.current.zoomToFit(400);
+                }
+            }, 100);
+            return;
+        }
+
+        setIsSearching(true);
+        const term = searchQuery.trim().toLowerCase();
+
+        // 1. Find Start Nodes (Wildcard Support)
+        const startNodes = fullGraphData.nodes.filter(node => {
+            const name = node.name.toLowerCase();
+            if (term.includes('*')) {
+                const regex = new RegExp('^' + term.replace(/\*/g, '.*') + '$');
+                return regex.test(name);
+            }
+            return name.includes(term);
+        });
+
+        if (startNodes.length === 0) {
+            alert('검색 결과가 없습니다.');
+            setIsSearching(false);
+            return;
+        }
+
+        // 2. BFS Traversal for Depth
+        const visitedNodeIds = new Set();
+        const activeLinks = new Set();
+        let currentLevel = startNodes.map(n => n.id);
+
+        currentLevel.forEach(id => visitedNodeIds.add(id));
+
+        // Create Adjacency Map for fast lookup
+        const adjacency = {};
+        fullGraphData.links.forEach(link => {
+            const sId = typeof link.source === 'object' ? link.source.id : link.source;
+            const tId = typeof link.target === 'object' ? link.target.id : link.target;
+
+            if (!adjacency[sId]) adjacency[sId] = [];
+            if (!adjacency[tId]) adjacency[tId] = [];
+            adjacency[sId].push({ target: tId, link });
+            adjacency[tId].push({ target: sId, link });
+        });
+
+        for (let d = 0; d < depth; d++) {
+            const nextLevel = [];
+            currentLevel.forEach(nodeId => {
+                const neighbors = adjacency[nodeId] || [];
+                neighbors.forEach(({ target, link }) => {
+                    activeLinks.add(link);
+                    if (!visitedNodeIds.has(target)) {
+                        visitedNodeIds.add(target);
+                        nextLevel.push(target);
+                    }
+                });
+            });
+            currentLevel = nextLevel;
+        }
+
+        const filteredNodes = fullGraphData.nodes.filter(n => visitedNodeIds.has(n.id));
+        const filteredLinks = Array.from(activeLinks);
+
+        setGraphData({ nodes: filteredNodes, links: filteredLinks });
+        setIsSearching(false);
+
+        setTimeout(() => {
+            if (graphRef.current) {
+                graphRef.current.zoomToFit(400);
+            }
+        }, 300);
+    };
+
+    const handleReset = () => {
+        setSearchQuery('');
+        setDepth(1);
+        setGraphData(fullGraphData);
+        setTimeout(() => {
+            if (graphRef.current) {
+                graphRef.current.zoomToFit(400);
+            }
+        }, 100);
+    };
+
+    // Autocomplete
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+        setSearchQuery(val);
+        if (val.length > 0) {
+            const matches = fullGraphData.nodes
+                .filter(n => n.name.toLowerCase().includes(val.toLowerCase()))
+                .map(n => n.name)
+                .slice(0, 10);
+            setSuggestions(matches);
+        } else {
+            setSuggestions([]);
+        }
+    };
+
+    const selectSuggestion = (val) => {
+        setSearchQuery(val);
+        setSuggestions([]);
+    };
+
+
 
     return (
-        <div className="graph-modal-overlay">
-            <div className="graph-modal-content">
-                <button className="graph-modal-close" onClick={onClose}>&times;</button>
-                <div className="graph-controls" style={{ padding: '10px', display: 'flex', gap: '10px', alignItems: 'center', position: 'relative', zIndex: 1001 }}>
-                    <label style={{ fontWeight: 'bold' }}>시작 노드 검색:</label>
-                    <div style={{ position: 'relative', width: '200px' }}>
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={handleSearchChange}
-                            placeholder="노드 이름 입력..."
-                            style={{
-                                padding: '5px',
-                                borderRadius: '4px',
-                                border: '1px solid #ccc',
-                                width: '100%'
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    // Select first suggestion or exact match
-                                    if (suggestions.length > 0) {
-                                        handleSelectNode(suggestions[0]);
-                                    }
-                                }
-                            }}
-                        />
-                        {suggestions.length > 0 && (
-                            <ul style={{
+        <div className="kg-modal-overlay" onClick={onClose}>
+            <div className="kg-modal-content" style={{ width: '98%', height: '98vh', maxWidth: 'none', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
+                    {/* ... (Header content unchanged) ... */}
+                    <h2 className="kg-modal-title" style={{ margin: 0 }}>지식 그래프</h2>
+
+                    {/* Search Controls */}
+                    <div className="kg-search-controls">
+                        {/* ... (Existing search controls) ... */}
+                        <div className="kg-input-group">
+                            <input
+                                type="text"
+                                className="kg-search-input"
+                                placeholder="노드 검색 (*와일드카드 가능)"
+                                value={searchQuery}
+                                onChange={handleInputChange}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            />
+                            {suggestions.length > 0 && (
+                                <ul className="kg-suggestions">
+                                    {suggestions.map((s, i) => (
+                                        <li key={i} onClick={() => selectSuggestion(s)}>{s}</li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div className="kg-input-group" style={{ width: '80px' }}>
+                            <input
+                                type="number"
+                                className="kg-depth-input"
+                                min="1" max="5"
+                                value={depth}
+                                onChange={(e) => setDepth(parseInt(e.target.value))}
+                                title="Depth (깊이)"
+                            />
+                        </div>
+                        <button className="kg-btn primary" onClick={handleSearch}>검색</button>
+                        <button className="kg-btn secondary" onClick={handleReset}>초기화</button>
+                    </div>
+
+                    {/* Document Filter Dropdown */}
+                    <div style={{ position: 'relative', marginLeft: '10px' }}>
+                        <button
+                            className="kg-btn secondary"
+                            onClick={() => setIsDocDropdownOpen(!isDocDropdownOpen)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                        >
+                            <span>문서 필터 ({selectedDocumentIds.length}/{documents.length})</span>
+                            <span style={{ fontSize: '10px' }}>{isDocDropdownOpen ? '▲' : '▼'}</span>
+                        </button>
+
+                        {isDocDropdownOpen && (
+                            <div className="kg-dropdown-menu" style={{
                                 position: 'absolute',
                                 top: '100%',
-                                left: 0,
                                 right: 0,
-                                backgroundColor: 'white',
-                                border: '1px solid #ccc',
+                                transform: 'none',
+                                zIndex: 1000,
+                                backgroundColor: '#2d2d2d',
+                                border: '1px solid #444',
                                 borderRadius: '4px',
-                                maxHeight: '200px',
+                                padding: '8px',
+                                minWidth: '250px',
+                                maxHeight: '300px',
                                 overflowY: 'auto',
-                                margin: 0,
-                                padding: 0,
-                                listStyle: 'none',
-                                zIndex: 1002,
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
                             }}>
-                                {suggestions.map(node => (
-                                    <li
-                                        key={node.id}
-                                        onClick={() => handleSelectNode(node)}
-                                        style={{
-                                            padding: '8px',
-                                            cursor: 'pointer',
-                                            borderBottom: '1px solid #eee'
-                                        }}
-                                        onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f0f0'}
-                                        onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                                    >
-                                        {node.name}
-                                    </li>
+                                <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #444' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', color: '#fff', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                            onChange={handleSelectAllDocs}
+                                            style={{ marginRight: '8px' }}
+                                        />
+                                        전체 선택
+                                    </label>
+                                </div>
+                                {documents.map(doc => (
+                                    <div key={doc.id} style={{ marginBottom: '4px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', color: '#eee', fontSize: '13px', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedDocumentIds.includes(doc.id)}
+                                                onChange={() => handleDocumentToggle(doc.id)}
+                                                style={{ marginRight: '8px' }}
+                                            />
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }} title={doc.filename}>
+                                                {doc.filename}
+                                            </span>
+                                        </label>
+                                    </div>
                                 ))}
-                            </ul>
+                            </div>
                         )}
                     </div>
+
+                    <div style={{ flex: 1 }}></div>
+
+                    <button className="kg-close-btn" style={{ margin: 0 }} onClick={onClose}>닫기</button>
                 </div>
-                <div className="graph-container">
-                    {loading ? (
-                        <div className="graph-loading">지식 그래프 로딩중...</div>
-                    ) : (
-                        <ForceGraph2D
-                            ref={graphRef}
-                            graphData={graphData}
-                            nodeLabel="name"
-                            nodeAutoColorBy="group"
-                            linkDirectionalArrowLength={3.5}
-                            linkDirectionalArrowRelPos={1}
-                            nodeCanvasObject={(node, ctx, globalScale) => {
-                                const label = node.name;
-                                const fontSize = 12 / globalScale;
-                                ctx.font = `${fontSize}px Sans-Serif`;
 
-                                // Draw Node Circle
-                                const r = 5;
-                                ctx.beginPath();
-                                ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
-                                ctx.fillStyle = node.color || '#333';
-                                ctx.fill();
+                <div ref={containerRef} style={{ flex: 1, border: '1px solid #333', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                    {isLoading && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            zIndex: 2000,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            color: '#fff'
+                        }}>
+                            <div className="spinner" style={{
+                                width: '40px',
+                                height: '40px',
+                                border: '4px solid rgba(255,255,255,0.3)',
+                                borderRadius: '50%',
+                                borderTop: '4px solid #fff',
+                                animation: 'spin 1s linear infinite',
+                                marginBottom: '10px'
+                            }}></div>
+                            <span>데이터 로딩 중...</span>
+                            <style>{`
+                                @keyframes spin {
+                                    0% { transform: rotate(0deg); }
+                                    100% { transform: rotate(360deg); }
+                                }
+                            `}</style>
+                        </div>
+                    )}
+                    <ForceGraph2D
+                        ref={graphRef}
+                        width={dimensions.width}
+                        height={dimensions.height}
+                        graphData={graphData}
+                        nodeLabel="name"
+                        nodeAutoColorBy="group"
+                        backgroundColor="#1e1e1e"
 
-                                // Draw Label
-                                const textWidth = ctx.measureText(label).width;
-                                const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+                        // Custom Node Rendering (Label)
+                        nodeCanvasObject={(node, ctx, globalScale) => {
+                            const label = node.name;
+                            const fontSize = 12 / globalScale;
+                            ctx.font = `${fontSize}px sans-serif`;
+                            const textWidth = ctx.measureText(label).width;
+                            const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
 
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'top'; // Draw from top
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                            if (node.id === searchQuery) ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
 
-                                const labelY = node.y + r + 4; // Start 4px below the circle
+                            ctx.beginPath();
+                            ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
+                            ctx.fill();
 
-                                // Label Background
-                                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                                ctx.fillRect(node.x - bckgDimensions[0] / 2, labelY - bckgDimensions[1] * 0.1, ...bckgDimensions);
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = node.color || '#fff'; // Node Color
+                            ctx.fillText(label, node.x, node.y + 6);
 
-                                // Label Text
-                                ctx.fillStyle = '#333';
-                                ctx.fillText(label, node.x, labelY);
+                            node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
+                        }}
 
-                                node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
-                            }}
-                            nodePointerAreaPaint={(node, color, ctx) => {
-                                ctx.fillStyle = color;
-                                const bckgDimensions = node.__bckgDimensions;
-                                const r = 5;
-                                // Paint circle area
-                                ctx.beginPath();
-                                ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
-                                ctx.fill();
-                            }}
-                            linkCanvasObject={(link, ctx, globalScale) => {
-                                const start = link.source;
-                                const end = link.target;
+                        // Custom Link Rendering (Label + Arrow)
+                        linkCanvasObject={(link, ctx, globalScale) => {
+                            const start = link.source;
+                            const end = link.target;
 
-                                // ignore unbound links
-                                if (typeof start !== 'object' || typeof end !== 'object') return;
+                            if (typeof start.x !== 'number' || typeof end.x !== 'number') return;
 
-                                // Draw Line
-                                ctx.beginPath();
-                                ctx.moveTo(start.x, start.y);
-                                ctx.lineTo(end.x, end.y);
-                                ctx.lineWidth = 1 / globalScale;
-                                ctx.strokeStyle = '#cccccc';
-                                ctx.stroke();
+                            const nodeRadius = 5; // Node radius (4) + padding
+                            const arrowLength = 5 / globalScale;
 
-                                const label = link.label_ko || link.label_en || link.relation_ko || link.relation_en || link.type || '';
-                                if (!label) return;
+                            const deltaX = end.x - start.x;
+                            const deltaY = end.y - start.y;
+                            const angle = Math.atan2(deltaY, deltaX);
 
-                                const textPos = Object.assign(...['x', 'y'].map(c => ({
-                                    [c]: start[c] + (end[c] - start[c]) / 2 // calc middle point
-                                })));
+                            // Calculate arrow tip position (near target node)
+                            const tipX = end.x - nodeRadius * Math.cos(angle);
+                            const tipY = end.y - nodeRadius * Math.sin(angle);
 
-                                const relLink = { x: end.x - start.x, y: end.y - start.y };
+                            // Draw Line
+                            ctx.beginPath();
+                            ctx.moveTo(start.x, start.y);
+                            ctx.lineTo(tipX, tipY);
+                            ctx.strokeStyle = '#555';
+                            ctx.lineWidth = 1 / globalScale;
+                            ctx.stroke();
 
-                                const maxTextLength = Math.sqrt(Math.pow(relLink.x, 2) + Math.pow(relLink.y, 2)) - 10;
+                            // Draw Arrow Head
+                            ctx.beginPath();
+                            ctx.moveTo(tipX, tipY);
+                            ctx.lineTo(
+                                tipX - arrowLength * Math.cos(angle - Math.PI / 6),
+                                tipY - arrowLength * Math.sin(angle - Math.PI / 6)
+                            );
+                            ctx.lineTo(
+                                tipX - arrowLength * Math.cos(angle + Math.PI / 6),
+                                tipY - arrowLength * Math.sin(angle + Math.PI / 6)
+                            );
+                            ctx.closePath();
+                            ctx.fillStyle = '#555';
+                            ctx.fill();
 
-                                if (maxTextLength < 10) return; // Don't draw if too short
-
+                            // Draw Label
+                            if (link.label_ko || link.label_en) {
+                                const label = link.label_ko || link.label_en || "";
                                 const fontSize = 10 / globalScale;
-                                ctx.font = `${fontSize}px Sans-Serif`;
+                                ctx.font = `${fontSize}px sans-serif`;
 
-                                // Draw text background
-                                const textWidth = ctx.measureText(label).width;
-                                if (textWidth > maxTextLength) return; // Skip if label doesn't fit
+                                // Calculate midpoint
+                                const textX = start.x + (end.x - start.x) / 2;
+                                const textY = start.y + (end.y - start.y) / 2;
 
                                 ctx.save();
-                                ctx.translate(textPos.x, textPos.y);
-
-                                const angle = Math.atan2(relLink.y, relLink.x);
-                                ctx.rotate(angle);
-
-                                // Flip text if upside down
-                                if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-                                    ctx.rotate(Math.PI);
-                                }
+                                ctx.translate(textX, textY);
+                                // Optional: Rotate text to align with edge
+                                // const angle = Math.atan2(end.y - start.y, end.x - start.x);
+                                // ctx.rotate(angle);
 
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-
-                                // White background for edge label
-                                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                                const padding = 2;
-                                ctx.fillRect(-textWidth / 2 - padding, -fontSize / 2 - padding, textWidth + padding * 2, fontSize + padding * 2);
-
-                                ctx.fillStyle = '#666';
+                                ctx.fillStyle = '#aaa';
                                 ctx.fillText(label, 0, 0);
                                 ctx.restore();
-                            }}
-                            onNodeClick={node => {
-                                // Zoom to node or show details
-                                graphRef.current.centerAt(node.x, node.y, 1000);
-                                graphRef.current.zoom(8, 2000);
-                            }}
-                        />
-                    )}
+                            }
+                        }}
+                    />
                 </div>
             </div>
         </div>
     );
-};
+}
 
-export default KnowledgeGraphModal;

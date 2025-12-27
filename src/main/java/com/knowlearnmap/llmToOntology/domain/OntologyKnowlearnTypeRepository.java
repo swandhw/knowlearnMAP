@@ -33,5 +33,6 @@ public interface OntologyKnowlearnTypeRepository extends JpaRepository<OntologyK
      */
     List<OntologyKnowlearnType> findByWorkspaceIdAndObjectId(Long workspaceId, Long objectId);
 
-}
+    List<OntologyKnowlearnType> findBySourceContaining(String sourcePattern);
 
+}

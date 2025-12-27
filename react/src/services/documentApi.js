@@ -10,7 +10,9 @@ export const documentApi = {
      * @returns {Promise<Array>} 문서 목록
      */
     getByWorkspace: async (workspaceId) => {
-        const response = await fetch(`${API_URL}/api/documents/workspace/${workspaceId}`);
+        const response = await fetch(`${API_URL}/api/documents/workspace/${workspaceId}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch documents');
         }
@@ -24,7 +26,9 @@ export const documentApi = {
      * @returns {Promise<Object>} 문서 정보
      */
     getById: async (documentId) => {
-        const response = await fetch(`${API_URL}/api/documents/${documentId}`);
+        const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch document');
         }
@@ -39,7 +43,9 @@ export const documentApi = {
      */
     getPipelineStatus: async (documentId) => {
         try {
-            const response = await fetch(`${API_URL}/api/pipeline/status/${documentId}`);
+            const response = await fetch(`${API_URL}/api/pipeline/status/${documentId}`, {
+                credentials: 'include'
+            });
             if (!response.ok) return null;
             return await response.json();
         } catch (error) {
@@ -54,7 +60,9 @@ export const documentApi = {
      * @returns {Promise<Array>} 페이지 목록
      */
     getPages: async (documentId) => {
-        const response = await fetch(`${API_URL}/api/documents/${documentId}/pages`);
+        const response = await fetch(`${API_URL}/api/documents/${documentId}/pages`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch document pages');
         }

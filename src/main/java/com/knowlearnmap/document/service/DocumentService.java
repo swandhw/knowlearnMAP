@@ -37,6 +37,7 @@ public class DocumentService {
     private final DocumentChunkRepository documentChunkRepository;
     private final WorkspaceRepository workspaceRepository;
     private final PipelineOrchestrator pipelineOrchestrator;
+    private final com.knowlearnmap.llmToOntology.service.OntologyPersistenceService ontologyPersistenceService;
 
     @Value("${app.document.upload-directory:./uploads}")
     private String uploadDirectory;
@@ -154,6 +155,10 @@ public class DocumentService {
         // Hard delete - JPA cascade 설정에 따라 document_page, document_chunk도 삭제됨
         documentRepository.delete(document);
         log.info("Document 삭제 완료 (hard delete): id={}", documentId);
+
+        // Ontology Cleanup (Reference Counting)
+        ontologyPersistenceService.removeDocumentSource(documentId);
+        log.info("Ontology source references verified/removed for documentId={}", documentId);
     }
 
     /**

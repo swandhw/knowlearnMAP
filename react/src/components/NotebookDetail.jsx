@@ -6,13 +6,13 @@ import './NotebookDetail.css';
 import AddSourceModal from './AddSourceModal';
 import ReportGenerationModal from './ReportGenerationModal';
 import SlideCreationModal from './SlideCreationModal';
-import KnowledgeMapView from './KnowledgeMapView';
-import DictionaryView from './DictionaryView';
+import KnowledgeGraphModal from './KnowledgeGraphModal';
+import DictionaryModal from './DictionaryModal';
 import DocumentSourceItem from './DocumentSourceItem';
 import DocumentViewer from './DocumentViewer';
 
 import RenameDialog from './RenameDialog';
-import KnowledgeGraphModal from './KnowledgeGraphModal';
+
 
 function NotebookDetail() {
     const { id } = useParams();
@@ -27,8 +27,10 @@ function NotebookDetail() {
     const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(initialOpenAddSource);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isSlideModalOpen, setIsSlideModalOpen] = useState(false);
+    const [isKnowledgeGraphModalOpen, setIsKnowledgeGraphModalOpen] = useState(false);
+    const [isDictionaryModalOpen, setIsDictionaryModalOpen] = useState(false);
 
-    const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
+
     const [currentTab, setCurrentTab] = useState('chat'); // chat, knowledge, dictionary
     const [memos, setMemos] = useState([]);
     const [activeMemoMenuId, setActiveMemoMenuId] = useState(null);
@@ -50,6 +52,69 @@ function NotebookDetail() {
     const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
     const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
     const [documentToRename, setDocumentToRename] = useState(null);
+
+    // Chat State
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [loadingChat, setLoadingChat] = useState(false);
+
+    const handleSendMessage = async () => {
+        if (!chatInput.trim()) return;
+
+        const userMsg = { role: 'user', content: chatInput };
+        setChatMessages(prev => [...prev, userMsg]);
+        setChatInput('');
+        setLoadingChat(true);
+
+        try {
+            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+            const response = await fetch(`${API_URL}/api/search/debug`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: userMsg.content,
+                    workspaceId: id,
+                    documentIds: selectedDocumentIds.length > 0 ? selectedDocumentIds : []
+                })
+            });
+
+            if (!response.ok) throw new Error('Search failed');
+
+            const debugData = await response.json();
+
+            const systemMsg = {
+                role: 'system',
+                content: '검색 결과는 다음과 같습니다 (Debug Mode):',
+                debugData: debugData
+            };
+            setChatMessages(prev => [...prev, systemMsg]);
+        } catch (error) {
+            console.error(error);
+            setChatMessages(prev => [...prev, { role: 'system', content: '오류가 발생했습니다.' }]);
+        } finally {
+            setLoadingChat(false);
+        }
+    };
+
+    const handleArangoSync = async () => {
+        if (!window.confirm("ArangoDB 동기화를 진행하시겠습니까?")) return;
+        try {
+            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+            const response = await fetch(`${API_URL}/api/ontology/sync/${id}?dropExist=false`, {
+                method: 'POST',
+            });
+            if (response.ok) {
+                alert("동기화가 완료되었습니다. 이제 지식 그래프를 다시 확인해보세요.");
+            } else {
+                const msg = await response.text();
+                alert("동기화 실패: " + msg);
+            }
+        } catch (error) {
+            console.error("Sync error", error);
+            alert("동기화 중 오류가 발생했습니다.");
+        }
+    };
+
 
 
     useEffect(() => {
@@ -532,74 +597,62 @@ function NotebookDetail() {
                                     <input type="text" placeholder="찾아내 새 소스 검색하세요" />
                                 </div>
 
-                                <div className="source-actions">
-                                    <label className="select-all">
-                                        <input
-                                            type="checkbox"
-                                            checked={documents.length > 0 && selectedSources.length === documents.length}
-                                            onChange={handleSelectAll}
-                                            disabled={isEmpty}
-                                        />
-                                        <span>모두 선택</span>
-                                    </label>
+                                <div className="source-actions" style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '8px 16px',
+                                    borderBottom: '1px solid #e0e0e0'
+                                }}>
+                                    {/* 모두 선택 체크박스 (Left) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {documents.length > 0 && (
+                                            <>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                                    onChange={handleSelectAllDocuments}
+                                                    style={{ cursor: 'pointer' }}
+                                                />
+                                                <label onClick={handleSelectAllDocuments} style={{ cursor: 'pointer', fontSize: '14px', color: '#666' }}>
+                                                    모두 선택
+                                                </label>
+                                            </>
+                                        )}
+                                    </div>
 
-                                    <button
-                                        className="icon-btn"
-                                        onClick={() => setIsGraphModalOpen(true)}
-                                        title="지식맵 보기 (선택된 문서 기준)"
-                                        style={{ marginLeft: '10px', color: '#ff4d4f' }}
-                                    >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                            <path d="M12 9V5"></path>
-                                            <path d="M12 15v4"></path>
-                                            <path d="M9 12H5"></path>
-                                            <path d="M15 12h4"></path>
-                                            <circle cx="12" cy="3" r="2"></circle>
-                                            <circle cx="12" cy="21" r="2"></circle>
-                                            <circle cx="3" cy="12" r="2"></circle>
-                                            <circle cx="21" cy="12" r="2"></circle>
-                                        </svg>
-                                    </button>
-
-                                    <div className="sidebar-view-buttons">
+                                    {/* Icons (Right) */}
+                                    <div className="sidebar-view-buttons" style={{ display: 'flex', gap: '8px' }}>
                                         <button
-                                            className={`icon-view-btn ${currentTab === 'knowledge' ? 'active' : ''}`}
-                                            onClick={() => setCurrentTab('knowledge')}
-                                            title="지식맵"
+                                            className="icon-view-btn"
+                                            onClick={handleArangoSync}
+                                            title="ArangoDB 동기화"
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
                                         >
-                                            <img src="/icons/icon_knowledge.png" alt="지식맵" />
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#888' }}>
+                                                <path d="M23 4v6h-6"></path>
+                                                <path d="M1 20v-6h6"></path>
+                                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                            </svg>
                                         </button>
                                         <button
-                                            className={`icon-view-btn ${currentTab === 'dictionary' ? 'active' : ''}`}
-                                            onClick={() => setCurrentTab('dictionary')}
-                                            title="사전"
+                                            className="icon-view-btn"
+                                            onClick={() => setIsKnowledgeGraphModalOpen(true)}
+                                            title="지식맵"
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
                                         >
-                                            <img src="/icons/icon_dictionary.png" alt="사전" />
+                                            <img src="/icons/icon_knowledge.png" alt="지식맵" style={{ width: '20px', height: '20px' }} />
+                                        </button>
+                                        <button
+                                            className="icon-view-btn"
+                                            onClick={() => setIsDictionaryModalOpen(true)}
+                                            title="사전"
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                        >
+                                            <img src="/icons/icon_dictionary.png" alt="사전" style={{ width: '20px', height: '20px' }} />
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* 모두 선택 체크박스 */}
-                                {documents.length > 0 && (
-                                    <div style={{
-                                        padding: '8px 16px',
-                                        borderBottom: '1px solid #e0e0e0',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px'
-                                    }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                            onChange={handleSelectAllDocuments}
-                                            style={{ cursor: 'pointer' }}
-                                        />
-                                        <label style={{ cursor: 'pointer', fontSize: '14px', color: '#666' }}>
-                                            모두 선택
-                                        </label>
-                                    </div>
-                                )}
 
                                 <div className="sources-list">
                                     {loadingDocuments ? (
@@ -674,23 +727,12 @@ function NotebookDetail() {
                         <main className="notebook-content">
                             {!isEmpty && (
                                 <div className="content-header-tabs">
+                                    {/* Tabs Removed for Knowledge/Dictionary as they are now modals */}
                                     <button
-                                        className={`header-tab ${currentTab === 'chat' ? 'active' : ''}`}
+                                        className="header-tab active"
                                         onClick={() => setCurrentTab('chat')}
                                     >
                                         채팅
-                                    </button>
-                                    <button
-                                        className={`header-tab ${currentTab === 'knowledge' ? 'active' : ''}`}
-                                        onClick={() => setCurrentTab('knowledge')}
-                                    >
-                                        지식맵
-                                    </button>
-                                    <button
-                                        className={`header-tab ${currentTab === 'dictionary' ? 'active' : ''}`}
-                                        onClick={() => setCurrentTab('dictionary')}
-                                    >
-                                        사전
                                     </button>
                                 </div>
                             )}
@@ -716,23 +758,15 @@ function NotebookDetail() {
                             )}
 
                             {/* Content based on Tab */}
-                            {!isEmpty && currentTab === 'knowledge' && (
-                                <div className="tab-content full-height">
-                                    <KnowledgeMapView sources={documents} title={notebook.title} />
-                                </div>
-                            )}
-
-                            {!isEmpty && currentTab === 'dictionary' && (
-                                <div className="tab-content full-height">
-                                    <DictionaryView workspaceId={id} />
-                                </div>
-                            )}
+                            {/* Modals rendered outside main content flow usually, or here */}
 
                             {!isEmpty && currentTab === 'chat' && (
                                 <>
                                     <div className="chat-summary">
                                         <p className="summary-text">
-                                            이 노트북은 {documents.length}개의 소스 파일에서 추출한 데이터를 기반으로 합니다.
+                                            {selectedDocumentIds.length > 0
+                                                ? `${selectedDocumentIds.length}개의 선택된 소스 파일에서 검색 중 (전체 ${documents.length}개)`
+                                                : `이 노트북은 ${documents.length}개의 소스 파일에서 추출한 데이터를 기반으로 합니다.`}
                                         </p>
 
                                         <div className="summary-actions">
@@ -766,17 +800,63 @@ function NotebookDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="chat-input-area">
-                                        <textarea
-                                            className="chat-input"
-                                            placeholder="질문을 입력하세요..."
-                                            rows="3"
-                                        />
-                                        <button className="send-btn">
-                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M2.01 2L2 8l10 2-10 2 .01 6L18 10z" />
-                                            </svg>
-                                        </button>
+                                    <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                        <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+                                            {chatMessages.map((msg, idx) => (
+                                                <div key={idx} className={`message ${msg.role}`} style={{ marginBottom: '1.5rem' }}>
+                                                    <div className="message-content" style={{ background: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5', padding: '1rem', borderRadius: '8px' }}>
+                                                        <strong>{msg.role === 'user' ? 'You' : 'System'}</strong>: {msg.content}
+                                                    </div>
+                                                    {msg.debugData && (
+                                                        <div className="debug-results" style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
+                                                            {['ragResults', 'aqlResults', 'knowlearnResults'].map(type => (
+                                                                <div key={type} style={{ marginBottom: '1rem', border: '1px solid #ddd', padding: '0.5rem', borderRadius: '4px' }}>
+                                                                    <h4 style={{ margin: '0 0 0.5rem 0', textTransform: 'uppercase', color: '#666' }}>
+                                                                        {type.replace('Results', ' Search')}
+                                                                    </h4>
+                                                                    {msg.debugData[type]?.length > 0 ? (
+                                                                        <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                                                                            {msg.debugData[type].map((res, i) => (
+                                                                                <li key={i} style={{ marginBottom: '0.5rem' }}>
+                                                                                    <div>{res.content}</div>
+                                                                                    <div style={{ fontSize: '0.8rem', color: '#888' }}>
+                                                                                        Score: {res.score?.toFixed(4)}
+                                                                                    </div>
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    ) : (
+                                                                        <div style={{ color: '#999', fontStyle: 'italic' }}>No results</div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {loadingChat && <div style={{ color: '#666', padding: '1rem' }}>Searching...</div>}
+                                        </div>
+
+                                        <div className="chat-input-area" style={{ padding: '1rem', borderTop: '1px solid #eee' }}>
+                                            <textarea
+                                                className="chat-input"
+                                                placeholder="질문을 입력하세요..."
+                                                rows="3"
+                                                value={chatInput}
+                                                onChange={(e) => setChatInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        handleSendMessage();
+                                                    }
+                                                }}
+                                            />
+                                            <button className="send-btn" onClick={handleSendMessage} disabled={loadingChat}>
+                                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M2.01 2L2 8l10 2-10 2 .01 6L18 10z" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -1042,15 +1122,25 @@ function NotebookDetail() {
                     )}
                 </>
             )}
-            {isGraphModalOpen && (
+
+
+            {/* Modals */}
+            {isKnowledgeGraphModalOpen && (
                 <KnowledgeGraphModal
-                    isOpen={isGraphModalOpen}
-                    onClose={() => setIsGraphModalOpen(false)}
+                    isOpen={isKnowledgeGraphModalOpen}
+                    onClose={() => setIsKnowledgeGraphModalOpen(false)}
                     workspaceId={id}
-                    selectedDocumentIds={selectedDocumentIds}
+                    initialSelectedDocIds={selectedDocumentIds}
+                    documents={documents}
                 />
             )}
-        </div>
+            <DictionaryModal
+                isOpen={isDictionaryModalOpen}
+                onClose={() => setIsDictionaryModalOpen(false)}
+                workspaceId={id}
+            />
+            {/* ... other modals ... */}
+        </div >
     );
 }
 
