@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.service;
+package com.knowlearnmap.llmToOntology.service;
 
 import com.knowlearnmap.llmToOntology.domain.*;
 import com.knowlearnmap.llmToOntology.dto.OntologyDto;
@@ -78,13 +78,15 @@ public class OntologyPersistenceService {
         }
     }
 
-    private OntologyObjectDict updateSourceAndReturn(OntologyObjectDict dict, String docId) {
+    private OntologyObjectDict updateSourceAndReturn(OntologyObjectDict dict, String docId, String chunkId) {
         dict.setSource(addSource(dict.getSource(), docId));
+        dict.setChunkSource(addSource(dict.getChunkSource(), chunkId));
         return dict;
     }
 
-    private OntologyRelationDict updateSourceAndReturn(OntologyRelationDict dict, String docId) {
+    private OntologyRelationDict updateSourceAndReturn(OntologyRelationDict dict, String docId, String chunkId) {
         dict.setSource(addSource(dict.getSource(), docId));
+        dict.setChunkSource(addSource(dict.getChunkSource(), chunkId));
         return dict;
     }
 
@@ -102,6 +104,7 @@ public class OntologyPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public OntologyObjectDict findAndSaveObjectDict(Long workspaceId, DocumentChunk chunk, OntologyObjectDict dict) {
         String docId = String.valueOf(chunk.getDocument().getId());
+        String chunkId = String.valueOf(chunk.getId());
         String category = this.SpaceRemover(dict.getCategory());
         String termEn = this.SpaceRemover(dict.getTermEn());
         String termKo = this.SpaceRemover(dict.getTermKo());
@@ -110,28 +113,28 @@ public class OntologyPersistenceService {
             Optional<OntologyObjectDict> existing = objectDictRepository
                     .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, dict.getTermEn());
             if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             Optional<OntologyObjectSynonyms> existingSym = objectSynonymsRepository
                     .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, dict.getTermEn());
             if (existingSym.isPresent()) {
                 existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             if (!termEn.equals(dict.getTermEn())) {
                 existing = objectDictRepository
                         .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, termEn);
                 if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
 
                 existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
                         termEn);
                 if (existingSym.isPresent()) {
                     existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
             }
 
@@ -139,28 +142,28 @@ public class OntologyPersistenceService {
             existing = objectDictRepository
                     .findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, dict.getTermKo());
             if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
                     dict.getTermKo());
             if (existingSym.isPresent()) {
                 existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             if (!termKo.equals(dict.getTermKo())) {
                 existing = objectDictRepository
                         .findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, termKo);
                 if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
 
                 existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
                         termKo);
                 if (existingSym.isPresent()) {
                     existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
             }
 
@@ -168,6 +171,7 @@ public class OntologyPersistenceService {
             dict.setWorkspaceId(workspaceId);
             dict.setCategory(category);
             dict.setSource(addSource(null, docId));
+            dict.setChunkSource(addSource(null, chunkId));
             OntologyObjectDict newDict = objectDictRepository.save(dict);
 
             // 띄어쓰기 제거해서 Sym 에 추가
@@ -193,6 +197,7 @@ public class OntologyPersistenceService {
     public OntologyRelationDict findAndSaveRelationDict(Long workspaceId, DocumentChunk chunk,
             OntologyRelationDict dict) {
         String docId = String.valueOf(chunk.getDocument().getId());
+        String chunkId = String.valueOf(chunk.getId());
         String category = this.SpaceRemover(dict.getCategory());
         String relationEn = this.SpaceRemover(dict.getRelationEn());
         String relationKo = this.SpaceRemover(dict.getRelationKo());
@@ -201,28 +206,28 @@ public class OntologyPersistenceService {
             Optional<OntologyRelationDict> existing = relationDictRepository
                     .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category, dict.getRelationEn());
             if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             Optional<OntologyRelationSynonyms> existingSym = relationSynonymsRepository
                     .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, dict.getRelationEn());
             if (existingSym.isPresent()) {
                 existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             if (!relationEn.equals(dict.getRelationEn())) {
                 existing = relationDictRepository
                         .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category, relationEn);
                 if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
 
                 existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
                         relationEn);
                 if (existingSym.isPresent()) {
                     existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
             }
 
@@ -230,28 +235,28 @@ public class OntologyPersistenceService {
             existing = relationDictRepository
                     .findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category, dict.getRelationKo());
             if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
                     dict.getRelationKo());
             if (existingSym.isPresent()) {
                 existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                return updateSourceAndReturn(existing.get(), docId);
+                return updateSourceAndReturn(existing.get(), docId, chunkId);
             }
 
             if (!relationKo.equals(dict.getRelationKo())) {
                 existing = relationDictRepository
                         .findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category, relationKo);
                 if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
 
                 existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
                         relationKo);
                 if (existingSym.isPresent()) {
                     existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                    return updateSourceAndReturn(existing.get(), docId);
+                    return updateSourceAndReturn(existing.get(), docId, chunkId);
                 }
             }
 
@@ -259,6 +264,7 @@ public class OntologyPersistenceService {
             dict.setWorkspaceId(workspaceId);
             dict.setCategory(category);
             dict.setSource(addSource(null, docId));
+            dict.setChunkSource(addSource(null, chunkId));
             OntologyRelationDict newDict = relationDictRepository.save(dict);
 
             // 띠어쓰기 제거해서 Sym 에 추가
@@ -326,13 +332,16 @@ public class OntologyPersistenceService {
                         .objectId(objectDict.getId())
                         .confidenceScore(dto.getConfidenceScore())
                         .evidenceLevel(dto.getEvidenceLevel())
+                        .evidenceLevel(dto.getEvidenceLevel())
                         .source(addSource(null, String.valueOf(chunk.getDocument().getId())))
+                        .chunkSource(addSource(null, String.valueOf(chunk.getId())))
                         .build();
 
                 knowlearnTypeRepository.save(triple);
             } else {
                 OntologyKnowlearnType triple = existing.get();
                 triple.setSource(addSource(triple.getSource(), String.valueOf(chunk.getDocument().getId())));
+                triple.setChunkSource(addSource(triple.getChunkSource(), String.valueOf(chunk.getId())));
             }
 
         } catch (Exception e) {

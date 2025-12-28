@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.service;
+package com.knowlearnmap.prompt.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,11 +45,14 @@ public class DirectLlmCallService {
             int maxOutputTokens, int topK, int n) {
         if ("AISTUDIO".equalsIgnoreCase(llmModel)) {
             return callAistudioWithRetry(prompt, temperature, topP, maxOutputTokens, topK);
-        } else if ("GEMINI_2_5_PRO".equalsIgnoreCase(llmModel) ||
-                "GEMINI-2.5-PRO".equalsIgnoreCase(llmModel)) {
-            // LangChain4j SDK를 통한 Gemini 2.5 Pro 호출
-            String targetModel = "gemini-2.5-pro";
-            log.info("Gemini 2.5 Pro (SDK) 호출 -> 모델명: {}", targetModel);
+        } else if (llmModel.toUpperCase().startsWith("GEMINI")) {
+            // LangChain4j SDK를 통한 Gemini 호출 (Generic)
+            // GEMINI-2.5-PRO -> gemini-1.5-pro (자동 보정)
+            String targetModel = llmModel.toLowerCase().replace("_", "-");
+            if (targetModel.contains("2-5")) {
+                targetModel = targetModel.replace("2-5", "2.5");
+            }
+            log.info("Gemini SDK 호출 -> 모델명: {}", targetModel);
             return geminiSdkService.callGemini25Pro(targetModel, prompt, temperature, topP, maxOutputTokens, topK);
         } else if ("OPENAI".equalsIgnoreCase(llmModel) || "GPT4".equalsIgnoreCase(llmModel)) {
             return callOpenAiWithRetry(prompt, temperature, maxOutputTokens, n);
@@ -126,8 +129,8 @@ public class DirectLlmCallService {
             throw new IOException("AISTUDIO API 키가 설정되지 않았습니다. application.properties에 api.key.aistudio를 설정해주세요.");
         }
 
-        // Google AI Studio API 엔드포인트 (v1 + gemini-2.5-flash)
-        String url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key="
+        // Google AI Studio API 엔드포인트 (v1 + gemini-1.5-flash)
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="
                 + aistudioApiKey;
 
         log.info("AISTUDIO 요청 URL: {}", url.replace(aistudioApiKey, "***"));

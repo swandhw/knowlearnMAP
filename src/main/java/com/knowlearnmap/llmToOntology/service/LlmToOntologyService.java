@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.service;
+package com.knowlearnmap.llmToOntology.service;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

@@ -178,12 +178,20 @@ function Home() {
                             내 워크스페이스
                         </button>
                         {isAdmin && (
-                            <button
-                                className="tab admin-tab"
-                                onClick={() => navigate('/admin')}
-                            >
-                                ⚙️ 관리
-                            </button>
+                            <>
+                                <button
+                                    className="tab admin-tab"
+                                    onClick={() => navigate('/admin')}
+                                >
+                                    ⚙️ 도메인 관리
+                                </button>
+                                <button
+                                    className="tab admin-tab"
+                                    onClick={() => navigate('/prompts')}
+                                >
+                                    💬 프롬프트 관리
+                                </button>
+                            </>
                         )}
                     </div>
 

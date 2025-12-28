@@ -21,6 +21,7 @@ public class DictionaryService {
     private final OntologyObjectSynonymsRepository objectSynonymsRepository;
     private final OntologyRelationSynonymsRepository relationSynonymsRepository;
     private final OntologyKnowlearnTypeRepository knowlearnTypeRepository;
+    private final com.knowlearnmap.workspace.repository.WorkspaceRepository workspaceRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -160,6 +161,10 @@ public class DictionaryService {
         concept.setDescription(dto.getDescription());
 
         OntologyObjectDict saved = objectDictRepository.save(concept);
+
+        // Update Sync Status
+        markWorkspaceSyncNeeded(concept.getWorkspaceId());
+
         return dto;
     }
 
@@ -172,15 +177,30 @@ public class DictionaryService {
         relation.setDescription(dto.getDescription());
 
         OntologyRelationDict saved = relationDictRepository.save(relation);
+
+        // Update Sync Status
+        markWorkspaceSyncNeeded(relation.getWorkspaceId());
+
         return dto;
     }
 
     public void deleteConcept(Long id) {
-        objectDictRepository.deleteById(id);
+        // Fetch ID before delete to get workspace
+        OntologyObjectDict obj = objectDictRepository.findById(id).orElse(null);
+        if (obj != null) {
+            Long wsId = obj.getWorkspaceId();
+            objectDictRepository.deleteById(id);
+            markWorkspaceSyncNeeded(wsId);
+        }
     }
 
     public void deleteRelation(Long id) {
-        relationDictRepository.deleteById(id);
+        OntologyRelationDict rel = relationDictRepository.findById(id).orElse(null);
+        if (rel != null) {
+            Long wsId = rel.getWorkspaceId();
+            relationDictRepository.deleteById(id);
+            markWorkspaceSyncNeeded(wsId);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -273,6 +293,8 @@ public class DictionaryService {
 
         // 5. Delete Source Concept
         objectDictRepository.delete(sourceConcept);
+
+        markWorkspaceSyncNeeded(workspaceId);
     }
 
     private void addAsSynonym(OntologyObjectDict source, OntologyObjectDict target, Long workspaceId) {
@@ -343,6 +365,15 @@ public class DictionaryService {
             }
         } catch (Exception e) {
             log.error("Failed to merge source fields", e);
+        }
+    }
+
+    private void markWorkspaceSyncNeeded(Long workspaceId) {
+        com.knowlearnmap.workspace.domain.WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
+                .orElse(null);
+        if (workspace != null) {
+            workspace.setNeedsArangoSync(true);
+            workspaceRepository.save(workspace);
         }
     }
 }

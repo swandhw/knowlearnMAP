@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.ontologyToArango.service;
+package com.knowlearnmap.ontologyToArango.service;
 
 import com.arangodb.ArangoCollection;
 import com.arangodb.ArangoDB;
@@ -45,6 +45,11 @@ public class OntologyToArangoService {
         // 2. ArangoDB Setup & Sync (No DB Transaction needed here)
         if (data != null) {
             processArangoSync(data, workspaceId, dropExist);
+
+            // 3. Update Sync Status
+            WorkspaceEntity workspace = workspaceRepository.findById(workspaceId).orElseThrow();
+            workspace.setNeedsArangoSync(false);
+            workspaceRepository.save(workspace);
         }
     }
 
@@ -170,107 +175,110 @@ public class OntologyToArangoService {
     private Map<Long, String> syncObjectNodes(ArangoDatabase db, List<OntologyObjectDict> objectDicts,
             Map<Long, List<OntologyObjectSynonyms>> synonymsMap, Long workspaceId) {
         ArangoCollection collection = db.collection("ObjectNodes");
-        log.info("Syncing {} ObjectNodes...", objectDicts.size());
+        log.info("Syncing {} ObjectNodes (Parallel)...", objectDicts.size());
 
+        // 1. Build ID to Key Map (Fast, Sequential)
         Map<Long, String> idToKeyMap = new HashMap<>();
-        List<Map<String, Object>> batch = new ArrayList<>();
-
         for (OntologyObjectDict dict : objectDicts) {
-            // Generate Readable Key: term_en (sanitized) + "_" + id
             String termEn = dict.getTermEn() != null ? dict.getTermEn() : "Unknown";
             String sanitizedTerm = termEn.replaceAll("[^a-zA-Z0-9_\\-:.@()+,=;$!*'%]", "_");
             String key = sanitizedTerm + "_" + dict.getId();
             idToKeyMap.put(dict.getId(), key);
+        }
 
-            List<OntologyObjectSynonyms> synonyms = synonymsMap.getOrDefault(dict.getId(), Collections.emptyList());
-            Map<String, List<String>> synMap = synonyms.stream()
-                    .collect(Collectors.groupingBy(
-                            OntologyObjectSynonyms::getLanguage,
-                            Collectors.mapping(OntologyObjectSynonyms::getSynonym, Collectors.toList())));
+        // 2. Process Batches in Parallel (Embedding + Insert)
+        List<List<OntologyObjectDict>> partitions = partition(objectDicts, BATCH_SIZE);
 
-            Map<String, Object> doc = new HashMap<>();
-            doc.put("_key", key);
-            doc.put("term_en", dict.getTermEn());
-            doc.put("term_ko", dict.getTermKo());
-            doc.put("category", dict.getCategory());
-            doc.put("description", dict.getDescription());
-            doc.put("label_ko", dict.getTermKo());
-            doc.put("label_en", dict.getTermEn());
-            doc.put("workspace_id", workspaceId);
-            doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
-            doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
+        partitions.parallelStream().forEach(batchList -> {
+            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            for (OntologyObjectDict dict : batchList) {
+                String key = idToKeyMap.get(dict.getId());
 
-            List<String> docIds = parseDocumentIds(dict.getSource());
-            doc.put("document_ids", docIds);
+                List<OntologyObjectSynonyms> synonyms = synonymsMap.getOrDefault(dict.getId(), Collections.emptyList());
+                Map<String, List<String>> synMap = synonyms.stream()
+                        .collect(Collectors.groupingBy(
+                                OntologyObjectSynonyms::getLanguage,
+                                Collectors.mapping(OntologyObjectSynonyms::getSynonym, Collectors.toList())));
 
-            // Embedding Generation
-            try {
-                String textToEmbed = String.format("%s (%s): %s",
-                        dict.getTermKo(),
-                        dict.getTermEn(),
-                        dict.getDescription() != null ? dict.getDescription() : "");
-                List<Double> vector = embeddingService.embed(textToEmbed);
-                doc.put("embedding_vector", vector);
-            } catch (Exception e) {
-                log.error("Failed to generate embedding for object {}: {}", dict.getId(), e.getMessage());
-                // Continue without embedding
+                Map<String, Object> doc = new HashMap<>();
+                doc.put("_key", key);
+                doc.put("term_en", dict.getTermEn());
+                doc.put("term_ko", dict.getTermKo());
+                doc.put("category", dict.getCategory());
+                doc.put("description", dict.getDescription());
+                doc.put("label_ko", dict.getTermKo());
+                doc.put("label_en", dict.getTermEn());
+                doc.put("workspace_id", workspaceId);
+                doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
+                doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
+                doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
+                doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
+                doc.put("document_ids", parseJsonToList(dict.getSource()));
+                doc.put("chunk_ids", parseJsonToList(dict.getChunkSource()));
+
+                // Embedding (Slow operation - benefits from parallel)
+                try {
+                    String textToEmbed = String.format("%s (%s): %s",
+                            dict.getTermKo(),
+                            dict.getTermEn(),
+                            dict.getDescription() != null ? dict.getDescription() : "");
+                    List<Double> vector = embeddingService.embed(textToEmbed);
+                    doc.put("embedding_vector", vector);
+                } catch (Exception e) {
+                    log.error("Failed to generate embedding for object {}: {}", dict.getId(), e.getMessage());
+                }
+                arangoBatch.add(doc);
             }
 
-            batch.add(doc);
-            batch.add(doc);
-            if (batch.size() >= BATCH_SIZE) {
-                collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
+            if (!arangoBatch.isEmpty()) {
+                collection.importDocuments(arangoBatch, new com.arangodb.model.DocumentImportOptions()
                         .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
-                batch.clear();
             }
-        }
-        if (!batch.isEmpty()) {
-            collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
-                    .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
-        }
+        });
+
         return idToKeyMap;
     }
 
     private void syncRelationNodes(ArangoDatabase db, List<OntologyRelationDict> relationDicts,
             Map<Long, List<OntologyRelationSynonyms>> synonymsMap, Long workspaceId) {
         ArangoCollection collection = db.collection("RelationNodes");
-        log.info("Syncing {} RelationNodes...", relationDicts.size());
+        log.info("Syncing {} RelationNodes (Parallel)...", relationDicts.size());
 
-        List<Map<String, Object>> batch = new ArrayList<>();
-        for (OntologyRelationDict dict : relationDicts) {
-            List<OntologyRelationSynonyms> synonyms = synonymsMap.getOrDefault(dict.getId(), Collections.emptyList());
-            Map<String, List<String>> synMap = synonyms.stream()
-                    .collect(Collectors.groupingBy(
-                            OntologyRelationSynonyms::getLanguage,
-                            Collectors.mapping(OntologyRelationSynonyms::getSynonym, Collectors.toList())));
+        List<List<OntologyRelationDict>> partitions = partition(relationDicts, BATCH_SIZE);
 
-            Map<String, Object> doc = new HashMap<>();
-            doc.put("_key", String.valueOf(dict.getId()));
-            doc.put("relation_en", dict.getRelationEn());
-            doc.put("relation_ko", dict.getRelationKo());
-            doc.put("category", dict.getCategory());
-            doc.put("description", dict.getDescription());
-            doc.put("label_ko", dict.getRelationKo());
-            doc.put("label_en", dict.getRelationEn());
-            doc.put("workspace_id", workspaceId);
-            doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
-            doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
+        partitions.parallelStream().forEach(batchList -> {
+            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            for (OntologyRelationDict dict : batchList) {
+                List<OntologyRelationSynonyms> synonyms = synonymsMap.getOrDefault(dict.getId(),
+                        Collections.emptyList());
+                Map<String, List<String>> synMap = synonyms.stream()
+                        .collect(Collectors.groupingBy(
+                                OntologyRelationSynonyms::getLanguage,
+                                Collectors.mapping(OntologyRelationSynonyms::getSynonym, Collectors.toList())));
 
-            List<String> docIds = parseDocumentIds(dict.getSource());
-            doc.put("document_ids", docIds);
+                Map<String, Object> doc = new HashMap<>();
+                doc.put("_key", String.valueOf(dict.getId()));
+                doc.put("relation_en", dict.getRelationEn());
+                doc.put("relation_ko", dict.getRelationKo());
+                doc.put("category", dict.getCategory());
+                doc.put("description", dict.getDescription());
+                doc.put("label_ko", dict.getRelationKo());
+                doc.put("label_en", dict.getRelationEn());
+                doc.put("workspace_id", workspaceId);
+                doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
+                doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
+                doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
+                doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
+                doc.put("document_ids", parseJsonToList(dict.getSource()));
+                doc.put("chunk_ids", parseJsonToList(dict.getChunkSource()));
 
-            batch.add(doc);
-            batch.add(doc);
-            if (batch.size() >= BATCH_SIZE) {
-                collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
-                        .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
-                batch.clear();
+                arangoBatch.add(doc);
             }
-        }
-        if (!batch.isEmpty()) {
-            collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
-                    .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
-        }
+            if (!arangoBatch.isEmpty()) {
+                collection.importDocuments(arangoBatch, new com.arangodb.model.DocumentImportOptions()
+                        .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
+            }
+        });
     }
 
     private void syncKnowlearnEdges(ArangoDatabase db, Long workspaceId,
@@ -283,7 +291,7 @@ public class OntologyToArangoService {
             Map<Long, Long> chunkToDocMap) {
 
         ArangoCollection collection = db.collection("KnowlearnEdges");
-        log.info("Syncing {} KnowlearnEdges...", triples.size());
+        log.info("Syncing {} KnowlearnEdges (Parallel)...", triples.size());
 
         // Lookup Maps
         Map<Long, OntologyObjectDict> objectMap = objectDicts.stream()
@@ -291,111 +299,105 @@ public class OntologyToArangoService {
         Map<Long, OntologyRelationDict> relationMap = relationDicts.stream()
                 .collect(Collectors.toMap(OntologyRelationDict::getId, Function.identity()));
 
-        List<Map<String, Object>> batch = new ArrayList<>();
-        for (OntologyKnowlearnType triple : triples) {
-            Map<String, Object> edge = new HashMap<>();
+        List<List<OntologyKnowlearnType>> partitions = partition(triples, BATCH_SIZE);
 
-            String edgeKey = String.valueOf(triple.getId());
-            // Use Readable Keys for From/To
-            String subjectKey = objectIdToKeyMap.get(triple.getSubjectId());
-            String objectKey = objectIdToKeyMap.get(triple.getObjectId());
+        partitions.parallelStream().forEach(batchList -> {
+            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            for (OntologyKnowlearnType triple : batchList) {
+                Map<String, Object> edge = new HashMap<>();
 
-            if (subjectKey == null || objectKey == null) {
-                log.warn("Skipping edge {} due to missing subject/object key", triple.getId());
-                continue;
-            }
+                String edgeKey = String.valueOf(triple.getId());
+                // Use Readable Keys for From/To
+                String subjectKey = objectIdToKeyMap.get(triple.getSubjectId());
+                String objectKey = objectIdToKeyMap.get(triple.getObjectId());
 
-            edge.put("_key", edgeKey);
-            edge.put("workspace_id", workspaceId);
-            edge.put("_from", "ObjectNodes/" + subjectKey);
-            edge.put("_to", "ObjectNodes/" + objectKey);
-
-            // Basic Info
-            edge.put("relationId", triple.getRelationId());
-            edge.put("confidenceScore", triple.getConfidenceScore());
-            edge.put("evidenceLevel", triple.getEvidenceLevel());
-
-            // Enrich: Join Subject, Relation, Object
-            OntologyObjectDict subject = objectMap.get(triple.getSubjectId());
-            OntologyObjectDict object = objectMap.get(triple.getObjectId());
-            OntologyRelationDict relation = relationMap.get(triple.getRelationId());
-
-            if (subject != null && object != null && relation != null) {
-                // Label Construction (Use Relation Name for Graph Label)
-                edge.put("label_ko", relation.getRelationKo());
-                edge.put("label_en", relation.getRelationEn());
-
-                // Relation Info
-                edge.put("relation_ko", relation.getRelationKo());
-                edge.put("relation_en", relation.getRelationEn());
-
-                // Subject & Object Info
-                edge.put("subject_term_ko", subject.getTermKo());
-                edge.put("subject_term_en", subject.getTermEn());
-                edge.put("subject_id", subject.getId());
-
-                edge.put("object_term_ko", object.getTermKo());
-                edge.put("object_term_en", object.getTermEn());
-                edge.put("object_id", object.getId());
-
-                // Composite Sentence
-                String sentenceKo = String.format("%s %s %s", subject.getTermKo(), relation.getRelationKo(),
-                        object.getTermKo());
-                String sentenceEn = String.format("%s %s %s", subject.getTermEn(), relation.getRelationEn(),
-                        object.getTermEn());
-
-                edge.put("sentence_ko", sentenceKo);
-                edge.put("sentence_en", sentenceEn);
-
-                // Embedding Generation for Edge (Fact)
-                try {
-                    // Use Korean sentence for embedding as it is the primary language
-                    if (sentenceKo != null && !sentenceKo.trim().isEmpty()) {
-                        List<Double> vector = embeddingService.embed(sentenceKo);
-                        edge.put("embedding_vector", vector);
-                    } else {
-                        log.warn("Skipping embedding for edge {}: sentenceKo is null or empty", triple.getId());
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to generate embedding for edge {}: {}", triple.getId(), e.getMessage());
+                if (subjectKey == null || objectKey == null) {
+                    continue; // Skip silently or log debug
                 }
 
-                // Synonyms Enrichment
-                List<String> subjSynKo = getSynonyms(objectSynonymsMap, subject.getId(), "ko");
-                List<String> subjSynEn = getSynonyms(objectSynonymsMap, subject.getId(), "en");
+                edge.put("_key", edgeKey);
+                edge.put("workspace_id", workspaceId);
+                edge.put("_from", "ObjectNodes/" + subjectKey);
+                edge.put("_to", "ObjectNodes/" + objectKey);
 
-                List<String> objSynKo = getSynonyms(objectSynonymsMap, object.getId(), "ko");
-                List<String> objSynEn = getSynonyms(objectSynonymsMap, object.getId(), "en");
+                // Basic Info
+                edge.put("relationId", triple.getRelationId());
+                edge.put("confidenceScore", triple.getConfidenceScore());
+                edge.put("evidenceLevel", triple.getEvidenceLevel());
 
-                List<String> relSynKo = getSynonyms(relationSynonymsMap, relation.getId(), "ko");
-                List<String> relSynEn = getSynonyms(relationSynonymsMap, relation.getId(), "en");
+                // Enrich: Join Subject, Relation, Object
+                OntologyObjectDict subject = objectMap.get(triple.getSubjectId());
+                OntologyObjectDict object = objectMap.get(triple.getObjectId());
+                OntologyRelationDict relation = relationMap.get(triple.getRelationId());
 
-                edge.put("subject_synonyms_ko", subjSynKo);
-                edge.put("subject_synonyms_en", subjSynEn);
-                edge.put("object_synonyms_ko", objSynKo);
-                edge.put("object_synonyms_en", objSynEn);
-                edge.put("relation_synonyms_ko", relSynKo);
-                edge.put("relation_synonyms_en", relSynEn);
-                edge.put("relation_synonyms_ko", relSynKo);
-                edge.put("relation_synonyms_en", relSynEn);
+                if (subject != null && object != null && relation != null) {
+                    // Label Construction (Use Relation Name for Graph Label)
+                    edge.put("label_ko", relation.getRelationKo());
+                    edge.put("label_en", relation.getRelationEn());
 
-                // Source & Document IDs Mapping
-                List<String> docIds = parseDocumentIds(triple.getSource());
-                edge.put("document_ids", docIds);
+                    // Relation Info
+                    edge.put("relation_ko", relation.getRelationKo());
+                    edge.put("relation_en", relation.getRelationEn());
+
+                    // Subject & Object Info
+                    edge.put("subject_term_ko", subject.getTermKo());
+                    edge.put("subject_term_en", subject.getTermEn());
+                    edge.put("subject_id", subject.getId());
+
+                    edge.put("object_term_ko", object.getTermKo());
+                    edge.put("object_term_en", object.getTermEn());
+                    edge.put("object_id", object.getId());
+
+                    // Composite Sentence
+                    String sentenceKo = String.format("%s %s %s", subject.getTermKo(), relation.getRelationKo(),
+                            object.getTermKo());
+                    String sentenceEn = String.format("%s %s %s", subject.getTermEn(), relation.getRelationEn(),
+                            object.getTermEn());
+
+                    edge.put("sentence_ko", sentenceKo);
+                    edge.put("sentence_en", sentenceEn);
+
+                    // Embedding Generation for Edge (Fact)
+                    try {
+                        // Use Korean sentence for embedding as it is the primary language
+                        // This uses parallel stream, so it runs concurrently!
+                        if (sentenceKo != null && !sentenceKo.trim().isEmpty()) {
+                            List<Double> vector = embeddingService.embed(sentenceKo);
+                            edge.put("embedding_vector", vector);
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to generate embedding for edge {}: {}", triple.getId(), e.getMessage());
+                    }
+
+                    // Synonyms Enrichment
+                    edge.put("subject_synonyms_ko", getSynonyms(objectSynonymsMap, subject.getId(), "ko"));
+                    edge.put("subject_synonyms_en", getSynonyms(objectSynonymsMap, subject.getId(), "en"));
+                    edge.put("object_synonyms_ko", getSynonyms(objectSynonymsMap, object.getId(), "ko"));
+                    edge.put("object_synonyms_en", getSynonyms(objectSynonymsMap, object.getId(), "en"));
+                    edge.put("relation_synonyms_ko", getSynonyms(relationSynonymsMap, relation.getId(), "ko"));
+                    edge.put("relation_synonyms_en", getSynonyms(relationSynonymsMap, relation.getId(), "en"));
+
+                    // Source & Document IDs Mapping
+                    // Source & Document IDs Mapping
+                    edge.put("document_ids", parseJsonToList(triple.getSource()));
+                    edge.put("chunk_ids", parseJsonToList(triple.getChunkSource()));
+                }
+                arangoBatch.add(edge);
             }
 
-            batch.add(edge);
-            batch.add(edge);
-            if (batch.size() >= BATCH_SIZE) {
-                collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
+            if (!arangoBatch.isEmpty()) {
+                collection.importDocuments(arangoBatch, new com.arangodb.model.DocumentImportOptions()
                         .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
-                batch.clear();
             }
+        });
+    }
+
+    private <T> List<List<T>> partition(List<T> list, int size) {
+        List<List<T>> partitions = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += size) {
+            partitions.add(list.subList(i, Math.min(i + size, list.size())));
         }
-        if (!batch.isEmpty()) {
-            collection.importDocuments(batch, new com.arangodb.model.DocumentImportOptions()
-                    .onDuplicate(com.arangodb.model.DocumentImportOptions.OnDuplicate.replace));
-        }
+        return partitions;
     }
 
     private List<String> getSynonyms(Map<Long, ? extends List<? extends Object>> map, Long id, String lang) {
@@ -421,7 +423,7 @@ public class OntologyToArangoService {
                 .collect(Collectors.toList());
     }
 
-    private List<String> parseDocumentIds(String sourceJson) {
+    private List<String> parseJsonToList(String sourceJson) {
         if (sourceJson == null || sourceJson.trim().isEmpty()) {
             return Collections.emptyList();
         }

@@ -37,7 +37,9 @@ public class PipelineOrchestrator {
 
     private final List<StageProcessor> stageProcessors;
     private final PipelineExecutionRepository executionRepository;
+
     private final PipelineMonitor pipelineMonitor;
+    private final com.knowlearnmap.workspace.repository.WorkspaceRepository workspaceRepository;
 
     /**
      * Execute the full pipeline asynchronously.
@@ -110,7 +112,14 @@ public class PipelineOrchestrator {
             updateExecutionRecord(execution, context);
 
             log.info("=== Pipeline Execution Completed Successfully ===");
+
             pipelineMonitor.publishCompletion(context);
+
+            // Mark workspace as needing sync
+            workspaceRepository.findById(workspaceId).ifPresent(ws -> {
+                ws.setNeedsArangoSync(true);
+                workspaceRepository.save(ws);
+            });
 
             return context;
 

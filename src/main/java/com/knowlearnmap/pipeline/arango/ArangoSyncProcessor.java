@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  * Synchronizes ontology data to ArangoDB.
  * </p>
  */
-@Service
+// @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ArangoSyncProcessor implements StageProcessor {

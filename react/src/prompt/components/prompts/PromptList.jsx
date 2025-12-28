@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { usePrompts } from '../../hooks/usePrompts';
 import PromptFormDialog from './PromptFormDialog';
@@ -52,13 +53,22 @@ const PromptListContent = () => {
   return (
     <Box>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            프롬프트 관리
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {prompts.length}개의 프롬프트
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<HomeIcon />}
+            onClick={() => navigate('/workspaces')}
+          >
+            홈으로
+          </Button>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+              프롬프트 관리
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {prompts.length}개의 프롬프트
+            </Typography>
+          </Box>
         </Box>
         <Button
           variant="contained"

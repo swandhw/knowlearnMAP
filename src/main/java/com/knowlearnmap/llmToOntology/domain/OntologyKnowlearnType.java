@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.domain;
+package com.knowlearnmap.llmToOntology.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -52,7 +52,6 @@ public class OntologyKnowlearnType {
     @Column(name = "workspace_id", nullable = false)
     private Long workspaceId;
 
-
     /**
      * Subject 객체 ID
      */
@@ -84,6 +83,15 @@ public class OntologyKnowlearnType {
     @JdbcTypeCode(Types.LONGVARCHAR)
     @Column(name = "source", length = 200)
     private String source;
+
+    /**
+     * 청크 ID 목록 (JSON 배열 형식)
+     * 예: ["1001", "1002"]
+     */
+    @JdbcTypeCode(Types.LONGVARCHAR)
+    @Column(name = "chunk_source", length = 200)
+    @Builder.Default
+    private String chunkSource = "[]";
 
     /**
      * 증거 수준
@@ -129,4 +137,3 @@ public class OntologyKnowlearnType {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

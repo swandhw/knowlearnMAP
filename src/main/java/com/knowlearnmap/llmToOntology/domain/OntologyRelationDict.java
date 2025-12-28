@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.domain;
+package com.knowlearnmap.llmToOntology.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -96,6 +96,14 @@ public class OntologyRelationDict {
     @Builder.Default
     private String source = "initial_data";
 
+    /**
+     * 청크 ID 목록 (JSON 배열 형식)
+     */
+    @JdbcTypeCode(Types.LONGVARCHAR)
+    @Column(name = "chunk_source", length = 200)
+    @Builder.Default
+    private String chunkSource = "[]";
+
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
@@ -108,6 +116,9 @@ public class OntologyRelationDict {
         if (this.source == null) {
             this.source = "initial_data";
         }
+        if (this.chunkSource == null) {
+            this.chunkSource = "[]";
+        }
     }
 
     @PreUpdate
@@ -115,4 +126,3 @@ public class OntologyRelationDict {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

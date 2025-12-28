@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.dto;
+package com.knowlearnmap.prompt.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

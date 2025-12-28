@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.dto;
+package com.knowlearnmap.prompt.dto;
 
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;

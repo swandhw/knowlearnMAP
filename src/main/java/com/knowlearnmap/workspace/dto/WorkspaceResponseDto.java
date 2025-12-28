@@ -36,6 +36,7 @@ public class WorkspaceResponseDto {
     private String folderName;
     private String promptCode;
     private Integer documentCount; // 문서 개수
+    private Boolean needsArangoSync;
     private LocalDateTime createdAt;
     private String createdBy;
 
@@ -59,6 +60,7 @@ public class WorkspaceResponseDto {
         }
         dto.setFolderName(entity.getFolderName());
         dto.setPromptCode(entity.getPromptCode());
+        dto.setNeedsArangoSync(entity.getNeedsArangoSync());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setCreatedBy(entity.getCreatedBy());
 

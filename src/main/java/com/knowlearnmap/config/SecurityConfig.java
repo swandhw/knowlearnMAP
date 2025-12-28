@@ -27,7 +27,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/api/graph/**",
-                                "/api/dictionary/**", "/api/documents/**", "/api/pipeline/**", "/api/ontology/**")
+                                "/api/dictionary/**", "/api/documents/**", "/api/pipeline/**", "/api/ontology/**",
+                                "/api/v1/prompts/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .formLogin(AbstractHttpConfigurer::disable) // Disable default form login page

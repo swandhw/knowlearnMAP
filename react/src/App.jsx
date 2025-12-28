@@ -3,6 +3,7 @@ import './App.css';
 import Home from './pages/Home';
 import NotebookDetail from './components/NotebookDetail';
 import Admin from './pages/Admin';
+import DomainSelection from './pages/DomainSelection';
 import PromptList from './prompt/components/prompts/PromptList';
 import PromptDetail from './prompt/components/prompts/PromptDetail';
 import Login from './pages/Login';
@@ -21,7 +22,8 @@ function App() {
         <Route path="/set-password" element={<SetPassword />} />
 
         <Route element={<PrivateRoute />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<DomainSelection />} />
+          <Route path="/workspaces" element={<Home />} />
           <Route path="/notebook/:id" element={<NotebookDetail />} />
           <Route path="/admin/*" element={<Admin />} />
           <Route path="/prompts" element={<PromptList />} />

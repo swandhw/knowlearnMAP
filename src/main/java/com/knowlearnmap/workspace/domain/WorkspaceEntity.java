@@ -59,6 +59,14 @@ public class WorkspaceEntity {
     @Column(name = "workspace_type", length = 50)
     private String workspaceType;
 
+    /**
+     * ArangoDB 동기화 필요 여부
+     * - true: 변경사항 있음 (동기화 필요)
+     * - false: 최신 상태
+     */
+    @Column(name = "needs_arango_sync")
+    private Boolean needsArangoSync = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "domain_id")
     private com.knowlearnmap.domain.domain.DomainEntity domain;
@@ -87,6 +95,9 @@ public class WorkspaceEntity {
         createdAt = LocalDateTime.now();
         if (isActive == null) {
             isActive = true;
+        }
+        if (needsArangoSync == null) {
+            needsArangoSync = false;
         }
         // folderName이 없으면 UUID로 고유하게 생성
         if (folderName == null || folderName.isEmpty()) {

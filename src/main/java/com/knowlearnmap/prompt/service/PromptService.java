@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.service;
+package com.knowlearnmap.prompt.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

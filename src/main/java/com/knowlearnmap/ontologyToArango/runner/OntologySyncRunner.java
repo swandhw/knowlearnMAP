@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.ontologyToArango.runner;
+package com.knowlearnmap.ontologyToArango.runner;
 
 import com.knowlearnmap.ontologyToArango.service.OntologyToArangoService;
 import lombok.RequiredArgsConstructor;

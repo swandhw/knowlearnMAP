@@ -152,6 +152,11 @@ public class DocumentService {
         DocumentEntity document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다: " + documentId));
 
+        // Mark sync needed
+        WorkspaceEntity workspace = document.getWorkspace();
+        workspace.setNeedsArangoSync(true);
+        workspaceRepository.save(workspace);
+
         // Hard delete - JPA cascade 설정에 따라 document_page, document_chunk도 삭제됨
         documentRepository.delete(document);
         log.info("Document 삭제 완료 (hard delete): id={}", documentId);

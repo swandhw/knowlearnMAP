@@ -57,6 +57,7 @@ function NotebookDetail() {
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [loadingChat, setLoadingChat] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const handleSendMessage = async () => {
         if (!chatInput.trim()) return;
@@ -98,13 +99,16 @@ function NotebookDetail() {
 
     const handleArangoSync = async () => {
         if (!window.confirm("ArangoDB 동기화를 진행하시겠습니까?")) return;
+        setIsSyncing(true);
         try {
             const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
-            const response = await fetch(`${API_URL}/api/ontology/sync/${id}?dropExist=false`, {
+            const response = await fetch(`${API_URL}/api/ontology/sync/${id}?dropExist=true`, {
                 method: 'POST',
             });
             if (response.ok) {
                 alert("동기화가 완료되었습니다. 이제 지식 그래프를 다시 확인해보세요.");
+                // Update local state to reflect sync completion
+                setNotebook(prev => ({ ...prev, needsArangoSync: false }));
             } else {
                 const msg = await response.text();
                 alert("동기화 실패: " + msg);
@@ -112,6 +116,8 @@ function NotebookDetail() {
         } catch (error) {
             console.error("Sync error", error);
             alert("동기화 중 오류가 발생했습니다.");
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -626,14 +632,39 @@ function NotebookDetail() {
                                         <button
                                             className="icon-view-btn"
                                             onClick={handleArangoSync}
-                                            title="ArangoDB 동기화"
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                            disabled={isSyncing || !notebook?.needsArangoSync}
+                                            title={isSyncing ? "동기화 중..." : (notebook?.needsArangoSync ? "데이터 변경됨 - 동기화 필요" : "최신 상태")}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: (isSyncing || !notebook?.needsArangoSync) ? 'default' : 'pointer',
+                                                padding: '4px',
+                                                opacity: (isSyncing || !notebook?.needsArangoSync) ? 0.5 : 1
+                                            }}
                                         >
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#888' }}>
+                                            <svg
+                                                width="20" height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                style={{
+                                                    color: notebook?.needsArangoSync ? 'red' : '#888',
+                                                    animation: isSyncing ? 'spin 1s linear infinite' : 'none'
+                                                }}
+                                            >
                                                 <path d="M23 4v6h-6"></path>
                                                 <path d="M1 20v-6h6"></path>
                                                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                                             </svg>
+                                            <style>{`
+                                                @keyframes spin {
+                                                    0% { transform: rotate(0deg); }
+                                                    100% { transform: rotate(360deg); }
+                                                }
+                                            `}</style>
                                         </button>
                                         <button
                                             className="icon-view-btn"

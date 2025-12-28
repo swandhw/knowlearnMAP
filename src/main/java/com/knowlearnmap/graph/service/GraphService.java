@@ -45,13 +45,16 @@ public class GraphService {
         // Supports both global view (documentIds empty) and filtered view
         boolean filterByDoc = documentIds != null && !documentIds.isEmpty();
 
-        // [DEBUG] Inspect what kind of document_ids exist in the DB
+        // [DEBUG] Inspect what kind of document_ids exist in the DB for this workspace
         try {
-            String debugAql = "FOR e IN KnowlearnEdges LIMIT 5 RETURN e.document_ids";
-            ArangoCursor<Object> debugCursor = db.query(debugAql, Object.class, null,
+            String debugAql = "FOR e IN KnowlearnEdges FILTER e.workspace_id == @wsId LIMIT 5 RETURN { ids: e.document_ids, type: TYPENAME(e.document_ids[0]) }";
+            Map<String, Object> debugBind = new HashMap<>();
+            debugBind.put("wsId", workspaceId);
+
+            ArangoCursor<Object> debugCursor = db.query(debugAql, Object.class, debugBind,
                     new com.arangodb.model.AqlQueryOptions());
             List<Object> debugList = debugCursor.asListRemaining();
-            log.info("[DEBUG] Sample document_ids in DB: {}", debugList);
+            log.info("[DEBUG] Workspace {} Data Inspection: {}", workspaceId, debugList);
         } catch (Exception e) {
             log.warn("Debug query failed: {}", e.getMessage());
         }

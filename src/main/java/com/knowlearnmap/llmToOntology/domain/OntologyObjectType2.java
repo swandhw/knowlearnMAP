@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.domain;
+package com.knowlearnmap.llmToOntology.domain;
 
 import jakarta.persistence.*;
 import lombok.*;

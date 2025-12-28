@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.controller;
+package com.knowlearnmap.llmToOntology.controller;
 
 import com.knowlearnmap.llmToOntology.service.LlmToOntologyService;
 import lombok.RequiredArgsConstructor;

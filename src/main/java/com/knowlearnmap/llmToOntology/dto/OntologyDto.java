@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.llmToOntology.dto;
+package com.knowlearnmap.llmToOntology.dto;
 
 import lombok.Data;
 

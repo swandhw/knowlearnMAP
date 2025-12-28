@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.service;
+package com.knowlearnmap.prompt.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.regex.Matcher;
 
 @Slf4j
 @Service
@@ -174,6 +175,11 @@ public class PromptTestService {
     }
 
     public LlmDirectCallResponse callLlmWithPublishedPrompt(String code, SimpleLlmCallRequest request) {
+        return callLlmWithPublishedPrompt(code, request, null);
+    }
+
+    public LlmDirectCallResponse callLlmWithPublishedPrompt(String code, SimpleLlmCallRequest request,
+            LlmConfigDto configOverride) {
         PromptVersion version = versionRepository.findByPromptCodeAndIsActive(code, true)
                 .orElseThrow(() -> new RuntimeException("배포된 프롬프트 버전을 찾을 수 없습니다: " + code));
 
@@ -190,6 +196,18 @@ public class PromptTestService {
                         .temperature(0.7)
                         .build();
             }
+        }
+
+        // Apply Override
+        if (configOverride != null) {
+            if (configOverride.getModel() != null)
+                config.setModel(configOverride.getModel());
+            if (configOverride.getTemperature() != null)
+                config.setTemperature(configOverride.getTemperature());
+            if (configOverride.getTopP() != null)
+                config.setTopP(configOverride.getTopP());
+            if (configOverride.getMaxOutputTokens() != null)
+                config.setMaxOutputTokens(configOverride.getMaxOutputTokens());
         }
 
         String processedContent = resolveVariables(version.getContent(), request.getVariables());
@@ -212,7 +230,8 @@ public class PromptTestService {
             for (Map.Entry<String, Object> entry : variables.entrySet()) {
                 String key = entry.getKey();
                 Object value = entry.getValue();
-                resolved = resolved.replaceAll("\\{\\{\\s*" + key + "\\s*\\}\\}", String.valueOf(value));
+                resolved = resolved.replaceAll("\\{\\{\\s*" + key + "\\s*\\}\\}",
+                        Matcher.quoteReplacement(String.valueOf(value)));
             }
         }
         return resolved;

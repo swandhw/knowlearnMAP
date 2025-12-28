@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.dto;
+package com.knowlearnmap.prompt.dto;
 
 import java.util.List;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.chunkToLlm.controller;
+package com.knowlearnmap.chunkToLlm.controller;
 
 import com.knowlearnmap.chunkToLlm.service.ChunkToLlmService;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +36,21 @@ public class ChunkToLlmController {
             return ResponseEntity.internalServerError().body("처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
-}
 
+    /**
+     * 실패한 청크 재처리 API
+     * 
+     * @return 재처리된 청크 개수
+     */
+    @PostMapping("/retry-failed")
+    public ResponseEntity<String> retryFailedChunks() {
+        log.info("API 요청: 실패한 청크 재처리 시작");
+        try {
+            int count = chunkToLlmService.retryFailedChunks();
+            return ResponseEntity.ok(String.format("실패했던 청크 %d 개의 재처리가 완료되었습니다.", count));
+        } catch (Exception e) {
+            log.error("재처리 중 오류 발생", e);
+            return ResponseEntity.internalServerError().body("재처리 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿package com.knowlearnmap.prompt.dto;
+package com.knowlearnmap.prompt.dto;
 
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
