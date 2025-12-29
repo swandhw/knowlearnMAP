@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * 
  * <pre>
  * 1. Chunk 테이블에서 llm_status = null 조회
- * 2. 10개씩(BATCH_SIZE) 묶어서 JSON Array로 변환
+ * 2. Domain별 PromptCode로 그룹화 후 10개씩(BATCH_SIZE) 묶음
  * 3. PromptTestService로 LLM 호출 (배치 단위)
  * 4. LLM 결과(JSON)를 파싱하여 각 Chunk의 llm_result에 저장
  * 5. llm_status = 'COMPLETED' 업데이트
@@ -52,7 +52,7 @@ public class ChunkToLlmService {
 
     private static final int MAX_RETRY = 3;
     private static final int THREAD_POOL_SIZE = 5; // 배치 처리이므로 스레드 수 조정
-    private static final String PROMPT_CODE = "CHUNK_TO_ONTOLOGY";
+    private static final String DEFAULT_PROMPT_CODE = "CHUNLIST_TO_ONOTLOGY";
     private static final int BATCH_SIZE = 10; // 배치 크기 상수
 
     // ==========================================
@@ -106,10 +106,16 @@ public class ChunkToLlmService {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         AtomicInteger successCount = new AtomicInteger(0);
 
-        // 리스트를 배치 크기로 분할
+        // 1. Group chunks by Prompt Code
+        Map<String, List<DocumentChunk>> groups = groupChunksByPromptCode(chunks);
+
+        // 2. Create batches from groups
         List<List<DocumentChunk>> batches = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i += BATCH_SIZE) {
-            batches.add(chunks.subList(i, Math.min(chunks.size(), i + BATCH_SIZE)));
+        for (Map.Entry<String, List<DocumentChunk>> entry : groups.entrySet()) {
+            List<DocumentChunk> groupChunks = entry.getValue();
+            for (int i = 0; i < groupChunks.size(); i += BATCH_SIZE) {
+                batches.add(groupChunks.subList(i, Math.min(groupChunks.size(), i + BATCH_SIZE)));
+            }
         }
 
         log.info("총 {} 개의 배치가 생성되었습니다.", batches.size());
@@ -134,6 +140,50 @@ public class ChunkToLlmService {
         return successCount.get();
     }
 
+    private Map<String, List<DocumentChunk>> groupChunksByPromptCode(List<DocumentChunk> chunks) {
+        Map<String, List<DocumentChunk>> groups = new HashMap<>();
+
+        // Map existing chunks by ID for quick lookup
+        Map<Long, DocumentChunk> originalMap = chunks.stream()
+                .collect(Collectors.toMap(DocumentChunk::getId, c -> c));
+
+        // Use transaction to fetch required associations safely
+        transactionTemplate.execute(status -> {
+            List<DocumentChunk> attachedChunks = chunkRepository.findAllById(
+                    chunks.stream().map(DocumentChunk::getId).toList());
+
+            for (DocumentChunk chunk : attachedChunks) {
+                String promptCode = DEFAULT_PROMPT_CODE;
+                try {
+                    // Navigate to Domain safely
+                    if (chunk.getDocument() != null &&
+                            chunk.getDocument().getWorkspace() != null &&
+                            chunk.getDocument().getWorkspace().getDomain() != null) {
+
+                        String domainPrompt = chunk.getDocument().getWorkspace().getDomain().getChunkToLlmPrompt();
+                        if (domainPrompt != null && !domainPrompt.isBlank()) {
+                            promptCode = domainPrompt;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to resolve prompt code for chunk {}: {}", chunk.getId(), e.getMessage());
+                }
+
+                // Add the *original* chunk object to the group (to preserve the list passed in)
+                // or just use the attached one if that helps. Let's use original to minimize
+                // confusion in outer scope,
+                // but processBatchWithLlm re-fetches anyway.
+                DocumentChunk original = originalMap.get(chunk.getId());
+                if (original != null) {
+                    groups.computeIfAbsent(promptCode, k -> new ArrayList<>()).add(original);
+                }
+            }
+            return null;
+        });
+
+        return groups;
+    }
+
     /**
      * 배치 단위 LLM 호출 및 결과 저장
      */
@@ -148,9 +198,30 @@ public class ChunkToLlmService {
         while (attempt < MAX_RETRY && !success) {
             attempt++;
             try {
-                // 1. 상태 업데이트 (PROCESSING)
+                // Determine Prompt Code (Expect ALL chunks in batch to have same code)
+                // We re-fetch inside transaction to get Prompt Code safely again
+                final String[] batchPromptCode = { DEFAULT_PROMPT_CODE };
+
+                // 1. 상태 업데이트 (PROCESSING) & Resolve Prompt Code
                 transactionTemplate.execute(status -> {
                     List<DocumentChunk> targets = chunkRepository.findAllById(chunkIds);
+
+                    if (!targets.isEmpty()) {
+                        DocumentChunk first = targets.get(0);
+                        try {
+                            if (first.getDocument() != null &&
+                                    first.getDocument().getWorkspace() != null &&
+                                    first.getDocument().getWorkspace().getDomain() != null) {
+                                String p = first.getDocument().getWorkspace().getDomain().getChunkToLlmPrompt();
+                                if (p != null && !p.isBlank()) {
+                                    batchPromptCode[0] = p;
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Ignore, use default
+                        }
+                    }
+
                     targets.forEach(c -> c.setLlmStatus("PROCESSING"));
                     chunkRepository.saveAllAndFlush(targets);
                     return null;
@@ -162,10 +233,11 @@ public class ChunkToLlmService {
                         .collect(Collectors.toList());
                 String jsonInput = objectMapper.writeValueAsString(requests);
 
-                log.info("LLM 호출 시도 {}/{} - Batch Size: {}", attempt, MAX_RETRY, batch.size());
+                log.info("LLM 호출 시도 {}/{} - Batch Size: {}, Prompt: {}",
+                        attempt, MAX_RETRY, batch.size(), batchPromptCode[0]);
 
                 // 3. LLM 호출
-                String llmResultJson = callLlm(jsonInput);
+                String llmResultJson = callLlm(jsonInput, batchPromptCode[0]);
 
                 // 4. 결과 파싱 및 저장
                 parseAndSaveBatchResult(batch, llmResultJson);
@@ -198,7 +270,6 @@ public class ChunkToLlmService {
                     c.setLlmErrorMessage(finalError);
                 });
                 chunkRepository.saveAll(targets);
-                // 모니터링 알림 등 추가 가능
                 return null;
             });
             log.error("Batch LLM 처리 최종 실패 - Ids: {}", chunkIds);
@@ -260,8 +331,7 @@ public class ChunkToLlmService {
             }
             chunkRepository.saveAll(targets);
 
-            // 모니터링 서비스에 알림 (옵션)
-            // 모니터링 서비스 제거로 인한 단순 로그 처리
+            // 단순 로그 처리
             log.info("Batch Process Success: Processed {} chunks", targets.size());
 
             return null;
@@ -271,7 +341,7 @@ public class ChunkToLlmService {
     /**
      * LLM API 호출
      */
-    private String callLlm(String jsonInput) {
+    private String callLlm(String jsonInput, String promptCode) {
         try {
             Map<String, Object> variables = new HashMap<>();
             variables.put("CHUNK_LIST", jsonInput);
@@ -281,7 +351,7 @@ public class ChunkToLlmService {
 
             // PromptTestService 호출
             LlmDirectCallResponse result = promptTestService
-                    .callLlmWithPublishedPrompt(PROMPT_CODE, request);
+                    .callLlmWithPublishedPrompt(promptCode, request);
 
             if (result == null || result.getSuccess() == null || !result.getSuccess()) {
                 throw new RuntimeException("LLM 호출 실패: 응답 없음");

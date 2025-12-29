@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './AddSourceModal.css';
+import { API_URL } from '../config/api';
 
 function AddSourceModal({ isOpen, onClose, workspaceId }) {
     const [currentView, setCurrentView] = useState('main'); // main, website, youtube, text, drive
@@ -40,7 +41,7 @@ function AddSourceModal({ isOpen, onClose, workspaceId }) {
             formData.append('file', file);
             formData.append('workspaceId', workspaceId);
 
-            const response = await fetch(`${import.meta.env.VITE_APP_API_URL || 'http://localhost:8080'}/api/documents/upload`, {
+            const response = await fetch(`${API_URL}/api/documents/upload`, {
                 method: 'POST',
                 credentials: 'include',
                 body: formData,

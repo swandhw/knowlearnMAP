@@ -28,11 +28,7 @@ import javax.sql.DataSource;
  */
 @Slf4j
 @Configuration
-@MapperScan(
-    value = "com.knowlearnmap", 
-    annotationClass = ConnMapperFirst.class, 
-    sqlSessionFactoryRef = "firstSqlSessionFactory"
-)
+@MapperScan(value = "com.knowlearnmap", annotationClass = ConnMapperFirst.class, sqlSessionFactoryRef = "firstSqlSessionFactory")
 @EnableTransactionManagement
 public class MybatisConfigFirst {
 
@@ -40,23 +36,9 @@ public class MybatisConfigFirst {
     @Primary
     @ConfigurationProperties(prefix = "spring.first.datasource")
     public DataSource firstDataSource() {
-        HikariDataSource hikari = DataSourceBuilder.create()
+        return DataSourceBuilder.create()
                 .type(HikariDataSource.class)
                 .build();
-        
-        // HikariCP 최적화 설정
-        hikari.setMaximumPoolSize(20);
-        hikari.setMinimumIdle(5);
-        hikari.setIdleTimeout(300000);  // 5분
-        hikari.setMaxLifetime(1800000); // 30분
-        hikari.setLeakDetectionThreshold(60000);
-        hikari.setConnectionTimeout(20000);
-        hikari.setAutoCommit(true);
-        hikari.setValidationTimeout(5000);
-        hikari.setConnectionTestQuery("SELECT 1");
-        
-        log.info("First DataSource 초기화 완료: {}", hikari.getJdbcUrl());
-        return hikari;
     }
 
     @Bean(name = "firstSqlSessionFactory")
@@ -67,16 +49,14 @@ public class MybatisConfigFirst {
 
         SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
         sqlSessionFactoryBean.setDataSource(firstDataSource);
-        
+
         // MyBatis XML 매퍼 파일 위치 지정
         sqlSessionFactoryBean.setMapperLocations(
-            applicationContext.getResources("classpath:mybatis-mapper/first/**/*.xml")
-        );
+                applicationContext.getResources("classpath:mybatis-mapper/first/**/*.xml"));
 
         // MyBatis Configuration 설정
-        org.apache.ibatis.session.Configuration configuration = 
-            new org.apache.ibatis.session.Configuration();
-        configuration.setMapUnderscoreToCamelCase(true);  // snake_case -> camelCase 자동 변환
+        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
+        configuration.setMapUnderscoreToCamelCase(true); // snake_case -> camelCase 자동 변환
         sqlSessionFactoryBean.setConfiguration(configuration);
 
         log.info("First SqlSessionFactory 초기화 완료");

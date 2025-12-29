@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Login.css';
+import { API_URL } from '../config/api';
 
 const EmailVerification = () => {
     const [searchParams] = useSearchParams();
@@ -19,7 +20,6 @@ const EmailVerification = () => {
 
         const verify = async () => {
             try {
-                const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
                 await axios.get(`${API_URL}/api/auth/verify-email?token=${token}`);
                 setStatus('Email Verified Successfully. Your account is now waiting for administrator approval.');
             } catch (err) {

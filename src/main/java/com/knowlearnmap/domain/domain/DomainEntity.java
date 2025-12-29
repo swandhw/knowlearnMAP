@@ -27,6 +27,10 @@ public class DomainEntity {
     @Column(length = 1000)
     private String description;
 
+    @Column(name = "chunk_to_llm_prompt", length = 100)
+    @Builder.Default
+    private String chunkToLlmPrompt = "CHUNLIST_TO_ONOTLOGY";
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

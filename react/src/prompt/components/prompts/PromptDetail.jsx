@@ -137,6 +137,14 @@ const PromptDetailContent = () => {
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 1, mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={handleGoBack}
+            sx={{ mr: 2 }}
+          >
+            이전
+          </Button>
           {/* 코드 */}
           <Typography variant="h6" sx={{ fontWeight: 600, minWidth: '200px', mr: 3 }}>
             코드: {code}
@@ -242,15 +250,8 @@ const PromptDetailContent = () => {
       </Paper>
 
       {/* 이전 버튼 */}
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={handleGoBack}
-          sx={{ minWidth: 120 }}
-        >
-          이전
-        </Button>
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}> {/* justifyContent: 'flex-start'로 변경 */}
+        {/* 이 영역에서 제거됨 */}
       </Box>
     </Box>
   );

@@ -33,6 +33,12 @@ public interface OntologyKnowlearnTypeRepository extends JpaRepository<OntologyK
      */
     List<OntologyKnowlearnType> findByWorkspaceIdAndObjectId(Long workspaceId, Long objectId);
 
-    List<OntologyKnowlearnType> findBySourceContaining(String sourcePattern);
+    /**
+     * Delete Orphaned Triples (No references)
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyKnowlearnType o WHERE SIZE(o.references) = 0")
+    void deleteOrphans();
 
 }

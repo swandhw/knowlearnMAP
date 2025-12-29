@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import './KnowledgeGraphModal.css';
-
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+import { API_URL } from '../config/api';
 
 export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, initialSelectedDocIds = [], documents = [] }) {
     const [fullGraphData, setFullGraphData] = useState({ nodes: [], links: [] });

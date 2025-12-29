@@ -37,7 +37,29 @@ public interface OntologyObjectDictRepository extends JpaRepository<OntologyObje
          */
         Optional<OntologyObjectDict> findById(Long id);
 
-        List<OntologyObjectDict> findBySourceContaining(String sourcePattern);
+        /**
+         * Delete Orphaned Objects (No references)
+         */
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.transaction.annotation.Transactional
+        @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyObjectDict o WHERE SIZE(o.references) = 0")
+        void deleteOrphans();
+
+        @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o FROM OntologyObjectDict o JOIN o.references r WHERE o.workspaceId = :workspaceId AND r.documentId IN :documentIds")
+        org.springframework.data.domain.Page<OntologyObjectDict> findByWorkspaceIdAndDocumentIds(
+                        @org.springframework.data.repository.query.Param("workspaceId") Long workspaceId,
+                        @org.springframework.data.repository.query.Param("documentIds") java.util.List<Long> documentIds,
+                        org.springframework.data.domain.Pageable pageable);
+
+        @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o FROM OntologyObjectDict o JOIN o.references r WHERE o.workspaceId = :workspaceId AND r.documentId IN :documentIds")
+        List<OntologyObjectDict> findByWorkspaceIdAndDocumentIds(
+                        @org.springframework.data.repository.query.Param("workspaceId") Long workspaceId,
+                        @org.springframework.data.repository.query.Param("documentIds") java.util.List<Long> documentIds);
+
+        @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o.category FROM OntologyObjectDict o JOIN o.references r WHERE o.workspaceId = :workspaceId AND r.documentId IN :documentIds AND o.category IS NOT NULL ORDER BY o.category ASC")
+        List<String> findDistinctCategoriesByWorkspaceIdAndDocumentIds(
+                        @org.springframework.data.repository.query.Param("workspaceId") Long workspaceId,
+                        @org.springframework.data.repository.query.Param("documentIds") java.util.List<Long> documentIds);
 
         @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o.category FROM OntologyObjectDict o WHERE o.workspaceId = :workspaceId AND o.category IS NOT NULL ORDER BY o.category ASC")
         List<String> findDistinctCategoriesByWorkspaceId(

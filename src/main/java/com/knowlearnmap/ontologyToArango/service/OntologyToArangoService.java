@@ -30,6 +30,12 @@ public class OntologyToArangoService {
     private final OntologyKnowlearnTypeRepository knowlearnTypeRepository;
     private final OntologyObjectSynonymsRepository objectSynonymsRepository;
     private final OntologyRelationSynonymsRepository relationSynonymsRepository;
+
+    // New Reference Repositories
+    private final OntologyObjectReferenceRepository objectReferenceRepository;
+    private final OntologyRelationReferenceRepository relationReferenceRepository;
+    private final OntologyKnowlearnReferenceRepository knowlearnReferenceRepository;
+
     private final com.knowlearnmap.document.repository.DocumentChunkRepository documentChunkRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final ArangoDB arangoDB;
@@ -190,6 +196,14 @@ public class OntologyToArangoService {
         List<List<OntologyObjectDict>> partitions = partition(objectDicts, BATCH_SIZE);
 
         partitions.parallelStream().forEach(batchList -> {
+            // Batch Fetch Reference Data
+            List<Long> batchIds = batchList.stream().map(OntologyObjectDict::getId).collect(Collectors.toList());
+            List<OntologyObjectReference> references = objectReferenceRepository.findByOntologyObjectDictIdIn(batchIds);
+
+            // Group references by object ID
+            Map<Long, List<OntologyObjectReference>> refMap = references.stream()
+                    .collect(Collectors.groupingBy(ref -> ref.getOntologyObjectDict().getId()));
+
             List<Map<String, Object>> arangoBatch = new ArrayList<>();
             for (OntologyObjectDict dict : batchList) {
                 String key = idToKeyMap.get(dict.getId());
@@ -199,6 +213,13 @@ public class OntologyToArangoService {
                         .collect(Collectors.groupingBy(
                                 OntologyObjectSynonyms::getLanguage,
                                 Collectors.mapping(OntologyObjectSynonyms::getSynonym, Collectors.toList())));
+
+                // Get Docs and Chunks from refs
+                List<OntologyObjectReference> myRefs = refMap.getOrDefault(dict.getId(), Collections.emptyList());
+                Set<String> docIds = myRefs.stream().map(r -> String.valueOf(r.getDocumentId()))
+                        .collect(Collectors.toSet());
+                Set<String> chunkIds = myRefs.stream().map(r -> String.valueOf(r.getChunkId()))
+                        .collect(Collectors.toSet());
 
                 Map<String, Object> doc = new HashMap<>();
                 doc.put("_key", key);
@@ -211,10 +232,8 @@ public class OntologyToArangoService {
                 doc.put("workspace_id", workspaceId);
                 doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
                 doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
-                doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
-                doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
-                doc.put("document_ids", parseJsonToList(dict.getSource()));
-                doc.put("chunk_ids", parseJsonToList(dict.getChunkSource()));
+                doc.put("document_ids", new ArrayList<>(docIds));
+                doc.put("chunk_ids", new ArrayList<>(chunkIds));
 
                 // Embedding (Slow operation - benefits from parallel)
                 try {
@@ -247,6 +266,15 @@ public class OntologyToArangoService {
         List<List<OntologyRelationDict>> partitions = partition(relationDicts, BATCH_SIZE);
 
         partitions.parallelStream().forEach(batchList -> {
+            // Batch Fetch Reference Data
+            List<Long> batchIds = batchList.stream().map(OntologyRelationDict::getId).collect(Collectors.toList());
+            List<OntologyRelationReference> references = relationReferenceRepository
+                    .findByOntologyRelationDictIdIn(batchIds);
+
+            // Group references by object ID
+            Map<Long, List<OntologyRelationReference>> refMap = references.stream()
+                    .collect(Collectors.groupingBy(ref -> ref.getOntologyRelationDict().getId()));
+
             List<Map<String, Object>> arangoBatch = new ArrayList<>();
             for (OntologyRelationDict dict : batchList) {
                 List<OntologyRelationSynonyms> synonyms = synonymsMap.getOrDefault(dict.getId(),
@@ -255,6 +283,12 @@ public class OntologyToArangoService {
                         .collect(Collectors.groupingBy(
                                 OntologyRelationSynonyms::getLanguage,
                                 Collectors.mapping(OntologyRelationSynonyms::getSynonym, Collectors.toList())));
+
+                List<OntologyRelationReference> myRefs = refMap.getOrDefault(dict.getId(), Collections.emptyList());
+                Set<String> docIds = myRefs.stream().map(r -> String.valueOf(r.getDocumentId()))
+                        .collect(Collectors.toSet());
+                Set<String> chunkIds = myRefs.stream().map(r -> String.valueOf(r.getChunkId()))
+                        .collect(Collectors.toSet());
 
                 Map<String, Object> doc = new HashMap<>();
                 doc.put("_key", String.valueOf(dict.getId()));
@@ -267,10 +301,8 @@ public class OntologyToArangoService {
                 doc.put("workspace_id", workspaceId);
                 doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
                 doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
-                doc.put("synonyms_en", synMap.getOrDefault("en", Collections.emptyList()));
-                doc.put("synonyms_ko", synMap.getOrDefault("ko", Collections.emptyList()));
-                doc.put("document_ids", parseJsonToList(dict.getSource()));
-                doc.put("chunk_ids", parseJsonToList(dict.getChunkSource()));
+                doc.put("document_ids", new ArrayList<>(docIds));
+                doc.put("chunk_ids", new ArrayList<>(chunkIds));
 
                 arangoBatch.add(doc);
             }
@@ -302,6 +334,15 @@ public class OntologyToArangoService {
         List<List<OntologyKnowlearnType>> partitions = partition(triples, BATCH_SIZE);
 
         partitions.parallelStream().forEach(batchList -> {
+            // Batch Fetch Reference Data
+            List<Long> batchIds = batchList.stream().map(OntologyKnowlearnType::getId).collect(Collectors.toList());
+            List<OntologyKnowlearnReference> references = knowlearnReferenceRepository
+                    .findByOntologyKnowlearnTypeIdIn(batchIds);
+
+            // Group references by object ID
+            Map<Long, List<OntologyKnowlearnReference>> refMap = references.stream()
+                    .collect(Collectors.groupingBy(ref -> ref.getOntologyKnowlearnType().getId()));
+
             List<Map<String, Object>> arangoBatch = new ArrayList<>();
             for (OntologyKnowlearnType triple : batchList) {
                 Map<String, Object> edge = new HashMap<>();
@@ -377,10 +418,16 @@ public class OntologyToArangoService {
                     edge.put("relation_synonyms_ko", getSynonyms(relationSynonymsMap, relation.getId(), "ko"));
                     edge.put("relation_synonyms_en", getSynonyms(relationSynonymsMap, relation.getId(), "en"));
 
-                    // Source & Document IDs Mapping
-                    // Source & Document IDs Mapping
-                    edge.put("document_ids", parseJsonToList(triple.getSource()));
-                    edge.put("chunk_ids", parseJsonToList(triple.getChunkSource()));
+                    // Source & Document IDs Mapping - from references
+                    List<OntologyKnowlearnReference> myRefs = refMap.getOrDefault(triple.getId(),
+                            Collections.emptyList());
+                    Set<String> docIds = myRefs.stream().map(r -> String.valueOf(r.getDocumentId()))
+                            .collect(Collectors.toSet());
+                    Set<String> chunkIds = myRefs.stream().map(r -> String.valueOf(r.getChunkId()))
+                            .collect(Collectors.toSet());
+
+                    edge.put("document_ids", new ArrayList<>(docIds));
+                    edge.put("chunk_ids", new ArrayList<>(chunkIds));
                 }
                 arangoBatch.add(edge);
             }
@@ -421,31 +468,5 @@ public class OntologyToArangoService {
                     return "";
                 })
                 .collect(Collectors.toList());
-    }
-
-    private List<String> parseJsonToList(String sourceJson) {
-        if (sourceJson == null || sourceJson.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        try {
-            return objectMapper.readValue(sourceJson,
-                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
-                    });
-        } catch (Exception e) {
-            // Try to parse as single value if list parsing fails
-            try {
-                String single = objectMapper.readValue(sourceJson, String.class);
-                return Collections.singletonList(single);
-            } catch (Exception ex) {
-                // If it's a raw number not in quotes
-                try {
-                    Long id = objectMapper.readValue(sourceJson, Long.class);
-                    return Collections.singletonList(String.valueOf(id));
-                } catch (Exception ex2) {
-                    // Fallback: Treat as raw string identifier (e.g. "initial_data")
-                    return Collections.singletonList(sourceJson);
-                }
-            }
-        }
     }
 }

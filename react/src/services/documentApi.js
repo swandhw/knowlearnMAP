@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
+import { API_URL } from '../config/api';
 
 /**
  * Document API 서비스

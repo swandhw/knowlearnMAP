@@ -5,10 +5,12 @@ import { useAuth } from '../context/AuthContext';
 
 import LoginModal from '../components/LoginModal';
 import '../components/LoginModal.css';
+import UpgradeModal from '../components/UpgradeModal';
 
 function Home() {
     const { isAdmin, isAuthenticated, user, logout } = useAuth();
     const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('내 워크스페이스');
     const [viewMode, setViewMode] = useState('grid');
     const [sortBy, setSortBy] = useState('최신순');
@@ -197,6 +199,28 @@ function Home() {
 
                     {isAuthenticated ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
+                            <button
+                                onClick={() => setUpgradeModalOpen(true)}
+                                style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '20px',
+                                    border: '1px solid #ddd',
+                                    backgroundColor: 'white',
+                                    color: '#333',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                </svg>
+                                업그레이드
+                            </button>
                             <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                                 {user?.username || user?.email}
                             </span>
@@ -462,6 +486,11 @@ function Home() {
                         </div>
                     </div>
                 )}
+
+                <UpgradeModal
+                    isOpen={upgradeModalOpen}
+                    onClose={() => setUpgradeModalOpen(false)}
+                />
 
                 <LoginModal
                     isOpen={loginModalOpen}

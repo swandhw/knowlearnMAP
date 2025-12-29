@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { workspaceApi } from '../services/api';
 import { documentApi } from '../services/documentApi';
+import { API_URL } from '../config/api';
 import './NotebookDetail.css';
 import AddSourceModal from './AddSourceModal';
 import ReportGenerationModal from './ReportGenerationModal';
@@ -68,7 +69,6 @@ function NotebookDetail() {
         setLoadingChat(true);
 
         try {
-            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
             const response = await fetch(`${API_URL}/api/search/debug`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -101,7 +101,6 @@ function NotebookDetail() {
         if (!window.confirm("ArangoDB 동기화를 진행하시겠습니까?")) return;
         setIsSyncing(true);
         try {
-            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
             const response = await fetch(`${API_URL}/api/ontology/sync/${id}?dropExist=true`, {
                 method: 'POST',
             });
@@ -480,7 +479,6 @@ function NotebookDetail() {
         if (!documentToRename) return;
 
         try {
-            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
             const response = await fetch(`${API_URL}/api/documents/${documentToRename.id}`, {
                 method: 'PUT',
                 headers: {
@@ -515,7 +513,6 @@ function NotebookDetail() {
         }
 
         try {
-            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
             const response = await fetch(`${API_URL}/api/documents/${document.id}`, {
                 method: 'DELETE',
             });

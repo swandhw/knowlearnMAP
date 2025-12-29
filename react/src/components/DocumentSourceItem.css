@@ -132,8 +132,9 @@
 .source-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .status-badge {
@@ -141,6 +142,7 @@
   align-items: center;
   gap: 4px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .status-icon {
@@ -164,6 +166,7 @@
 
 .page-count {
   color: #666;
+  white-space: nowrap;
 }
 
 /* 진행률 바 */

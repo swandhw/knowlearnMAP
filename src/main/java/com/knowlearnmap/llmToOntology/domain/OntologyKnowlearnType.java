@@ -76,22 +76,9 @@ public class OntologyKnowlearnType {
     @Column(name = "confidence_score", precision = 10, scale = 2)
     private BigDecimal confidenceScore;
 
-    /**
-     * 출처 정보 (JSON 배열 형식)
-     * 예: ["chunk_id_1", "chunk_id_2"]
-     */
-    @JdbcTypeCode(Types.LONGVARCHAR)
-    @Column(name = "source", length = 200)
-    private String source;
-
-    /**
-     * 청크 ID 목록 (JSON 배열 형식)
-     * 예: ["1001", "1002"]
-     */
-    @JdbcTypeCode(Types.LONGVARCHAR)
-    @Column(name = "chunk_source", length = 200)
+    @OneToMany(mappedBy = "ontologyKnowlearnType", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private String chunkSource = "[]";
+    private java.util.List<OntologyKnowlearnReference> references = new java.util.ArrayList<>();
 
     /**
      * 증거 수준

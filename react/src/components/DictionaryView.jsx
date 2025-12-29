@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './DictionaryView.css';
+import { API_URL } from '../config/api';
 
 function DictionaryView({ workspaceId }) {
     const [viewMode, setViewMode] = useState('concept'); // 'concept' or 'relation'
@@ -18,10 +19,6 @@ function DictionaryView({ workspaceId }) {
 
     const [terms, setTerms] = useState([]);
     const [relations, setRelations] = useState([]);
-
-
-
-    const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
 
     const [documents, setDocuments] = useState([]);
     const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);

@@ -21,7 +21,7 @@ public class PromptDataInitializer implements CommandLineRunner {
   private final PromptRepository promptRepository;
   private final PromptVersionRepository versionRepository;
 
-  private static final String PROMPT_CODE = "CHUNK_TO_ONTOLOGY";
+  private static final String PROMPT_CODE = "CHUNLIST_TO_ONOTLOGY";
   private static final String DEFAULT_PROMPT_CONTENT = """
       You are an expert Ontology Engineer.
       Your task is to analyze the provided document chunks and extract ontology elements (Objects, Relations, and Triples) in JSON format.

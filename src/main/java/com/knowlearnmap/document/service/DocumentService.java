@@ -1,5 +1,6 @@
 package com.knowlearnmap.document.service;
 
+import com.knowlearnmap.document.domain.DocumentChunk;
 import com.knowlearnmap.document.domain.DocumentEntity;
 import com.knowlearnmap.document.dto.DocumentPageDto;
 import com.knowlearnmap.document.dto.DocumentResponseDto;
@@ -157,12 +158,16 @@ public class DocumentService {
         workspace.setNeedsArangoSync(true);
         workspaceRepository.save(workspace);
 
+        // Fetch Chunk IDs for Ontology Cleanup before deletion
+        List<DocumentChunk> chunks = documentChunkRepository.findByDocumentIdOrderByChunkIndex(documentId);
+        List<Long> chunkIds = chunks.stream().map(DocumentChunk::getId).toList();
+
         // Hard delete - JPA cascade 설정에 따라 document_page, document_chunk도 삭제됨
         documentRepository.delete(document);
         log.info("Document 삭제 완료 (hard delete): id={}", documentId);
 
         // Ontology Cleanup (Reference Counting)
-        ontologyPersistenceService.removeDocumentSource(documentId);
+        ontologyPersistenceService.removeDocumentSource(documentId, chunkIds);
         log.info("Ontology source references verified/removed for documentId={}", documentId);
     }
 

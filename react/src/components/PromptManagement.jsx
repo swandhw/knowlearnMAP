@@ -50,11 +50,12 @@ import StorageIcon from '@mui/icons-material/Storage';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
 
 import { v4 as uuidv4 } from 'uuid';
+import { API_URL } from '../config/api';
 
 // API 호출을 위한 fetch 함수
 const apiCall = async (endpoint, options = {}) => {
     try {
-        const response = await fetch(`http://localhost:8080${endpoint}`, {
+        const response = await fetch(`${API_URL}${endpoint}`, {
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers,
@@ -278,7 +279,7 @@ export default function PromptManagement() {
         formData.append('files', files[0]);
 
         try {
-            await fetch('http://localhost:8080/api/v1/knowlearn/knowledges', {
+            await fetch(`${API_URL}/api/v1/knowlearn/knowledges`, {
                 method: 'POST',
                 body: formData,
             });

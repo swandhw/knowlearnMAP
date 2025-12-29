@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -9,7 +10,6 @@ export const AuthProvider = ({ children }) => {
 
     // Set default axios config
     axios.defaults.withCredentials = true;
-    const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
 
     const checkAuth = async () => {
         try {

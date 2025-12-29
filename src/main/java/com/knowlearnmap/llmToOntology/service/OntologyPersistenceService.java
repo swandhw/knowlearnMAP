@@ -5,8 +5,6 @@ import com.knowlearnmap.llmToOntology.dto.OntologyDto;
 import com.knowlearnmap.document.domain.DocumentChunk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +17,7 @@ import java.util.Optional;
  * 
  * <p>
  * Ontology 관련 엔티티들의 저장 및 조회를 담당합니다.
- * 각 메서드는 독립적인 트랜잭션(REQUIRES_NEW)으로 실행되어
- * 대량 처리 시 일부 실패가 전체 롤백으로 이어지지 않도록 합니다.
+ * 정규화된 테이블 구조(Reference Tables)를 사용하여 Document 및 Chunk 참조를 관리합니다.
  * </p>
  */
 @Service
@@ -29,66 +26,26 @@ import java.util.Optional;
 public class OntologyPersistenceService {
 
     private final OntologyObjectDictRepository objectDictRepository;
-    private final OntologyObjectTypeRepository objectTypeRepository;
     private final OntologyRelationDictRepository relationDictRepository;
-    private final OntologyRelationTypeRepository relationTypeRepository;
     private final OntologyKnowlearnTypeRepository knowlearnTypeRepository;
+
+    // New Reference Repositories (Must be created or inject EntityManager if
+    // preferred, but usually Repos needed)
+    // NOTE: You need to create these repositories first. I will assume they exist
+    // or you will create them.
+    // Since I cannot create repository files in this single step, I will use
+    // EntityManager or assume custom implementation?
+    // Wait, I should have created Repository interfaces. I missed that in the plan.
+    // I will write the code assuming the repositories exist, and then I will create
+    // the repository files in the next step.
+    private final OntologyObjectReferenceRepository objectReferenceRepository;
+    private final OntologyRelationReferenceRepository relationReferenceRepository;
+    private final OntologyKnowlearnReferenceRepository knowlearnReferenceRepository;
+
     private final OntologyObjectSynonymsRepository objectSynonymsRepository;
     private final OntologyRelationSynonymsRepository relationSynonymsRepository;
 
     private final OntologySynonymService synonymService;
-
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
-
-    private String addSource(String currentSource, String newId) {
-        try {
-            java.util.Set<String> sources = new java.util.HashSet<>();
-            if (currentSource != null && !currentSource.trim().isEmpty()) {
-                try {
-                    // Try parsing as JSON Array
-                    java.util.List<String> parsed = objectMapper.readValue(currentSource,
-                            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {
-                            });
-                    sources.addAll(parsed);
-                } catch (Exception e) {
-                    // Fallback: Treat as single string (legacy data like "initial_data")
-                    // Remove potential JSON brackets if malformed? No, just raw value.
-                    // If it looks like JSON array but failed, it's risky. But safe assumption is:
-                    // If it's "initial_data", add it.
-                    // If it's "[\"123\"]" and failed? Unlikely if ObjectMapper works.
-                    // We assume valid JSON or plain string.
-                    String clean = currentSource.trim();
-                    if (clean.startsWith("[") && clean.endsWith("]")) {
-                        // It was a JSON array but parse failed (maybe malformed quotes).
-                        // Check logs? For now, we might reset it or try to keep it.
-                        // Let's just treat it as a string to be safe, though "['123']" as a string is
-                        // weird.
-                        // Better policy: Just ignore legacy if it fails parsing?
-                        // User said "initial_data".
-                    } else {
-                        sources.add(clean);
-                    }
-                }
-            }
-            sources.add(newId);
-            return objectMapper.writeValueAsString(sources);
-        } catch (Exception e) {
-            log.error("Error updating source for ID: {}", newId, e);
-            return "[\"" + newId + "\"]";
-        }
-    }
-
-    private OntologyObjectDict updateSourceAndReturn(OntologyObjectDict dict, String docId, String chunkId) {
-        dict.setSource(addSource(dict.getSource(), docId));
-        dict.setChunkSource(addSource(dict.getChunkSource(), chunkId));
-        return dict;
-    }
-
-    private OntologyRelationDict updateSourceAndReturn(OntologyRelationDict dict, String docId, String chunkId) {
-        dict.setSource(addSource(dict.getSource(), docId));
-        dict.setChunkSource(addSource(dict.getChunkSource(), chunkId));
-        return dict;
-    }
 
     public String SpaceRemover(String str) {
         if (str == null)
@@ -98,81 +55,38 @@ public class OntologyPersistenceService {
 
     /**
      * Object Dictionary 저장 또는 조회
-     * 
-     * 조회 순서 : 영어 Dict, 영어 Sym, 공백없는 영어 Dict, 공백없는 Sym, 한글도 같은 순서로
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public OntologyObjectDict findAndSaveObjectDict(Long workspaceId, DocumentChunk chunk, OntologyObjectDict dict) {
-        String docId = String.valueOf(chunk.getDocument().getId());
-        String chunkId = String.valueOf(chunk.getId());
+        Long docId = chunk.getDocument().getId();
+        Long chunkId = chunk.getId();
         String category = this.SpaceRemover(dict.getCategory());
         String termEn = this.SpaceRemover(dict.getTermEn());
         String termKo = this.SpaceRemover(dict.getTermKo());
+
         try {
-            // 영문 용어로 먼저 검색
-            Optional<OntologyObjectDict> existing = objectDictRepository
-                    .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, dict.getTermEn());
-            if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
-
-            Optional<OntologyObjectSynonyms> existingSym = objectSynonymsRepository
-                    .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, dict.getTermEn());
-            if (existingSym.isPresent()) {
-                existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
-
-            if (!termEn.equals(dict.getTermEn())) {
-                existing = objectDictRepository
-                        .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, termEn);
-                if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
-
-                existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
-                        termEn);
-                if (existingSym.isPresent()) {
-                    existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
-            }
-
-            // 한글 용어로 검색
-            existing = objectDictRepository
-                    .findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, dict.getTermKo());
-            if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
-
-            existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+            OntologyObjectDict foundDict = findExistingObjectDict(workspaceId, category, dict.getTermEn(),
                     dict.getTermKo());
-            if (existingSym.isPresent()) {
-                existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
 
-            if (!termKo.equals(dict.getTermKo())) {
-                existing = objectDictRepository
-                        .findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, termKo);
-                if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
-
-                existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
-                        termKo);
-                if (existingSym.isPresent()) {
-                    existing = objectDictRepository.findById(existingSym.get().getObjectId());
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
+            if (foundDict != null) {
+                saveObjectReference(foundDict, docId, chunkId);
+                return foundDict;
             }
 
             // 없으면 새로 저장
             dict.setWorkspaceId(workspaceId);
             dict.setCategory(category);
-            dict.setSource(addSource(null, docId));
-            dict.setChunkSource(addSource(null, chunkId));
+
+            // Ensure NOT NULL columns have values
+            if (dict.getTermEn() == null || dict.getTermEn().trim().isEmpty()) {
+                dict.setTermEn(termEn.isEmpty() ? "Unknown" : termEn);
+            }
+            if (dict.getTermKo() == null || dict.getTermKo().trim().isEmpty()) {
+                dict.setTermKo(termKo.isEmpty() ? "Unknown" : termKo);
+            }
+
             OntologyObjectDict newDict = objectDictRepository.save(dict);
+            saveObjectReference(newDict, docId, chunkId);
 
             // 띄어쓰기 제거해서 Sym 에 추가
             synonymService.saveObjectSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getTermEn(),
@@ -184,9 +98,83 @@ public class OntologyPersistenceService {
         } catch (Exception e) {
             log.error("ObjectDict 저장 실패: {}", dict.getTermEn(), e);
             // 동시성 문제로 이미 저장되었을 수 있으므로 다시 조회 시도
-            return objectDictRepository
-                    .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, dict.getCategory(), dict.getTermEn())
-                    .orElseThrow(() -> new RuntimeException("ObjectDict 저장 및 조회 실패", e));
+            // Re-attempt to find the existing dictionary if save failed due to concurrency
+            OntologyObjectDict existing = findExistingObjectDict(workspaceId, category, dict.getTermEn(),
+                    dict.getTermKo());
+            if (existing != null) {
+                saveObjectReference(existing, docId, chunkId);
+                return existing;
+            }
+            throw new RuntimeException("ObjectDict 저장 및 조회 실패", e);
+        }
+    }
+
+    private OntologyObjectDict findExistingObjectDict(Long workspaceId, String category, String termEn, String termKo) {
+        // 1. TermEn Search
+        Optional<OntologyObjectDict> existing = objectDictRepository
+                .findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, termEn);
+        if (existing.isPresent())
+            return existing.get();
+
+        // 2. SynEn Search
+        Optional<OntologyObjectSynonyms> existingSym = objectSynonymsRepository
+                .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, termEn);
+        if (existingSym.isPresent()) {
+            return objectDictRepository.findById(existingSym.get().getObjectId()).orElse(null);
+        }
+
+        String safeTermEn = SpaceRemover(termEn);
+        if (!safeTermEn.equals(termEn)) {
+            existing = objectDictRepository.findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, safeTermEn);
+            if (existing.isPresent())
+                return existing.get();
+
+            existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+                    safeTermEn);
+            if (existingSym.isPresent()) {
+                return objectDictRepository.findById(existingSym.get().getObjectId()).orElse(null);
+            }
+        }
+
+        // 3. TermKo Search
+        existing = objectDictRepository.findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, termKo);
+        if (existing.isPresent())
+            return existing.get();
+
+        // 4. SynKo Search
+        existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, termKo);
+        if (existingSym.isPresent()) {
+            return objectDictRepository.findById(existingSym.get().getObjectId()).orElse(null);
+        }
+
+        String safeTermKo = SpaceRemover(termKo);
+        if (!safeTermKo.equals(termKo)) {
+            existing = objectDictRepository.findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, safeTermKo);
+            if (existing.isPresent())
+                return existing.get();
+
+            existingSym = objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+                    safeTermKo);
+            if (existingSym.isPresent()) {
+                return objectDictRepository.findById(existingSym.get().getObjectId()).orElse(null);
+            }
+        }
+
+        return null;
+    }
+
+    private void saveObjectReference(OntologyObjectDict dict, Long docId, Long chunkId) {
+        // Check for duplicate reference to avoid unique constraint violations if we had
+        // one
+        // Ideally we should just save. If index exists, use ignore or check.
+        // Assuming we check first or just save. Simple check:
+        if (!objectReferenceRepository.existsByOntologyObjectDictAndDocumentIdAndChunkId(dict, docId, chunkId)) {
+            OntologyObjectReference ref = OntologyObjectReference.builder()
+                    .ontologyObjectDict(dict)
+                    .documentId(docId)
+                    .chunkId(chunkId)
+                    .build();
+            objectReferenceRepository.save(ref);
         }
     }
 
@@ -196,76 +184,35 @@ public class OntologyPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public OntologyRelationDict findAndSaveRelationDict(Long workspaceId, DocumentChunk chunk,
             OntologyRelationDict dict) {
-        String docId = String.valueOf(chunk.getDocument().getId());
-        String chunkId = String.valueOf(chunk.getId());
+        Long docId = chunk.getDocument().getId();
+        Long chunkId = chunk.getId();
         String category = this.SpaceRemover(dict.getCategory());
         String relationEn = this.SpaceRemover(dict.getRelationEn());
         String relationKo = this.SpaceRemover(dict.getRelationKo());
+
         try {
-            // 영문 용어로 먼저 검색
-            Optional<OntologyRelationDict> existing = relationDictRepository
-                    .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category, dict.getRelationEn());
-            if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
-
-            Optional<OntologyRelationSynonyms> existingSym = relationSynonymsRepository
-                    .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, dict.getRelationEn());
-            if (existingSym.isPresent()) {
-                existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
-
-            if (!relationEn.equals(dict.getRelationEn())) {
-                existing = relationDictRepository
-                        .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category, relationEn);
-                if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
-
-                existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
-                        relationEn);
-                if (existingSym.isPresent()) {
-                    existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
-            }
-
-            // 한글 용어로 검색
-            existing = relationDictRepository
-                    .findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category, dict.getRelationKo());
-            if (existing.isPresent()) {
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
-
-            existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+            OntologyRelationDict foundDict = findExistingRelationDict(workspaceId, category, dict.getRelationEn(),
                     dict.getRelationKo());
-            if (existingSym.isPresent()) {
-                existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                return updateSourceAndReturn(existing.get(), docId, chunkId);
-            }
 
-            if (!relationKo.equals(dict.getRelationKo())) {
-                existing = relationDictRepository
-                        .findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category, relationKo);
-                if (existing.isPresent()) {
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
-
-                existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
-                        relationKo);
-                if (existingSym.isPresent()) {
-                    existing = relationDictRepository.findById(existingSym.get().getRelationId());
-                    return updateSourceAndReturn(existing.get(), docId, chunkId);
-                }
+            if (foundDict != null) {
+                saveRelationReference(foundDict, docId, chunkId);
+                return foundDict;
             }
 
             // 없으면 새로 저장
             dict.setWorkspaceId(workspaceId);
             dict.setCategory(category);
-            dict.setSource(addSource(null, docId));
-            dict.setChunkSource(addSource(null, chunkId));
+
+            // Ensure NOT NULL columns have values
+            if (dict.getRelationEn() == null || dict.getRelationEn().trim().isEmpty()) {
+                dict.setRelationEn(relationEn.isEmpty() ? "Unknown" : relationEn);
+            }
+            if (dict.getRelationKo() == null || dict.getRelationKo().trim().isEmpty()) {
+                dict.setRelationKo(relationKo.isEmpty() ? "Unknown" : relationKo);
+            }
+
             OntologyRelationDict newDict = relationDictRepository.save(dict);
+            saveRelationReference(newDict, docId, chunkId);
 
             // 띠어쓰기 제거해서 Sym 에 추가
             synonymService.saveRelationSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getRelationEn(),
@@ -277,9 +224,80 @@ public class OntologyPersistenceService {
 
         } catch (Exception e) {
             log.error("RelationDict 저장 실패: {}", dict.getRelationEn(), e);
-            return relationDictRepository
-                    .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, dict.getCategory(), dict.getRelationEn())
-                    .orElseThrow(() -> new RuntimeException("RelationDict 저장 및 조회 실패", e));
+            // Re-attempt to find the existing dictionary if save failed due to concurrency
+            OntologyRelationDict existing = findExistingRelationDict(workspaceId, category, dict.getRelationEn(),
+                    dict.getRelationKo());
+            if (existing != null) {
+                saveRelationReference(existing, docId, chunkId);
+                return existing;
+            }
+            throw new RuntimeException("RelationDict 저장 및 조회 실패", e);
+        }
+    }
+
+    private OntologyRelationDict findExistingRelationDict(Long workspaceId, String category, String relationEn,
+            String relationKo) {
+        // Similar Logic to ObjectDict but for Relations
+        Optional<OntologyRelationDict> existing = relationDictRepository
+                .findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category, relationEn);
+        if (existing.isPresent())
+            return existing.get();
+
+        Optional<OntologyRelationSynonyms> existingSym = relationSynonymsRepository
+                .findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, relationEn);
+        if (existingSym.isPresent()) {
+            return relationDictRepository.findById(existingSym.get().getRelationId()).orElse(null);
+        }
+
+        String safeRelEn = SpaceRemover(relationEn);
+        if (!safeRelEn.equals(relationEn)) {
+            existing = relationDictRepository.findByWorkspaceIdAndCategoryAndRelationEn(workspaceId, category,
+                    safeRelEn);
+            if (existing.isPresent())
+                return existing.get();
+
+            existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+                    safeRelEn);
+            if (existingSym.isPresent()) {
+                return relationDictRepository.findById(existingSym.get().getRelationId()).orElse(null);
+            }
+        }
+
+        existing = relationDictRepository.findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category, relationKo);
+        if (existing.isPresent())
+            return existing.get();
+
+        existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+                relationKo);
+        if (existingSym.isPresent()) {
+            return relationDictRepository.findById(existingSym.get().getRelationId()).orElse(null);
+        }
+
+        String safeRelKo = SpaceRemover(relationKo);
+        if (!safeRelKo.equals(relationKo)) {
+            existing = relationDictRepository.findByWorkspaceIdAndCategoryAndRelationKo(workspaceId, category,
+                    safeRelKo);
+            if (existing.isPresent())
+                return existing.get();
+
+            existingSym = relationSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category,
+                    safeRelKo);
+            if (existingSym.isPresent()) {
+                return relationDictRepository.findById(existingSym.get().getRelationId()).orElse(null);
+            }
+        }
+
+        return null;
+    }
+
+    private void saveRelationReference(OntologyRelationDict dict, Long docId, Long chunkId) {
+        if (!relationReferenceRepository.existsByOntologyRelationDictAndDocumentIdAndChunkId(dict, docId, chunkId)) {
+            OntologyRelationReference ref = OntologyRelationReference.builder()
+                    .ontologyRelationDict(dict)
+                    .documentId(docId)
+                    .chunkId(chunkId)
+                    .build();
+            relationReferenceRepository.save(ref);
         }
     }
 
@@ -293,21 +311,33 @@ public class OntologyPersistenceService {
             OntologyObjectDict subjectDict = new OntologyObjectDict();
             subjectDict.setCategory(dto.getSubjectCategory());
             subjectDict.setTermEn(dto.getSubjectTermEn());
-            subjectDict.setTermKo(dto.getSubjectTermKo());
-            subjectDict = findAndSaveObjectDict(workspaceId, chunk, subjectDict);
 
-            // Subject Instance 생성 (없으면)
-            // findAndSaveObjectType(workspaceId, subjectDict);
+            String subjectTermKo = dto.getSubjectTermKo();
+            if (subjectTermKo == null || subjectTermKo.trim().isEmpty()) {
+                subjectTermKo = dto.getSubjectTermEn();
+            }
+            if (subjectTermKo == null || subjectTermKo.trim().isEmpty()) {
+                subjectTermKo = "Unknown";
+            }
+            subjectDict.setTermKo(subjectTermKo);
+
+            subjectDict = findAndSaveObjectDict(workspaceId, chunk, subjectDict);
 
             // 2. Object 처리
             OntologyObjectDict objectDict = new OntologyObjectDict();
             objectDict.setCategory(dto.getObjectCategory());
             objectDict.setTermEn(dto.getObjectTermEn());
-            objectDict.setTermKo(dto.getObjectTermKo());
-            objectDict = findAndSaveObjectDict(workspaceId, chunk, objectDict);
 
-            // Object Instance 생성 (없으면)
-            // findAndSaveObjectType(workspaceId, objectDict);
+            String objectTermKo = dto.getObjectTermKo();
+            if (objectTermKo == null || objectTermKo.trim().isEmpty()) {
+                objectTermKo = dto.getObjectTermEn();
+            }
+            if (objectTermKo == null || objectTermKo.trim().isEmpty()) {
+                objectTermKo = "Unknown";
+            }
+            objectDict.setTermKo(objectTermKo);
+
+            objectDict = findAndSaveObjectDict(workspaceId, chunk, objectDict);
 
             // 3. Relation 처리
             OntologyRelationDict relationDict = new OntologyRelationDict();
@@ -316,33 +346,29 @@ public class OntologyPersistenceService {
             relationDict.setRelationKo(dto.getRelationKo());
             relationDict = findAndSaveRelationDict(workspaceId, chunk, relationDict);
 
-            // Relation Instance 생성 (없으면)
-            // findAndSaveRelationType(workspaceId, relationDict);
-
             // 4. Triple 저장
             Optional<OntologyKnowlearnType> existing = knowlearnTypeRepository
                     .findByWorkspaceIdAndSubjectIdAndRelationIdAndObjectId(
                             workspaceId, subjectDict.getId(), relationDict.getId(), objectDict.getId());
 
+            OntologyKnowlearnType triple;
             if (existing.isEmpty()) {
-                OntologyKnowlearnType triple = OntologyKnowlearnType.builder()
+                triple = OntologyKnowlearnType.builder()
                         .workspaceId(workspaceId)
                         .subjectId(subjectDict.getId())
                         .relationId(relationDict.getId())
                         .objectId(objectDict.getId())
                         .confidenceScore(dto.getConfidenceScore())
                         .evidenceLevel(dto.getEvidenceLevel())
-                        .evidenceLevel(dto.getEvidenceLevel())
-                        .source(addSource(null, String.valueOf(chunk.getDocument().getId())))
-                        .chunkSource(addSource(null, String.valueOf(chunk.getId())))
                         .build();
 
-                knowlearnTypeRepository.save(triple);
+                triple = knowlearnTypeRepository.save(triple);
             } else {
-                OntologyKnowlearnType triple = existing.get();
-                triple.setSource(addSource(triple.getSource(), String.valueOf(chunk.getDocument().getId())));
-                triple.setChunkSource(addSource(triple.getChunkSource(), String.valueOf(chunk.getId())));
+                triple = existing.get();
+                // Update score/evidence if needed? For now we just keep existing.
             }
+
+            saveKnowlearnReference(triple, chunk.getDocument().getId(), chunk.getId());
 
         } catch (Exception e) {
             log.error("KnowlearnType 저장 실패: {} - {} - {}",
@@ -350,90 +376,49 @@ public class OntologyPersistenceService {
         }
     }
 
+    private void saveKnowlearnReference(OntologyKnowlearnType triple, Long docId, Long chunkId) {
+        if (!knowlearnReferenceRepository.existsByOntologyKnowlearnTypeAndDocumentIdAndChunkId(triple, docId,
+                chunkId)) {
+            OntologyKnowlearnReference ref = OntologyKnowlearnReference.builder()
+                    .ontologyKnowlearnType(triple)
+                    .documentId(docId)
+                    .chunkId(chunkId)
+                    .build();
+            knowlearnReferenceRepository.save(ref);
+        }
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void removeDocumentSource(Long documentId) {
-        String docIdStr = String.valueOf(documentId);
-        // Pattern to find JSON arrays containing "docId"
-        String pattern = "%\"" + docIdStr + "\"%";
+    public void removeDocumentSource(Long documentId, List<Long> chunkIds) {
+        // 1. Delete References by Document ID
+        // Note: Using documentId is sufficient to remove all references for that
+        // document.
+        // ChunkIDs are technically redundant if we delete by DocumentID, BUT
+        // if the user wants to delete specific chunks, we would use chunkIds.
+        // Here we are deleting the entire document, so deleting by documentId is
+        // correct and faster.
 
-        // 1. Clean Triples
-        List<OntologyKnowlearnType> triples = knowlearnTypeRepository.findBySourceContaining(pattern);
-        for (OntologyKnowlearnType triple : triples) {
-            String newSource = removeSourceId(triple.getSource(), docIdStr);
-            if (isSourceEmpty(newSource)) {
-                knowlearnTypeRepository.delete(triple);
-            } else {
-                triple.setSource(newSource);
-                knowlearnTypeRepository.save(triple);
-            }
-        }
+        long kRefDeleted = knowlearnReferenceRepository.deleteByDocumentId(documentId);
+        long oRefDeleted = objectReferenceRepository.deleteByDocumentId(documentId);
+        long rRefDeleted = relationReferenceRepository.deleteByDocumentId(documentId);
 
-        // 2. Clean Objects
-        List<OntologyObjectDict> objects = objectDictRepository.findBySourceContaining(pattern);
-        for (OntologyObjectDict obj : objects) {
-            String newSource = removeSourceId(obj.getSource(), docIdStr);
-            if (isSourceEmpty(newSource)) {
-                objectDictRepository.delete(obj);
-            } else {
-                obj.setSource(newSource);
-                objectDictRepository.save(obj);
-            }
-        }
+        log.info("Deleted References for Document {}: Triples={}, Objects={}, Relations={}",
+                documentId, kRefDeleted, oRefDeleted, rRefDeleted);
 
-        // 3. Clean Relations
-        List<OntologyRelationDict> relations = relationDictRepository.findBySourceContaining(pattern);
-        for (OntologyRelationDict rel : relations) {
-            String newSource = removeSourceId(rel.getSource(), docIdStr);
-            if (isSourceEmpty(newSource)) {
-                relationDictRepository.delete(rel);
-            } else {
-                rel.setSource(newSource);
-                relationDictRepository.save(rel);
-            }
-        }
-    }
+        // 2. Cleanup Orphans (Masters with no References)
+        // This can be heavy if strict consistency is needed instantly.
+        // A common strategy is to do this asynchronously or periodically.
+        // However, user logic requested "remove if no source remains".
 
-    private String removeSourceId(String currentSource, String targetId) {
-        try {
-            if (currentSource == null || currentSource.isEmpty())
-                return "[]";
+        // Strategy: We can't easily find *which* objects were affected solely by this
+        // delete without keeping a list.
+        // But we know we just deleted references.
+        // A simple brute-force cleanup for now: Delete where references is empty.
+        // OR better: Delete only those that we know might be affected?
+        // Let's implement a 'Delete Orphaned' query in the repository and call it.
 
-            java.util.List<String> list;
-            try {
-                list = objectMapper.readValue(currentSource,
-                        new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {
-                        });
-            } catch (Exception e) {
-                // Not a JSON list? If it matches targetId exact (legacy), return empty
-                if (currentSource.trim().equals(targetId))
-                    return "[]";
-                // Else return as is
-                return currentSource;
-            }
-
-            if (list == null)
-                list = new java.util.ArrayList<>();
-            else
-                list = new java.util.ArrayList<>(list);
-
-            list.remove(targetId);
-            return objectMapper.writeValueAsString(list);
-        } catch (Exception e) {
-            log.error("Error removing source ID: {}", targetId, e);
-            return currentSource;
-        }
-    }
-
-    private boolean isSourceEmpty(String sourceJson) {
-        try {
-            if (sourceJson == null || sourceJson.isEmpty() || "[]".equals(sourceJson.trim()))
-                return true;
-            java.util.List<String> list = objectMapper.readValue(sourceJson,
-                    new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {
-                    });
-            return list == null || list.isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
+        knowlearnTypeRepository.deleteOrphans();
+        objectDictRepository.deleteOrphans();
+        relationDictRepository.deleteOrphans();
     }
 }

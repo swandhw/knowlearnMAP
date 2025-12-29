@@ -89,20 +89,9 @@ public class OntologyRelationDict {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    /**
-     * 출처 정보
-     */
-    @Column(name = "source", length = 100)
+    @OneToMany(mappedBy = "ontologyRelationDict", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private String source = "initial_data";
-
-    /**
-     * 청크 ID 목록 (JSON 배열 형식)
-     */
-    @JdbcTypeCode(Types.LONGVARCHAR)
-    @Column(name = "chunk_source", length = 200)
-    @Builder.Default
-    private String chunkSource = "[]";
+    private java.util.List<OntologyRelationReference> references = new java.util.ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -112,12 +101,6 @@ public class OntologyRelationDict {
 
         if (this.status == null) {
             this.status = "active";
-        }
-        if (this.source == null) {
-            this.source = "initial_data";
-        }
-        if (this.chunkSource == null) {
-            this.chunkSource = "[]";
         }
     }
 

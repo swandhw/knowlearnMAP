@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Login.css';
+import { API_URL } from '../config/api';
 
 const SetPassword = () => {
     const [searchParams] = useSearchParams();
@@ -28,7 +29,6 @@ const SetPassword = () => {
         }
 
         try {
-            const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8080';
             await axios.post(`${API_URL}/api/auth/set-password`, { token, password });
             alert('Password set successfully. Please login.');
             navigate('/login');
