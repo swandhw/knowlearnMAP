@@ -208,7 +208,7 @@ public class OntologyToArangoService {
         // Generate Curl command for debugging (Password Masked)
         String maskedPass = (arangoPassword != null && arangoPassword.length() > 0) ? "****" : "";
         String debugCurl = String.format(
-                "curl -X POST %s -u \"%s:%s\" -H \"Content-Type: application/json\" -d '{\"type\":\"hnsw\",\"fields\":[\"%s\"]}'",
+                "curl -X POST %s -u \"%s:%s\" -H \"Content-Type: application/json\" -d '{\"type\":\"mdi\",\"fields\":[\"%s\"],\"fieldValueTypes\":\"double\",\"sparse\":true}'",
                 url, arangoUser, maskedPass, fieldName);
         log.info("DEBUG CURL (Run this manually to test): {}", debugCurl);
 
@@ -228,9 +228,12 @@ public class OntologyToArangoService {
             } catch (Exception ignored) {
             }
 
-            // TEST 2: HNSW Index Attempt (Reverted from MDI to avoid Error 1561 on insert)
-            // If this fails (e.g. 400 invalid type), we log it but ALLOW sync to proceed.
-            String jsonBody = String.format("{\"type\":\"hnsw\",\"fields\":[\"%s\"]}", fieldName);
+            // TEST 2: MDI (Multi-Dimensional Index) for ArangoDB 3.12+
+            // User provided configuration: type=mdi, fieldValueTypes=double
+            // Added sparse=true to potentially fix Error 1561 for documents without vectors
+            String jsonBody = String.format(
+                    "{\"type\":\"mdi\",\"fields\":[\"%s\"],\"fieldValueTypes\":\"double\", \"sparse\":true}",
+                    fieldName);
             Request request = new Request.Builder()
                     .url(url)
                     .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
