@@ -2,7 +2,7 @@ import React from 'react';
 import DictionaryView from './DictionaryView';
 import './KnowledgeGraphModal.css'; // Reusing the same modal styles
 
-export default function DictionaryModal({ isOpen, onClose, workspaceId }) {
+export default function DictionaryModal({ isOpen, onClose, workspaceId, initialSelectedDocIds, onUpdate }) {
     if (!isOpen) return null;
 
     return (
@@ -17,7 +17,11 @@ export default function DictionaryModal({ isOpen, onClose, workspaceId }) {
                     <button className="kg-close-btn" style={{ margin: 0 }} onClick={onClose}>닫기</button>
                 </div>
                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <DictionaryView workspaceId={workspaceId} />
+                    <DictionaryView
+                        workspaceId={workspaceId}
+                        initialSelectedDocIds={initialSelectedDocIds}
+                        onUpdate={onUpdate}
+                    />
                 </div>
             </div>
         </div>

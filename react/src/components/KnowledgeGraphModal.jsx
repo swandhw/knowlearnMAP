@@ -390,27 +390,38 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
                         graphData={graphData}
                         nodeLabel="name"
                         nodeAutoColorBy="group"
-                        backgroundColor="#1e1e1e"
+                        backgroundColor="#ffffff" // White background (Neo4j style)
 
                         // Custom Node Rendering (Label)
                         nodeCanvasObject={(node, ctx, globalScale) => {
                             const label = node.name;
                             const fontSize = 12 / globalScale;
-                            ctx.font = `${fontSize}px sans-serif`;
+                            ctx.font = `${fontSize}px "Pretendard Variable", sans-serif`;
                             const textWidth = ctx.measureText(label).width;
                             const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
 
-                            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                            if (node.id === searchQuery) ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+                            // Highlight selected/found node
+                            if (node.id === searchQuery) {
+                                ctx.beginPath();
+                                ctx.arc(node.x, node.y, 8, 0, 2 * Math.PI, false);
+                                ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; // Gold highlight
+                                ctx.fill();
+                            }
 
+                            // Draw Node Circle
                             ctx.beginPath();
-                            ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
+                            ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false); // Increased radius slightly
+                            ctx.fillStyle = node.color || '#fac858'; // Default fallback color
                             ctx.fill();
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 1.5 / globalScale;
+                            ctx.stroke();
 
+                            // Draw Label (Dark text for white bg)
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillStyle = node.color || '#fff'; // Node Color
-                            ctx.fillText(label, node.x, node.y + 6);
+                            ctx.fillStyle = '#333'; // Dark text
+                            ctx.fillText(label, node.x, node.y + 8);
 
                             node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
                         }}
@@ -422,8 +433,8 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
 
                             if (typeof start.x !== 'number' || typeof end.x !== 'number') return;
 
-                            const nodeRadius = 5; // Node radius (4) + padding
-                            const arrowLength = 5 / globalScale;
+                            const nodeRadius = 6; // Node radius + padding
+                            const arrowLength = 6 / globalScale;
 
                             const deltaX = end.x - start.x;
                             const deltaY = end.y - start.y;
@@ -433,12 +444,15 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
                             const tipX = end.x - nodeRadius * Math.cos(angle);
                             const tipY = end.y - nodeRadius * Math.sin(angle);
 
+                            // Neo4j-style Light Edge color
+                            const edgeColor = '#A5ABB6';
+
                             // Draw Line
                             ctx.beginPath();
                             ctx.moveTo(start.x, start.y);
                             ctx.lineTo(tipX, tipY);
-                            ctx.strokeStyle = '#555';
-                            ctx.lineWidth = 1 / globalScale;
+                            ctx.strokeStyle = edgeColor;
+                            ctx.lineWidth = 1.5 / globalScale; // Slightly thicker
                             ctx.stroke();
 
                             // Draw Arrow Head
@@ -453,30 +467,28 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
                                 tipY - arrowLength * Math.sin(angle + Math.PI / 6)
                             );
                             ctx.closePath();
-                            ctx.fillStyle = '#555';
+                            ctx.fillStyle = edgeColor;
                             ctx.fill();
 
                             // Draw Label
                             if (link.label_ko || link.label_en) {
                                 const label = link.label_ko || link.label_en || "";
                                 const fontSize = 10 / globalScale;
-                                ctx.font = `${fontSize}px sans-serif`;
+                                ctx.font = `${fontSize}px "Pretendard Variable", sans-serif`;
 
                                 // Calculate midpoint
                                 const textX = start.x + (end.x - start.x) / 2;
                                 const textY = start.y + (end.y - start.y) / 2;
 
-                                ctx.save();
-                                ctx.translate(textX, textY);
-                                // Optional: Rotate text to align with edge
-                                // const angle = Math.atan2(end.y - start.y, end.x - start.x);
-                                // ctx.rotate(angle);
+                                // Label Background for readability
+                                const textWidth = ctx.measureText(label).width;
+                                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                                ctx.fillRect(textX - textWidth / 2 - 2, textY - fontSize / 2 - 2, textWidth + 4, fontSize + 4);
 
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                ctx.fillStyle = '#aaa';
-                                ctx.fillText(label, 0, 0);
-                                ctx.restore();
+                                ctx.fillStyle = '#666'; // Darker gray for edge label
+                                ctx.fillText(label, textX, textY);
                             }
                         }}
                     />

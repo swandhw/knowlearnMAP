@@ -2,8 +2,12 @@ package com.knowlearnmap.ontologyToArango.service;
 
 import com.arangodb.ArangoCollection;
 import com.arangodb.ArangoDB;
-import com.arangodb.ArangoDBException;
 import com.arangodb.ArangoDatabase;
+import com.arangodb.ArangoDBException;
+import okhttp3.*;
+import org.springframework.beans.factory.annotation.Value;
+import java.io.IOException;
+
 import com.knowlearnmap.llmToOntology.domain.*;
 import com.knowlearnmap.workspace.domain.WorkspaceEntity;
 import com.knowlearnmap.workspace.repository.WorkspaceRepository;
@@ -41,6 +45,19 @@ public class OntologyToArangoService {
     private final ArangoDB arangoDB;
     private final com.knowlearnmap.ai.service.EmbeddingService embeddingService;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+    private final OkHttpClient okHttpClient = new OkHttpClient();
+
+    @Value("${arangodb.host}")
+    private String arangoHost;
+
+    @Value("${arangodb.port}")
+    private int arangoPort;
+
+    @Value("${arangodb.user}")
+    private String arangoUser;
+
+    @Value("${arangodb.password}")
+    private String arangoPassword;
 
     public void syncOntologyToArango(Long workspaceId, boolean dropExist) {
         // 1. Fetch all data from PostgreSQL (Short-lived Transaction)
@@ -104,6 +121,7 @@ public class OntologyToArangoService {
 
     private void processArangoSync(OntologyData data, Long workspaceId, boolean dropExist) {
         String targetDbName = data.targetDbName;
+        log.info("Starting ArangoDB sync for database: {}", targetDbName);
 
         // ArangoDB Connection Management
         if (arangoDB.db(targetDbName).exists()) {
@@ -126,6 +144,10 @@ public class OntologyToArangoService {
         ensureCollection(db, "RelationNodes");
         ensureEdgeCollection(db, "KnowlearnEdges");
         ensureGraph(db, "KnowlearnGraph", "KnowlearnEdges", "ObjectNodes");
+
+        // Ensure Vector Indexes using Raw API (MDI type for ArangoDB 3.12+)
+        ensureVectorIndexRaw(db, "ObjectNodes", "embedding_vector");
+        ensureVectorIndexRaw(db, "KnowlearnEdges", "embedding_vector");
 
         // Execute Sync
         Map<Long, String> objectIdToKeyMap = syncObjectNodes(db, data.objectDicts, data.objectSynonymsMap, workspaceId);
@@ -176,6 +198,88 @@ public class OntologyToArangoService {
         } catch (ArangoDBException e) {
             log.error("Failed to create graph: {}", graphName, e);
         }
+    }
+
+    private void ensureVectorIndexRaw(ArangoDatabase db, String collectionName, String fieldName) {
+        String dbName = db.name();
+        String url = String.format("http://%s:%d/_db/%s/_api/index?collection=%s", arangoHost, arangoPort, dbName,
+                collectionName);
+
+        // Generate Curl command for debugging (Password Masked)
+        String maskedPass = (arangoPassword != null && arangoPassword.length() > 0) ? "****" : "";
+        String debugCurl = String.format(
+                "curl -X POST %s -u \"%s:%s\" -H \"Content-Type: application/json\" -d '{\"type\":\"mdi\",\"fields\":[\"%s\"],\"fieldValueTypes\":\"double\"}'",
+                url, arangoUser, maskedPass, fieldName);
+        log.info("DEBUG CURL (Run this manually to test): {}", debugCurl);
+
+        try {
+            // TEST 1: Try creating a standard Persistent index first to verify JSON/HTTP
+            // plumbing
+            // {"type":"persistent","fields":["test_field"]}
+            String testJson = "{\"type\":\"persistent\",\"fields\":[\"test_field_probe\"]}";
+            Request testRequest = new Request.Builder()
+                    .url(url)
+                    .post(RequestBody.create(testJson, MediaType.parse("application/json")))
+                    .addHeader("Authorization", Credentials.basic(arangoUser, arangoPassword))
+                    .build();
+
+            try (Response response = okHttpClient.newCall(testRequest).execute()) {
+                if (!response.isSuccessful() && response.code() != 409) {
+                    log.warn(
+                            "DIAGNOSTIC PROBE FAILED: Could not create even a standard 'persistent' index (Code {}). Response: {}",
+                            response.code(), response.body().string());
+                } else {
+                    log.info(
+                            "DIAGNOSTIC PROBE SUCCESS: Standard 'persistent' index created/exists. JSON/HTTP plumbing is working.");
+                }
+            } catch (Exception e) {
+                log.warn("DIAGNOSTIC PROBE ERROR: {}", e.getMessage());
+            }
+
+            // TEST 2: Real MDI (Multi-Dimensional Index) Attempt for ArangoDB 3.12+
+            String jsonBody = String.format("{\"type\":\"mdi\",\"fields\":[\"%s\"],\"fieldValueTypes\":\"double\"}",
+                    fieldName);
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
+                    .addHeader("Authorization", Credentials.basic(arangoUser, arangoPassword))
+                    .build();
+
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    if (response.code() == 409) {
+                        log.info("Vector index already exists on {}:{}", collectionName, fieldName);
+                    } else {
+                        String rBody = response.body() != null ? response.body().string() : "null";
+                        log.warn("Failed to create MDI vector index via HTTP on {}. Code: {}, Response: {}",
+                                collectionName,
+                                response.code(), rBody);
+                        log.warn(
+                                "If you see 'invalid index type', please run the DEBUG CURL command above in your terminal.");
+                    }
+                } else {
+                    log.info("Ensured MDI Vector Index (HTTP) on {}:{}", collectionName, fieldName);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error attempting vector index creation on {}: {}", collectionName, e.getMessage());
+        }
+    }
+
+    private boolean isHnswSupported(String version) {
+        if (version == null)
+            return false;
+        try {
+            String[] parts = version.split("\\.");
+            if (parts.length >= 2) {
+                int major = Integer.parseInt(parts[0]);
+                int minor = Integer.parseInt(parts[1]);
+                return major > 3 || (major == 3 && minor >= 10);
+            }
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse ArangoDB version: {}", version);
+        }
+        return false;
     }
 
     private Map<Long, String> syncObjectNodes(ArangoDatabase db, List<OntologyObjectDict> objectDicts,
@@ -236,13 +340,18 @@ public class OntologyToArangoService {
                 doc.put("chunk_ids", new ArrayList<>(chunkIds));
 
                 // Embedding (Slow operation - benefits from parallel)
+                // Embedding (Slow operation - benefits from parallel)
                 try {
                     String textToEmbed = String.format("%s (%s): %s",
                             dict.getTermKo(),
                             dict.getTermEn(),
                             dict.getDescription() != null ? dict.getDescription() : "");
                     List<Double> vector = embeddingService.embed(textToEmbed);
-                    doc.put("embedding_vector", vector);
+
+                    // Validate Vector for MDI Index (Strict Double Check)
+                    if (isValidVector(vector)) {
+                        doc.put("embedding_vector", vector);
+                    }
                 } catch (Exception e) {
                     log.error("Failed to generate embedding for object {}: {}", dict.getId(), e.getMessage());
                 }
@@ -399,12 +508,16 @@ public class OntologyToArangoService {
                     edge.put("sentence_en", sentenceEn);
 
                     // Embedding Generation for Edge (Fact)
+                    // Embedding Generation for Edge (Fact)
                     try {
                         // Use Korean sentence for embedding as it is the primary language
                         // This uses parallel stream, so it runs concurrently!
                         if (sentenceKo != null && !sentenceKo.trim().isEmpty()) {
                             List<Double> vector = embeddingService.embed(sentenceKo);
-                            edge.put("embedding_vector", vector);
+                            // Validate Vector for MDI Index
+                            if (isValidVector(vector)) {
+                                edge.put("embedding_vector", vector);
+                            }
                         }
                     } catch (Exception e) {
                         log.error("Failed to generate embedding for edge {}: {}", triple.getId(), e.getMessage());
@@ -468,5 +581,15 @@ public class OntologyToArangoService {
                     return "";
                 })
                 .collect(Collectors.toList());
+    }
+
+    private boolean isValidVector(List<Double> vector) {
+        if (vector == null || vector.isEmpty())
+            return false;
+        for (Double d : vector) {
+            if (d == null || d.isNaN() || d.isInfinite())
+                return false;
+        }
+        return true;
     }
 }

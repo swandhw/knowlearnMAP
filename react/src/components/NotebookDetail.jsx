@@ -1166,6 +1166,8 @@ function NotebookDetail() {
                 isOpen={isDictionaryModalOpen}
                 onClose={() => setIsDictionaryModalOpen(false)}
                 workspaceId={id}
+                initialSelectedDocIds={selectedDocumentIds}
+                onUpdate={() => setNotebook(prev => ({ ...prev, needsArangoSync: true }))}
             />
             {/* ... other modals ... */}
         </div >

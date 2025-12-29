@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './DictionaryView.css';
 import { API_URL } from '../config/api';
 
-function DictionaryView({ workspaceId }) {
+function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
     const [viewMode, setViewMode] = useState('concept'); // 'concept' or 'relation'
     const [selectedCategory, setSelectedCategory] = useState({ id: 'All', name: 'All', label: '전체' });
     const [searchTerm, setSearchTerm] = useState('');
@@ -21,7 +21,7 @@ function DictionaryView({ workspaceId }) {
     const [relations, setRelations] = useState([]);
 
     const [documents, setDocuments] = useState([]);
-    const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+    const [selectedDocumentIds, setSelectedDocumentIds] = useState(initialSelectedDocIds);
     const [isDocDropdownOpen, setIsDocDropdownOpen] = useState(false);
 
     useEffect(() => {
@@ -44,7 +44,9 @@ function DictionaryView({ workspaceId }) {
             const response = await fetch(`${API_URL}/api/documents/workspace/${workspaceId}`);
             if (!response.ok) throw new Error('Failed to fetch documents');
             const data = await response.json();
-            if (Array.isArray(data)) {
+            if (data.success && Array.isArray(data.data)) {
+                setDocuments(data.data);
+            } else if (Array.isArray(data)) {
                 setDocuments(data);
             } else {
                 console.warn("Expected array for documents but got:", data);
@@ -204,6 +206,7 @@ function DictionaryView({ workspaceId }) {
             setIsMergeModalOpen(false);
             setSelectedItemIds([]);
             fetchData(); // Refresh list
+            if (onUpdate) onUpdate(); // Trigger sync warning
         } catch (error) {
             console.error(error);
             alert('병합 중 오류가 발생했습니다.');
@@ -232,6 +235,7 @@ function DictionaryView({ workspaceId }) {
                 } else {
                     setRelations(prev => prev.filter(r => r.id !== id));
                 }
+                if (onUpdate) onUpdate(); // Trigger sync warning
             } catch (error) {
                 console.error("Delete error:", error);
                 alert("삭제에 실패했습니다.");
@@ -271,6 +275,7 @@ function DictionaryView({ workspaceId }) {
             setIsEditModalOpen(false);
             setEditingTerm(null);
             alert("저장되었습니다.");
+            if (onUpdate) onUpdate(); // Trigger sync warning
         } catch (error) {
             console.error("Update error:", error);
             alert("수정에 실패했습니다.");
@@ -281,254 +286,260 @@ function DictionaryView({ workspaceId }) {
 
     return (
         <div className="dictionary-view">
-            {/* ... */}
-            {/* Main Content: Term Table */}
-            <div className="dictionary-main">
-                <div className="dictionary-search-bar" style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                        className="sidebar-toggle-btn"
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        title={isSidebarOpen ? "카테고리 접기" : "카테고리 펼치기"}
-                        style={{
-                            padding: '8px 12px',
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '4px',
-                            background: '#fff',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            {isSidebarOpen ? (
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            ) : (
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            )}
-                        </svg>
-                    </button>
+            <div className="dictionary-content-wrapper">
+                <div className={`dictionary-sidebar ${!isSidebarOpen ? 'collapsed' : ''}`}>
+                    <div className="sidebar-tabs">
+                        <button className="sidebar-tab active">
+                            {viewMode === 'concept' ? '개념 카테고리' : '관계 카테고리'}
+                        </button>
+                    </div>
+                    <div className="category-list-container">
+                        <h4 className="category-header">전체 목록</h4>
+                        <div className="category-list">
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    className={`category-item ${selectedCategory.id === cat.id ? 'active' : ''}`}
+                                    onClick={() => setSelectedCategory(cat)}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
-                    {/* Document Filter Dropdown */}
-                    <div style={{ position: 'relative' }}>
+                <div className="dictionary-main">
+                    <div className="dictionary-search-bar" style={{ display: 'flex', gap: '10px' }}>
                         <button
+                            className="sidebar-toggle-btn"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            title={isSidebarOpen ? "카테고리 접기" : "카테고리 펼치기"}
                             style={{
-                                height: '100%',
-                                padding: '0 12px',
+                                padding: '8px 12px',
                                 border: '1px solid #e0e0e0',
                                 borderRadius: '4px',
                                 background: '#fff',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '5px',
-                                fontSize: '14px'
+                                justifyContent: 'center'
                             }}
-                            onClick={() => setIsDocDropdownOpen(!isDocDropdownOpen)}
                         >
-                            <span>문서 필터 ({selectedDocumentIds.length}/{documents.length})</span>
-                            <span style={{ fontSize: '10px' }}>{isDocDropdownOpen ? '▲' : '▼'}</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                {isSidebarOpen ? (
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                ) : (
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                )}
+                            </svg>
                         </button>
 
-                        {isDocDropdownOpen && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                zIndex: 1000,
-                                backgroundColor: '#fff',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                padding: '8px',
-                                minWidth: '250px',
-                                maxHeight: '300px',
-                                overflowY: 'auto',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                marginTop: '4px'
-                            }}>
-                                <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #eee' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                            onChange={handleSelectAllDocs}
-                                            style={{ marginRight: '8px' }}
-                                        />
-                                        전체 선택
-                                    </label>
-                                </div>
-                                {documents.map(doc => (
-                                    <div key={doc.id} style={{ marginBottom: '4px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', fontSize: '13px', cursor: 'pointer' }}>
+                        {/* Document Filter Dropdown */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                style={{
+                                    height: '36px',
+                                    padding: '0 12px',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '4px',
+                                    background: '#fff',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    fontSize: '14px'
+                                }}
+                                onClick={() => setIsDocDropdownOpen(!isDocDropdownOpen)}
+                            >
+                                <span>문서 필터 ({selectedDocumentIds.length}/{documents.length})</span>
+                                <span style={{ fontSize: '10px' }}>{isDocDropdownOpen ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isDocDropdownOpen && (
+                                <div className="dictionary-dropdown-menu">
+                                    <div className="dictionary-dropdown-item" style={{ borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '8px' }}>
+                                        <label>
                                             <input
                                                 type="checkbox"
-                                                checked={selectedDocumentIds.includes(doc.id)}
-                                                onChange={() => handleDocumentToggle(doc.id)}
-                                                style={{ marginRight: '8px' }}
+                                                checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                                onChange={handleSelectAllDocs}
                                             />
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }} title={doc.filename}>
-                                                {doc.filename}
-                                            </span>
+                                            <span>전체 선택</span>
                                         </label>
                                     </div>
-                                ))}
-                            </div>
+                                    {documents.map(doc => (
+                                        <div key={doc.id} className="dictionary-dropdown-item">
+                                            <label title={doc.filename}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedDocumentIds.includes(doc.id)}
+                                                    onChange={() => handleDocumentToggle(doc.id)}
+                                                />
+                                                <span className="dictionary-dropdown-text">
+                                                    {doc.filename}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ position: 'relative', flex: 1 }}>
+                            <input
+                                type="text"
+                                placeholder="텍스트 입력"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{ width: '100%', padding: '10px 40px 10px 16px', border: '1px solid #e0e0e0', borderRadius: '4px', fontSize: '14px' }}
+                            />
+                            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </div>
+                        {/* Merge Button logic */}
+                        {viewMode === 'concept' && (
+                            <button
+                                onClick={handleMergeClick}
+                                disabled={selectedItemIds.length !== 2}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: selectedItemIds.length === 2 ? '#1976d2' : '#e0e0e0',
+                                    color: selectedItemIds.length === 2 ? '#fff' : '#a0a0a0',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: selectedItemIds.length === 2 ? 'pointer' : 'default',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                병합
+                            </button>
                         )}
                     </div>
 
-                    <div style={{ position: 'relative', flex: 1 }}>
-                        <input
-                            type="text"
-                            placeholder="텍스트 입력"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '10px 40px 10px 16px', border: '1px solid #e0e0e0', borderRadius: '4px', fontSize: '14px' }}
-                        />
-                        <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
+                    <div className="term-list-header">
+                        <h3>{listTitle} (총 {filteredData.length}개)</h3>
                     </div>
-                    {/* Merge Button logic */}
-                    {viewMode === 'concept' && (
-                        <button
-                            onClick={handleMergeClick}
-                            disabled={selectedItemIds.length !== 2}
-                            style={{
-                                padding: '8px 16px',
-                                backgroundColor: selectedItemIds.length === 2 ? '#1976d2' : '#e0e0e0',
-                                color: selectedItemIds.length === 2 ? '#fff' : '#a0a0a0',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: selectedItemIds.length === 2 ? 'pointer' : 'default',
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            병합
-                        </button>
-                    )}
-                </div>
 
-                <div className="term-list-header">
-                    <h3>{listTitle} (총 {filteredData.length}개)</h3>
-                </div>
-
-                <div className="term-table-container">
-                    {loading ? (
-                        <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>
-                    ) : (
-                        <>
-                            <table className="term-table">
-                                <thead>
-                                    <tr>
-                                        {viewMode === 'concept' && <th style={{ width: '40px' }}>선택</th>}
-                                        <th>라벨(EN)</th>
-                                        <th>라벨(KR)</th>
-                                        <th>유의어</th>
-                                        <th>설명</th>
-                                        <th>상태</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {paginatedData.map(term => (
-                                        <tr key={term.id}>
-                                            {viewMode === 'concept' && (
-                                                <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedItemIds.includes(term.id)}
-                                                        onChange={() => handleCheckboxChange(term.id)}
-                                                        disabled={!selectedItemIds.includes(term.id) && selectedItemIds.length >= 2}
-                                                    />
-                                                </td>
-                                            )}
-                                            <td>{term.labelEn}</td>
-                                            <td>{term.label}</td>
-                                            <td>{term.synonym}</td>
-                                            <td className="desc-cell">{term.description || term.desc}</td>
-                                            <td className="status-cell">
-                                                <div className="action-buttons">
-                                                    <button
-                                                        className="icon-btn edit"
-                                                        title="수정"
-                                                        onClick={() => handleEditClick(term)}
-                                                    >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        className="icon-btn delete"
-                                                        title="삭제"
-                                                        onClick={() => handleDelete(term.id)}
-                                                    >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                                <span className={`status-tag ${term.status}`}>{term.status}</span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {currentData.length === 0 && (
+                    <div className="term-table-container">
+                        {loading ? (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>
+                        ) : (
+                            <>
+                                <table className="term-table">
+                                    <thead>
                                         <tr>
-                                            <td colSpan="5" className="empty-table">데이터가 없습니다.</td>
+                                            {viewMode === 'concept' && <th style={{ width: '40px' }}>선택</th>}
+                                            <th>라벨(EN)</th>
+                                            <th>라벨(KR)</th>
+                                            <th>유의어</th>
+                                            <th>설명</th>
+                                            <th>상태</th>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                            {/* Pagination Controls */}
-                            {totalPages > 0 && (
-                                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', gap: '8px' }}>
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                        style={{
-                                            border: '1px solid #ddd',
-                                            background: currentPage === 1 ? '#f5f5f5' : '#fff',
-                                            cursor: currentPage === 1 ? 'default' : 'pointer',
-                                            padding: '4px 12px',
-                                            borderRadius: '4px'
-                                        }}
-                                    >
-                                        &lt;
-                                    </button>
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    </thead>
+                                    <tbody>
+                                        {paginatedData.map(term => (
+                                            <tr key={term.id}>
+                                                {viewMode === 'concept' && (
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedItemIds.includes(term.id)}
+                                                            onChange={() => handleCheckboxChange(term.id)}
+                                                            disabled={!selectedItemIds.includes(term.id) && selectedItemIds.length >= 2}
+                                                        />
+                                                    </td>
+                                                )}
+                                                <td>{term.labelEn}</td>
+                                                <td>{term.label}</td>
+                                                <td>{term.synonym}</td>
+                                                <td className="desc-cell">{term.description || term.desc}</td>
+                                                <td className="status-cell">
+                                                    <div className="action-buttons">
+                                                        <button
+                                                            className="icon-btn edit"
+                                                            title="수정"
+                                                            onClick={() => handleEditClick(term)}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className="icon-btn delete"
+                                                            title="삭제"
+                                                            onClick={() => handleDelete(term.id)}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                    <span className={`status-tag ${term.status}`}>{term.status}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {paginatedData.length === 0 && (
+                                            <tr>
+                                                <td colSpan="5" className="empty-table">데이터가 없습니다.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                                {/* Pagination Controls */}
+                                {totalPages > 0 && (
+                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', gap: '8px' }}>
                                         <button
-                                            key={page}
-                                            onClick={() => setCurrentPage(page)}
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
                                             style={{
                                                 border: '1px solid #ddd',
-                                                background: currentPage === page ? '#1976d2' : '#fff',
-                                                color: currentPage === page ? '#fff' : '#333',
-                                                cursor: 'pointer',
+                                                background: currentPage === 1 ? '#f5f5f5' : '#fff',
+                                                cursor: currentPage === 1 ? 'default' : 'pointer',
                                                 padding: '4px 12px',
                                                 borderRadius: '4px'
                                             }}
                                         >
-                                            {page}
+                                            &lt;
                                         </button>
-                                    ))}
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                        style={{
-                                            border: '1px solid #ddd',
-                                            background: currentPage === totalPages ? '#f5f5f5' : '#fff',
-                                            cursor: currentPage === totalPages ? 'default' : 'pointer',
-                                            padding: '4px 12px',
-                                            borderRadius: '4px'
-                                        }}
-                                    >
-                                        &gt;
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                style={{
+                                                    border: '1px solid #ddd',
+                                                    background: currentPage === page ? '#1976d2' : '#fff',
+                                                    color: currentPage === page ? '#fff' : '#333',
+                                                    cursor: 'pointer',
+                                                    padding: '4px 12px',
+                                                    borderRadius: '4px'
+                                                }}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            style={{
+                                                border: '1px solid #ddd',
+                                                background: currentPage === totalPages ? '#f5f5f5' : '#fff',
+                                                cursor: currentPage === totalPages ? 'default' : 'pointer',
+                                                padding: '4px 12px',
+                                                borderRadius: '4px'
+                                            }}
+                                        >
+                                            &gt;
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
 

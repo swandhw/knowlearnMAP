@@ -56,57 +56,48 @@ public class OntologyPersistenceService {
     /**
      * Object Dictionary 저장 또는 조회
      */
+    /**
+     * Object Dictionary 저장 또는 조회
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public OntologyObjectDict findAndSaveObjectDict(Long workspaceId, DocumentChunk chunk, OntologyObjectDict dict) {
+    public synchronized OntologyObjectDict findAndSaveObjectDict(Long workspaceId, DocumentChunk chunk,
+            OntologyObjectDict dict) {
         Long docId = chunk.getDocument().getId();
         Long chunkId = chunk.getId();
         String category = this.SpaceRemover(dict.getCategory());
         String termEn = this.SpaceRemover(dict.getTermEn());
         String termKo = this.SpaceRemover(dict.getTermKo());
 
-        try {
-            OntologyObjectDict foundDict = findExistingObjectDict(workspaceId, category, dict.getTermEn(),
-                    dict.getTermKo());
+        OntologyObjectDict foundDict = findExistingObjectDict(workspaceId, category, dict.getTermEn(),
+                dict.getTermKo());
 
-            if (foundDict != null) {
-                saveObjectReference(foundDict, docId, chunkId);
-                return foundDict;
-            }
-
-            // 없으면 새로 저장
-            dict.setWorkspaceId(workspaceId);
-            dict.setCategory(category);
-
-            // Ensure NOT NULL columns have values
-            if (dict.getTermEn() == null || dict.getTermEn().trim().isEmpty()) {
-                dict.setTermEn(termEn.isEmpty() ? "Unknown" : termEn);
-            }
-            if (dict.getTermKo() == null || dict.getTermKo().trim().isEmpty()) {
-                dict.setTermKo(termKo.isEmpty() ? "Unknown" : termKo);
-            }
-
-            OntologyObjectDict newDict = objectDictRepository.save(dict);
-            saveObjectReference(newDict, docId, chunkId);
-
-            // 띄어쓰기 제거해서 Sym 에 추가
-            synonymService.saveObjectSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getTermEn(),
-                    termEn, "en");
-            synonymService.saveObjectSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getTermKo(),
-                    termKo, "ko");
-
-            return newDict;
-        } catch (Exception e) {
-            log.error("ObjectDict 저장 실패: {}", dict.getTermEn(), e);
-            // 동시성 문제로 이미 저장되었을 수 있으므로 다시 조회 시도
-            // Re-attempt to find the existing dictionary if save failed due to concurrency
-            OntologyObjectDict existing = findExistingObjectDict(workspaceId, category, dict.getTermEn(),
-                    dict.getTermKo());
-            if (existing != null) {
-                saveObjectReference(existing, docId, chunkId);
-                return existing;
-            }
-            throw new RuntimeException("ObjectDict 저장 및 조회 실패", e);
+        if (foundDict != null) {
+            saveObjectReference(foundDict, docId, chunkId);
+            return foundDict;
         }
+
+        // 없으면 새로 저장
+        dict.setWorkspaceId(workspaceId);
+        dict.setCategory(category);
+
+        // Ensure NOT NULL columns have values
+        if (dict.getTermEn() == null || dict.getTermEn().trim().isEmpty()) {
+            dict.setTermEn(termEn.isEmpty() ? "Unknown" : termEn);
+        }
+        if (dict.getTermKo() == null || dict.getTermKo().trim().isEmpty()) {
+            dict.setTermKo(termKo.isEmpty() ? "Unknown" : termKo);
+        }
+
+        OntologyObjectDict newDict = objectDictRepository.save(dict);
+        saveObjectReference(newDict, docId, chunkId);
+
+        // 띄어쓰기 제거해서 Sym 에 추가
+        synonymService.saveObjectSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getTermEn(),
+                termEn, "en");
+        synonymService.saveObjectSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getTermKo(),
+                termKo, "ko");
+
+        return newDict;
     }
 
     private OntologyObjectDict findExistingObjectDict(Long workspaceId, String category, String termEn, String termKo) {
@@ -181,8 +172,11 @@ public class OntologyPersistenceService {
     /**
      * Relation Dictionary 저장 또는 조회
      */
+    /**
+     * Relation Dictionary 저장 또는 조회
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public OntologyRelationDict findAndSaveRelationDict(Long workspaceId, DocumentChunk chunk,
+    public synchronized OntologyRelationDict findAndSaveRelationDict(Long workspaceId, DocumentChunk chunk,
             OntologyRelationDict dict) {
         Long docId = chunk.getDocument().getId();
         Long chunkId = chunk.getId();
@@ -190,49 +184,36 @@ public class OntologyPersistenceService {
         String relationEn = this.SpaceRemover(dict.getRelationEn());
         String relationKo = this.SpaceRemover(dict.getRelationKo());
 
-        try {
-            OntologyRelationDict foundDict = findExistingRelationDict(workspaceId, category, dict.getRelationEn(),
-                    dict.getRelationKo());
+        OntologyRelationDict foundDict = findExistingRelationDict(workspaceId, category, dict.getRelationEn(),
+                dict.getRelationKo());
 
-            if (foundDict != null) {
-                saveRelationReference(foundDict, docId, chunkId);
-                return foundDict;
-            }
-
-            // 없으면 새로 저장
-            dict.setWorkspaceId(workspaceId);
-            dict.setCategory(category);
-
-            // Ensure NOT NULL columns have values
-            if (dict.getRelationEn() == null || dict.getRelationEn().trim().isEmpty()) {
-                dict.setRelationEn(relationEn.isEmpty() ? "Unknown" : relationEn);
-            }
-            if (dict.getRelationKo() == null || dict.getRelationKo().trim().isEmpty()) {
-                dict.setRelationKo(relationKo.isEmpty() ? "Unknown" : relationKo);
-            }
-
-            OntologyRelationDict newDict = relationDictRepository.save(dict);
-            saveRelationReference(newDict, docId, chunkId);
-
-            // 띠어쓰기 제거해서 Sym 에 추가
-            synonymService.saveRelationSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getRelationEn(),
-                    relationEn, "en");
-            synonymService.saveRelationSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getRelationKo(),
-                    relationKo, "ko");
-
-            return newDict;
-
-        } catch (Exception e) {
-            log.error("RelationDict 저장 실패: {}", dict.getRelationEn(), e);
-            // Re-attempt to find the existing dictionary if save failed due to concurrency
-            OntologyRelationDict existing = findExistingRelationDict(workspaceId, category, dict.getRelationEn(),
-                    dict.getRelationKo());
-            if (existing != null) {
-                saveRelationReference(existing, docId, chunkId);
-                return existing;
-            }
-            throw new RuntimeException("RelationDict 저장 및 조회 실패", e);
+        if (foundDict != null) {
+            saveRelationReference(foundDict, docId, chunkId);
+            return foundDict;
         }
+
+        // 없으면 새로 저장
+        dict.setWorkspaceId(workspaceId);
+        dict.setCategory(category);
+
+        // Ensure NOT NULL columns have values
+        if (dict.getRelationEn() == null || dict.getRelationEn().trim().isEmpty()) {
+            dict.setRelationEn(relationEn.isEmpty() ? "Unknown" : relationEn);
+        }
+        if (dict.getRelationKo() == null || dict.getRelationKo().trim().isEmpty()) {
+            dict.setRelationKo(relationKo.isEmpty() ? "Unknown" : relationKo);
+        }
+
+        OntologyRelationDict newDict = relationDictRepository.save(dict);
+        saveRelationReference(newDict, docId, chunkId);
+
+        // 띠어쓰기 제거해서 Sym 에 추가
+        synonymService.saveRelationSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getRelationEn(),
+                relationEn, "en");
+        synonymService.saveRelationSynonymIfNecessary(workspaceId, category, newDict.getId(), dict.getRelationKo(),
+                relationKo, "ko");
+
+        return newDict;
     }
 
     private OntologyRelationDict findExistingRelationDict(Long workspaceId, String category, String relationEn,
@@ -304,8 +285,11 @@ public class OntologyPersistenceService {
     /**
      * Knowlearn Type (Triple) 저장
      */
+    /**
+     * Knowlearn Type (Triple) 저장
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void findAndSaveKnowlearnType(Long workspaceId, DocumentChunk chunk, OntologyDto dto) {
+    public synchronized void findAndSaveKnowlearnType(Long workspaceId, DocumentChunk chunk, OntologyDto dto) {
         try {
             // 1. Subject 처리
             OntologyObjectDict subjectDict = new OntologyObjectDict();
