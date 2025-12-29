@@ -208,14 +208,12 @@ public class OntologyToArangoService {
         // Generate Curl command for debugging (Password Masked)
         String maskedPass = (arangoPassword != null && arangoPassword.length() > 0) ? "****" : "";
         String debugCurl = String.format(
-                "curl -X POST %s -u \"%s:%s\" -H \"Content-Type: application/json\" -d '{\"type\":\"mdi\",\"fields\":[\"%s\"],\"fieldValueTypes\":\"double\"}'",
+                "curl -X POST %s -u \"%s:%s\" -H \"Content-Type: application/json\" -d '{\"type\":\"hnsw\",\"fields\":[\"%s\"]}'",
                 url, arangoUser, maskedPass, fieldName);
         log.info("DEBUG CURL (Run this manually to test): {}", debugCurl);
 
         try {
-            // TEST 1: Try creating a standard Persistent index first to verify JSON/HTTP
-            // plumbing
-            // {"type":"persistent","fields":["test_field"]}
+            // TEST 1: Try creating a standard Persistent index first (Diagnostic)
             String testJson = "{\"type\":\"persistent\",\"fields\":[\"test_field_probe\"]}";
             Request testRequest = new Request.Builder()
                     .url(url)
@@ -225,20 +223,14 @@ public class OntologyToArangoService {
 
             try (Response response = okHttpClient.newCall(testRequest).execute()) {
                 if (!response.isSuccessful() && response.code() != 409) {
-                    log.warn(
-                            "DIAGNOSTIC PROBE FAILED: Could not create even a standard 'persistent' index (Code {}). Response: {}",
-                            response.code(), response.body().string());
-                } else {
-                    log.info(
-                            "DIAGNOSTIC PROBE SUCCESS: Standard 'persistent' index created/exists. JSON/HTTP plumbing is working.");
+                    log.debug("Diagnostic probe for persistent index failed: {}", response.code());
                 }
-            } catch (Exception e) {
-                log.warn("DIAGNOSTIC PROBE ERROR: {}", e.getMessage());
+            } catch (Exception ignored) {
             }
 
-            // TEST 2: Real MDI (Multi-Dimensional Index) Attempt for ArangoDB 3.12+
-            String jsonBody = String.format("{\"type\":\"mdi\",\"fields\":[\"%s\"],\"fieldValueTypes\":\"double\"}",
-                    fieldName);
+            // TEST 2: HNSW Index Attempt (Reverted from MDI to avoid Error 1561 on insert)
+            // If this fails (e.g. 400 invalid type), we log it but ALLOW sync to proceed.
+            String jsonBody = String.format("{\"type\":\"hnsw\",\"fields\":[\"%s\"]}", fieldName);
             Request request = new Request.Builder()
                     .url(url)
                     .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
