@@ -11,16 +11,28 @@ import {
   TableRow,
   Chip,
   Button,
+  Add as AddIcon,
+  Home as HomeIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material';
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Button,
   TextField,
   Select,
   MenuItem,
   Typography,
-  CircularProgress
+  CircularProgress,
+  IconButton
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Home as HomeIcon,
-} from '@mui/icons-material';
 import { usePrompts } from '../../hooks/usePrompts';
 import PromptFormDialog from './PromptFormDialog';
 
@@ -115,12 +127,13 @@ const PromptListContent = () => {
               <TableCell align="center">버전별 갯수</TableCell>
               <TableCell align="center">만족도</TableCell>
               <TableCell>수정 일시</TableCell>
+              <TableCell align="center">삭제</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {prompts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
                     데이터가 없습니다.
                   </Typography>
@@ -163,6 +176,30 @@ const PromptListContent = () => {
                       second: '2-digit',
                       hour12: false
                     })}
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm('정말로 이 프롬프트와 관련된 모든 버전 및 스냅샷을 삭제하시겠습니까?')) {
+                          // usePrompts 훅이 리패치 기능을 제공하지 않는다면 window.location.reload()를 임시로 사용하거나,
+                          // 훅 내부에서 refetch 메서드를 노출하도록 수정해야 합니다. 
+                          // 여기서는 간단히 fetch 로직 구현.
+                          fetch(`/api/v1/prompts/${prompt.code}`, { method: 'DELETE' })
+                            .then(res => {
+                              if (res.ok) {
+                                window.location.reload();
+                              } else {
+                                alert('삭제 실패');
+                              }
+                            });
+                        }
+                      }}
+                      color="error"
+                      size="small"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))

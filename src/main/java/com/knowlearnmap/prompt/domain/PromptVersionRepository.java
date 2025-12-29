@@ -14,34 +14,36 @@ import java.util.Optional;
 @Repository
 public interface PromptVersionRepository extends JpaRepository<PromptVersion, Long> {
 
-    List<PromptVersion> findByPromptCode(String promptCode);
+        List<PromptVersion> findByPromptCode(String promptCode);
 
-    @Query("SELECT v FROM PromptVersion v WHERE " +
-            "v.promptCode = :promptCode AND " +
-            "(:status IS NULL OR v.status = :status) " +
-            "ORDER BY v.version DESC")
-    Page<PromptVersion> findByPromptCodeAndStatus(
-            @Param("promptCode") String promptCode,
-            @Param("status") String status,
-            Pageable pageable);
+        void deleteByPromptCode(String promptCode);
 
-    Optional<PromptVersion> findByPromptCodeAndVersion(String promptCode, Integer version);
+        @Query("SELECT v FROM PromptVersion v WHERE " +
+                        "v.promptCode = :promptCode AND " +
+                        "(:status IS NULL OR v.status = :status) " +
+                        "ORDER BY v.version DESC")
+        Page<PromptVersion> findByPromptCodeAndStatus(
+                        @Param("promptCode") String promptCode,
+                        @Param("status") String status,
+                        Pageable pageable);
 
-    @Query("SELECT MAX(v.version) FROM PromptVersion v WHERE v.promptCode = :promptCode")
-    Integer findMaxVersionByPromptCode(@Param("promptCode") String promptCode);
+        Optional<PromptVersion> findByPromptCodeAndVersion(String promptCode, Integer version);
 
-    Optional<PromptVersion> findByPromptCodeAndIsActive(String promptCode, Boolean isActive);
+        @Query("SELECT MAX(v.version) FROM PromptVersion v WHERE v.promptCode = :promptCode")
+        Integer findMaxVersionByPromptCode(@Param("promptCode") String promptCode);
 
-    @Query("SELECT COUNT(v) FROM PromptVersion v WHERE v.promptCode = :promptCode")
-    Integer countByPromptCode(@Param("promptCode") String promptCode);
+        Optional<PromptVersion> findByPromptCodeAndIsActive(String promptCode, Boolean isActive);
 
-    @Query("SELECT COUNT(v) FROM PromptVersion v WHERE v.promptCode = :promptCode AND v.status = :status")
-    Integer countByPromptCodeAndStatus(@Param("promptCode") String promptCode, @Param("status") String status);
+        @Query("SELECT COUNT(v) FROM PromptVersion v WHERE v.promptCode = :promptCode")
+        Integer countByPromptCode(@Param("promptCode") String promptCode);
 
-    @Query("SELECT new com.knowlearnmap.prompt.dto.SatisfactionTrendResponse(v.version, v.avgSatisfaction, v.testCount) "
-            +
-            "FROM PromptVersion v WHERE v.promptCode = :promptCode AND v.status = 'published' " +
-            "ORDER BY v.version DESC")
-    List<com.knowlearnmap.prompt.dto.SatisfactionTrendResponse> findSatisfactionTrendByPromptCode(
-            @Param("promptCode") String promptCode);
+        @Query("SELECT COUNT(v) FROM PromptVersion v WHERE v.promptCode = :promptCode AND v.status = :status")
+        Integer countByPromptCodeAndStatus(@Param("promptCode") String promptCode, @Param("status") String status);
+
+        @Query("SELECT new com.knowlearnmap.prompt.dto.SatisfactionTrendResponse(v.version, v.avgSatisfaction, v.testCount) "
+                        +
+                        "FROM PromptVersion v WHERE v.promptCode = :promptCode AND v.status = 'published' " +
+                        "ORDER BY v.version DESC")
+        List<com.knowlearnmap.prompt.dto.SatisfactionTrendResponse> findSatisfactionTrendByPromptCode(
+                        @Param("promptCode") String promptCode);
 }

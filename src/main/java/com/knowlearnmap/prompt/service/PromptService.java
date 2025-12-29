@@ -28,6 +28,7 @@ public class PromptService {
     private final PromptRepository promptRepository;
     private final PromptVersionRepository versionRepository;
     private final PromptTestSnapshotRepository snapshotRepository;
+    private final com.knowlearnmap.prompt.domain.PromptLlmConfigRepository llmConfigRepository;
     private final ObjectMapper objectMapper;
 
     // ============================================
@@ -136,6 +137,16 @@ public class PromptService {
         Prompt prompt = promptRepository.findByCode(code)
                 .orElseThrow(() -> new RuntimeException("프롬프트를 찾을 수 없습니다: " + code));
 
+        // 1. 테스트 스냅샷 삭제
+        snapshotRepository.deleteByCode(code);
+
+        // 2. LLM 설정 삭제 (버전 종속)
+        llmConfigRepository.deleteByPromptCode(code);
+
+        // 3. 프롬프트 버전 삭제
+        versionRepository.deleteByPromptCode(code);
+
+        // 4. 프롬프트 삭제
         promptRepository.delete(prompt);
     }
 
