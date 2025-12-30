@@ -70,8 +70,16 @@ public class DictionaryController {
         Long sourceId = Long.valueOf(request.get("sourceId").toString());
         Long targetId = Long.valueOf(request.get("targetId").toString());
         Long workspaceId = Long.valueOf(request.get("workspaceId").toString());
+        String mode = request.getOrDefault("mode", "move").toString(); // default to move for safety
 
-        dictionaryService.mergeConcepts(sourceId, targetId, workspaceId);
+        boolean keepSourceAsSynonym = "move".equalsIgnoreCase(mode);
+
+        dictionaryService.mergeConcepts(sourceId, targetId, workspaceId, keepSourceAsSynonym);
         return ResponseEntity.ok().build();
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
     }
 }

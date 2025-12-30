@@ -162,3 +162,44 @@ docker-compose ps
 5. Connection Check (Important)
 Dev Postgres: Connect from local Windows IDE using Host_IP:5433 (User: admin, Pass: dev_pg_password).
 Dev ArangoDB: Access web UI via http://Host_IP:8530 (User: root, Pass: dev_arango_password).
+
+
+  완료 요약
+
+  1. 방화벽 설정 (59.10.217.183에서만 DB 접속 허용)
+
+  | 포트   | 서비스          | 접속 허용 IP  |
+  |--------|-----------------|---------------|──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  | 5432   | Prod PostgreSQL | 59.10.217.183 |
+  | 5433   | Dev PostgreSQL  | 59.10.217.183 |
+  | 8529   | Prod ArangoDB   | 59.10.217.183 |──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  | 8530   | Dev ArangoDB    | 59.10.217.183 |                                                                                                              Auto-updating…
+  | 80/443 | HTTP/HTTPS      | Anywhere      |
+  | 22     | SSH             | Anywhere      |──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> 
+  2. Nginx 도메인 설정──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts                                                                                                                                           Auto-updating…
+  | 도메인              | 환경        | 프록시 대상   |
+  |---------------------|-------------|---------------|
+  | map.knowlearn.kr    | Production  | app-prod:8080 |
+  | mapdev.knowlearn.kr | Development | app-dev:8080  |
+
+  3. application.yml 프로필 추가
+
+  | 프로필 | PostgreSQL           | ArangoDB             |
+  |--------|----------------------|----------------------|
+  | local  | 172.30.1.57:15433    | 172.30.1.57:8529     |
+  | dev    | 175.126.146.186:5433 | 175.126.146.186:8530 |
+  | prod   | 175.126.146.186:5432 | 175.126.146.186:8529 |
+
+  DB 접속 정보
+
+  Dev 환경:
+  - PG: 175.126.146.186:5433 / admin / dev_pg_password / knowlearn_dev
+  - Arango: 175.126.146.186:8530 / root / dev_arango_password
+
+  Prod 환경:
+  - PG: 175.126.146.186:5432 / admin / prod_pg_password / knowlearn_prod
+  - Arango: 175.126.146.186:8529 / root / prod_arango_password
+
+  참고: DNS에서 map.knowlearn.kr와 mapdev.knowlearn.kr를 175.126.146.186으로 설정해야 합니다.

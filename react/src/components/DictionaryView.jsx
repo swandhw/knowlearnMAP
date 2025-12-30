@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './DictionaryView.css';
 import { API_URL } from '../config/api';
+import { ChevronLeft, Menu, Search } from 'lucide-react';
 
 function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
     const [viewMode, setViewMode] = useState('concept'); // 'concept' or 'relation'
@@ -182,34 +183,55 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
         });
     };
 
+    const [mergeDirection, setMergeDirection] = useState('forward'); // 'forward' (0->1) or 'backward' (1->0)
+    const [mergeMode, setMergeMode] = useState('move'); // 'move' (synonym) or 'merge' (delete)
+
     const handleMergeClick = () => {
         if (selectedItemIds.length !== 2) return;
-        setMergeTargetId(selectedItemIds[0]);
+        setMergeDirection('forward');
+        setMergeMode('move');
         setIsMergeModalOpen(true);
     };
 
     const handleConfirmMerge = async () => {
-        if (!mergeTargetId || selectedItemIds.length !== 2) return;
+        if (selectedItemIds.length !== 2) return;
 
-        const sourceId = selectedItemIds.find(id => id !== mergeTargetId);
+        // Determine Source and Target based on direction
+        // forward: source=0, target=1 (Items[0] moves to Items[1]) -> Wait, UI needs to show names
+        // Let's rely on explicit Source/Target logic
+        const item1 = terms.find(t => t.id === selectedItemIds[0]);
+        const item2 = terms.find(t => t.id === selectedItemIds[1]);
+
+        // If forward: Item 1 -> Item 2 (Item 1 is Source)
+        // If backward: Item 2 -> Item 1 (Item 2 is Source)
+        const sourceId = mergeDirection === 'forward' ? item1.id : item2.id;
+        const targetId = mergeDirection === 'forward' ? item2.id : item1.id;
 
         try {
             const response = await fetch(`${API_URL}/api/dictionary/concepts/merge`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sourceId, targetId: mergeTargetId, workspaceId })
+                body: JSON.stringify({
+                    sourceId,
+                    targetId,
+                    workspaceId,
+                    mode: mergeMode
+                })
             });
 
-            if (!response.ok) throw new Error('Merge failed');
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                throw new Error(errorMsg || 'Merge failed');
+            }
 
-            alert('병합이 완료되었습니다.');
+            alert('작업이 완료되었습니다.');
             setIsMergeModalOpen(false);
             setSelectedItemIds([]);
             fetchData(); // Refresh list
             if (onUpdate) onUpdate(); // Trigger sync warning
         } catch (error) {
             console.error(error);
-            alert('병합 중 오류가 발생했습니다.');
+            alert(`오류 발생: ${error.message}`);
         }
     };
 
@@ -278,11 +300,30 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
             if (onUpdate) onUpdate(); // Trigger sync warning
         } catch (error) {
             console.error("Update error:", error);
-            alert("수정에 실패했습니다.");
+            alert(`수정 실패: ${error.message}`);
         }
     };
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [categorySearchTerm, setCategorySearchTerm] = useState('');
+
+    const filteredCategories = categories.filter(cat => {
+        if (!categorySearchTerm) return true;
+
+        // Create regex from search term (support * wildcard, anchor start)
+        // 1. Split by *
+        // 2. Escape regex special chars in each part
+        // 3. Join with .*
+        // 4. Prepend ^ to ensure "Starts With" behavior by default
+        const parts = categorySearchTerm.split('*').map(part => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
+        const regexString = '^' + parts.join('.*');
+        const regex = new RegExp(regexString, 'i');
+
+        return (
+            (cat.name && regex.test(cat.name)) ||
+            (cat.label && regex.test(cat.label))
+        );
+    });
 
     return (
         <div className="dictionary-view">
@@ -294,15 +335,28 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
                         </button>
                     </div>
                     <div className="category-list-container">
+                        <div style={{ padding: '0 0 12px 0' }}>
+                            <div className="kg-input-group" style={{ width: '100%' }}>
+                                <input
+                                    type="text"
+                                    placeholder="카테고리 검색..."
+                                    value={categorySearchTerm}
+                                    onChange={(e) => setCategorySearchTerm(e.target.value)}
+                                    className="kg-search-input"
+                                    style={{ width: '100%', padding: '8px 30px 8px 8px', fontSize: '13px' }}
+                                />
+                                <Search className="search-icon" size={14} style={{ position: 'absolute', right: '8px', color: '#9aa0a6' }} />
+                            </div>
+                        </div>
                         <h4 className="category-header">전체 목록</h4>
                         <div className="category-list">
-                            {categories.map(cat => (
+                            {filteredCategories.map(cat => (
                                 <button
                                     key={cat.id}
                                     className={`category-item ${selectedCategory.id === cat.id ? 'active' : ''}`}
-                                    onClick={() => setSelectedCategory(cat)}
+                                    onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
                                 >
-                                    {cat.label}
+                                    {cat.label} ({cat.name})
                                 </button>
                             ))}
                         </div>
@@ -310,238 +364,174 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
                 </div>
 
                 <div className="dictionary-main">
-                    <div className="dictionary-search-bar" style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            className="sidebar-toggle-btn"
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            title={isSidebarOpen ? "카테고리 접기" : "카테고리 펼치기"}
-                            style={{
-                                padding: '8px 12px',
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '4px',
-                                background: '#fff',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                {isSidebarOpen ? (
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                ) : (
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                )}
-                            </svg>
-                        </button>
-
-                        {/* Document Filter Dropdown */}
-                        <div style={{ position: 'relative' }}>
+                    {/* Header Area matching Knowledge Graph Layout */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
+                        {/* Title / Left Controls Area */}
+                        <div style={{ display: 'flex', alignItems: 'center', marginRight: '16px' }}>
                             <button
+                                className="sidebar-toggle-btn"
+                                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                                title={isSidebarOpen ? "카테고리 접기" : "카테고리 펼치기"}
                                 style={{
-                                    height: '36px',
-                                    padding: '0 12px',
+                                    padding: '8px 12px',
                                     border: '1px solid #e0e0e0',
                                     borderRadius: '4px',
                                     background: '#fff',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '5px',
-                                    fontSize: '14px'
+                                    justifyContent: 'center'
                                 }}
-                                onClick={() => setIsDocDropdownOpen(!isDocDropdownOpen)}
                             >
-                                <span>문서 필터 ({selectedDocumentIds.length}/{documents.length})</span>
-                                <span style={{ fontSize: '10px' }}>{isDocDropdownOpen ? '▲' : '▼'}</span>
+                                {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
                             </button>
+                            <h2 style={{ margin: '0 0 0 12px', fontSize: '1.5rem', color: '#202124', alignSelf: 'center' }}>사전</h2>
+                        </div>
 
-                            {isDocDropdownOpen && (
-                                <div className="dictionary-dropdown-menu">
-                                    <div className="dictionary-dropdown-item" style={{ borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '8px' }}>
-                                        <label>
-                                            <input
-                                                type="checkbox"
-                                                checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                                onChange={handleSelectAllDocs}
-                                            />
-                                            <span>전체 선택</span>
-                                        </label>
-                                    </div>
-                                    {documents.map(doc => (
-                                        <div key={doc.id} className="dictionary-dropdown-item">
-                                            <label title={doc.filename}>
+                        {/* KG-Style Search Controls Group */}
+                        <div className="kg-search-controls">
+                            <div className="kg-input-group">
+                                <input
+                                    type="text"
+                                    placeholder="텍스트 입력"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="kg-search-input"
+                                />
+                            </div>
+                            {/* Search Button (Optional, mimicking KG) or just Filter next */}
+
+                            {/* Document Filter Dropdown */}
+                            <div style={{ position: 'relative' }}>
+                                <button
+                                    className="kg-btn secondary"
+                                    onClick={() => setIsDocDropdownOpen(!isDocDropdownOpen)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <span>문서 필터 ({selectedDocumentIds.length}/{documents.length})</span>
+                                    <span style={{ fontSize: '10px' }}>{isDocDropdownOpen ? '▲' : '▼'}</span>
+                                </button>
+
+                                {isDocDropdownOpen && (
+                                    <div className="kg-dropdown-menu" style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        right: 0,
+                                        transform: 'none',
+                                        zIndex: 1000,
+                                        backgroundColor: 'rgb(45, 45, 45)',
+                                        border: '1px solid rgb(68, 68, 68)',
+                                        borderRadius: '4px',
+                                        padding: '8px',
+                                        minWidth: '250px',
+                                        maxHeight: '300px',
+                                        overflowY: 'auto',
+                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
+                                    }}>
+                                        <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgb(68, 68, 68)' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', color: 'rgb(255, 255, 255)', cursor: 'pointer' }}>
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedDocumentIds.includes(doc.id)}
-                                                    onChange={() => handleDocumentToggle(doc.id)}
+                                                    checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                                    onChange={handleSelectAllDocs}
+                                                    style={{ marginRight: '8px' }}
                                                 />
-                                                <span className="dictionary-dropdown-text">
-                                                    {doc.filename}
-                                                </span>
+                                                전체 선택
                                             </label>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                        {documents.map(doc => (
+                                            <div key={doc.id} style={{ marginBottom: '4px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', color: 'rgb(238, 238, 238)', fontSize: '13px', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedDocumentIds.includes(doc.id)}
+                                                        onChange={() => handleDocumentToggle(doc.id)}
+                                                        style={{ marginRight: '8px' }}
+                                                    />
+                                                    <span title={doc.filename} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                                                        {doc.filename}
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        <div style={{ position: 'relative', flex: 1 }}>
-                            <input
-                                type="text"
-                                placeholder="텍스트 입력"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ width: '100%', padding: '10px 40px 10px 16px', border: '1px solid #e0e0e0', borderRadius: '4px', fontSize: '14px' }}
-                            />
-                            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                        </div>
-                        {/* Merge Button logic */}
+                        {/* Merge Button logic - kept outside search group but adjacent */}
                         {viewMode === 'concept' && (
-                            <button
-                                onClick={handleMergeClick}
-                                disabled={selectedItemIds.length !== 2}
-                                style={{
-                                    padding: '8px 16px',
-                                    backgroundColor: selectedItemIds.length === 2 ? '#1976d2' : '#e0e0e0',
-                                    color: selectedItemIds.length === 2 ? '#fff' : '#a0a0a0',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: selectedItemIds.length === 2 ? 'pointer' : 'default',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                병합
-                            </button>
+                            <div style={{ marginLeft: '8px' }}>
+                                <button
+                                    onClick={handleMergeClick}
+                                    disabled={selectedItemIds.length !== 2}
+                                    style={{
+                                        padding: '8px 16px',
+                                        backgroundColor: selectedItemIds.length === 2 ? '#1976d2' : '#e0e0e0',
+                                        color: selectedItemIds.length === 2 ? '#fff' : '#a0a0a0',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: selectedItemIds.length === 2 ? 'pointer' : 'default',
+                                        fontWeight: 'bold'
+                                    }}
+                                >
+                                    병합
+                                </button>
+                            </div>
                         )}
+
+                        <div style={{ flex: '1 1 0%' }}></div>
                     </div>
 
                     <div className="term-list-header">
-                        <h3>{listTitle} (총 {filteredData.length}개)</h3>
+                        <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}>-</div>
+                        <div className="header-cell" style={{ flex: 2 }}>용어(KR)</div>
+                        <div className="header-cell" style={{ flex: 2 }}>용어(EN)</div>
+                        <div className="header-cell" style={{ flex: 3 }}>설명</div>
+                        <div className="header-cell" style={{ flex: 2 }}>유의어</div>
+                        <div className="header-cell action-column">관리</div>
                     </div>
 
-                    <div className="term-table-container">
+                    <div className="term-list">
                         {loading ? (
-                            <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>
+                            <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>로딩 중...</div>
+                        ) : paginatedData.length === 0 ? (
+                            <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                                {searchTerm ? '검색 결과가 없습니다.' : '문서를 선택하여 사전 항목을 조회하세요.'}
+                            </div>
                         ) : (
-                            <>
-                                <table className="term-table">
-                                    <thead>
-                                        <tr>
-                                            {viewMode === 'concept' && <th style={{ width: '40px' }}>선택</th>}
-                                            <th>라벨(EN)</th>
-                                            <th>라벨(KR)</th>
-                                            <th>유의어</th>
-                                            <th>설명</th>
-                                            <th>상태</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paginatedData.map(term => (
-                                            <tr key={term.id}>
-                                                {viewMode === 'concept' && (
-                                                    <td>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedItemIds.includes(term.id)}
-                                                            onChange={() => handleCheckboxChange(term.id)}
-                                                            disabled={!selectedItemIds.includes(term.id) && selectedItemIds.length >= 2}
-                                                        />
-                                                    </td>
-                                                )}
-                                                <td>{term.labelEn}</td>
-                                                <td>{term.label}</td>
-                                                <td>{term.synonym}</td>
-                                                <td className="desc-cell">{term.description || term.desc}</td>
-                                                <td className="status-cell">
-                                                    <div className="action-buttons">
-                                                        <button
-                                                            className="icon-btn edit"
-                                                            title="수정"
-                                                            onClick={() => handleEditClick(term)}
-                                                        >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            className="icon-btn delete"
-                                                            title="삭제"
-                                                            onClick={() => handleDelete(term.id)}
-                                                        >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <polyline points="3 6 5 6 21 6"></polyline>
-                                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                    <span className={`status-tag ${term.status}`}>{term.status}</span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {paginatedData.length === 0 && (
-                                            <tr>
-                                                <td colSpan="5" className="empty-table">데이터가 없습니다.</td>
-                                            </tr>
+                            paginatedData.map(item => (
+                                <div key={item.id} className="term-item">
+                                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        {viewMode === 'concept' && (
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedItemIds.includes(item.id)}
+                                                onChange={() => handleCheckboxChange(item.id)}
+                                            />
                                         )}
-                                    </tbody>
-                                </table>
-                                {/* Pagination Controls */}
-                                {totalPages > 0 && (
-                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', gap: '8px' }}>
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                            style={{
-                                                border: '1px solid #ddd',
-                                                background: currentPage === 1 ? '#f5f5f5' : '#fff',
-                                                cursor: currentPage === 1 ? 'default' : 'pointer',
-                                                padding: '4px 12px',
-                                                borderRadius: '4px'
-                                            }}
-                                        >
-                                            &lt;
-                                        </button>
-                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                            <button
-                                                key={page}
-                                                onClick={() => setCurrentPage(page)}
-                                                style={{
-                                                    border: '1px solid #ddd',
-                                                    background: currentPage === page ? '#1976d2' : '#fff',
-                                                    color: currentPage === page ? '#fff' : '#333',
-                                                    cursor: 'pointer',
-                                                    padding: '4px 12px',
-                                                    borderRadius: '4px'
-                                                }}
-                                            >
-                                                {page}
-                                            </button>
-                                        ))}
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                            style={{
-                                                border: '1px solid #ddd',
-                                                background: currentPage === totalPages ? '#f5f5f5' : '#fff',
-                                                cursor: currentPage === totalPages ? 'default' : 'pointer',
-                                                padding: '4px 12px',
-                                                borderRadius: '4px'
-                                            }}
-                                        >
-                                            &gt;
-                                        </button>
                                     </div>
-                                )}
-                            </>
+                                    <div className="term-cell" style={{ flex: 2, fontWeight: 'bold' }}>{item.label}</div>
+                                    <div className="term-cell" style={{ flex: 2, color: '#555' }}>{item.labelEn}</div>
+                                    <div className="term-cell" style={{ flex: 3, fontSize: '0.9em', color: '#666' }}>
+                                        {item.description && item.description.length > 50
+                                            ? item.description.substring(0, 50) + '...'
+                                            : item.description}
+                                    </div>
+                                    <div className="term-cell" style={{ flex: 2, color: '#888', fontStyle: 'italic' }}>
+                                        {item.synonym || '-'}
+                                    </div>
+                                    <div className="term-cell action-column">
+                                        <button className="edit-btn" onClick={() => handleEditClick(item)}>수정</button>
+                                        <button className="delete-btn" onClick={() => handleDelete(item.id)}>삭제</button>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
                 </div>
             </div>
+
 
             {/* Edit Modal */}
             {
@@ -594,44 +584,46 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate }) {
                 )
             }
             {/* Merge Confirmation Modal */}
-            {isMergeModalOpen && selectedItemIds.length === 2 && (
-                <div className="edit-modal-overlay">
-                    <div className="edit-modal" style={{ width: '600px' }}>
-                        <h3>개념 병합 (Concept Merge)</h3>
-                        <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
-                            두 개념을 하나로 합칩니다. 선택하지 않은 개념은 <b>삭제</b>되며,
-                            해당 개념의 문서 출처와 관계(Triple)는 선택한 '대표 개념'으로 이동됩니다.
-                        </p>
+            {
+                isMergeModalOpen && selectedItemIds.length === 2 && (
+                    <div className="edit-modal-overlay">
+                        <div className="edit-modal" style={{ width: '600px' }}>
+                            <h3>개념 병합 (Concept Merge)</h3>
+                            <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
+                                두 개념을 하나로 합칩니다. 선택하지 않은 개념은 <b>삭제</b>되며,
+                                해당 개념의 문서 출처와 관계(Triple)는 선택한 '대표 개념'으로 이동됩니다.
+                            </p>
 
-                        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                            {selectedItemIds.map(id => (
-                                <div
-                                    key={id}
-                                    onClick={() => setMergeTargetId(id)}
-                                    style={{
-                                        flex: 1,
-                                        padding: '15px',
-                                        border: mergeTargetId === id ? '2px solid #1976d2' : '1px solid #ddd',
-                                        borderRadius: '8px',
-                                        cursor: 'pointer',
-                                        backgroundColor: mergeTargetId === id ? '#e3f2fd' : '#fff'
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 'bold', marginBottom: '8px', color: mergeTargetId === id ? '#1976d2' : '#333' }}>
-                                        {mergeTargetId === id ? '✅ 대표 개념 (유지)' : '❌ 삭제될 개념'}
+                            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                                {selectedItemIds.map(id => (
+                                    <div
+                                        key={id}
+                                        onClick={() => setMergeTargetId(id)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '15px',
+                                            border: mergeTargetId === id ? '2px solid #1976d2' : '1px solid #ddd',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            backgroundColor: mergeTargetId === id ? '#e3f2fd' : '#fff'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: mergeTargetId === id ? '#1976d2' : '#333' }}>
+                                            {mergeTargetId === id ? '✅ 대표 개념 (유지)' : '❌ 삭제될 개념'}
+                                        </div>
+                                        <div style={{ fontSize: '16px', fontWeight: '500' }}>{getMergeCandidateName(id)}</div>
                                     </div>
-                                    <div style={{ fontSize: '16px', fontWeight: '500' }}>{getMergeCandidateName(id)}</div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
 
-                        <div className="modal-buttons">
-                            <button className="cancel-btn" onClick={() => setIsMergeModalOpen(false)}>취소</button>
-                            <button className="save-btn" onClick={handleConfirmMerge} style={{ backgroundColor: '#d32f2f' }}>병합 실행</button>
+                            <div className="modal-buttons">
+                                <button className="cancel-btn" onClick={() => setIsMergeModalOpen(false)}>취소</button>
+                                <button className="save-btn" onClick={handleConfirmMerge} style={{ backgroundColor: '#d32f2f' }}>병합 실행</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </div >
     );
 }

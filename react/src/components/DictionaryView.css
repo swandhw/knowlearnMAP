@@ -131,16 +131,37 @@
 }
 
 .term-list-header {
-    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
     border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 8px;
+    padding: 12px 0;
+    background-color: #f8f9fa;
+    color: #202124;
+    font-weight: 500;
 }
 
-.term-list-header h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: #202124;
-    margin: 0;
+.term-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.term-item {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #f1f3f4;
+    padding: 12px 0;
+    color: #3c4043;
+    transition: background-color 0.2s;
+}
+
+.term-item:hover {
+    background-color: #f8f9fa;
+}
+
+.term-cell,
+.header-cell {
+    padding: 0 12px;
+    word-break: break-all;
 }
 
 .term-table-container {
@@ -334,80 +355,10 @@
     background-color: #1558b0;
 }
 
-/* Dictionary Dropdown Styles */
-.dictionary-dropdown-menu {
-    position: absolute;
-    top: 36px;
-    /* Align precisely below button height */
-    left: 0;
-    z-index: 1000;
-    background-color: #fff;
-    border: 1px solid #d9d9d9;
-    border-radius: 4px;
-    padding: 8px 0;
-    /* Vertical padding only */
-    min-width: 250px;
-    /* Reset to reasonable standard */
-    width: max-content;
-    /* Allow to grow if needed, but constrained by max-width if added */
-    max-width: 400px;
-    max-height: 300px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    box-sizing: border-box;
-}
 
-.dictionary-dropdown-item {
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    /* Padding on item container */
-    margin: 0;
-    /* Remove margin */
-}
+/* Dictionary Dropdown Styles - Remnants or specific overrides if any */
+/* Inline styles used for dropdown to match KnowledgeGraphModal exactly */
 
-.dictionary-dropdown-item:hover {
-    background-color: #f5f5f5;
-}
-
-.dictionary-dropdown-item label {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    font-size: 13px;
-    cursor: pointer;
-    color: #333;
-    width: 100%;
-    padding: 8px;
-    /* Larger click area */
-    gap: 8px;
-    box-sizing: border-box;
-    margin: 0;
-}
-
-/* Remove hover on label to prevent double hover effect if item handles it, OR keep it clean */
-.dictionary-dropdown-item label:hover {
-    background-color: transparent;
-}
-
-.dictionary-dropdown-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    display: block;
-    /* Ensure text behaves as block for ellipsis */
-    min-width: 0;
-    /* Critical for flex child ellipsis */
-    text-align: left;
-}
-
-.dictionary-dropdown-item input {
-    margin-right: 0;
-    flex-shrink: 0;
-    cursor: pointer;
-}
 
 /* Ensure Edit Modal inputs are clearly enabled */
 .edit-form input:not([readonly]),
@@ -420,4 +371,73 @@
     background-color: #f5f5f5;
     color: #666;
     cursor: not-allowed;
+}
+
+/* Shared Knowledge Graph Styles */
+.kg-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.kg-btn.secondary {
+    background: #fff;
+    border: 1px solid #dadce0;
+    color: #3c4043;
+}
+
+.kg-btn.secondary:hover {
+    background: #f8f9fa;
+    border-color: #dadce0;
+}
+
+/* Search Controls Shared */
+.kg-search-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: #f1f3f4;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+
+.kg-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.kg-search-input {
+    background: #ffffff;
+    border: 1px solid #dadce0;
+    color: #202124;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 250px;
+}
+
+.kg-search-input:focus {
+    outline: none;
+    border-color: #1a73e8;
+}
+
+.kg-dropdown-menu {
+    background-color: rgb(45, 45, 45) !important;
+    border: 1px solid rgb(68, 68, 68) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.kg-dropdown-menu label {
+    color: rgb(238, 238, 238) !important;
+}
+
+.kg-dropdown-menu div[style*="border-bottom"] {
+    border-bottom: 1px solid rgb(68, 68, 68) !important;
 }

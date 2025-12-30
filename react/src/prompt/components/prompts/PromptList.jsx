@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Button,
   Add as AddIcon,
   Home as HomeIcon,
   Delete as DeleteIcon,
@@ -63,7 +53,7 @@ const PromptListContent = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ px: 4, py: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Button

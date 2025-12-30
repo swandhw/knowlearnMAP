@@ -122,6 +122,9 @@ public class DictionaryService {
         OntologyObjectDict concept = objectDictRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Concept not found: " + id));
 
+        // Validation: Check for duplicates
+        validateUniqueConcept(concept.getWorkspaceId(), concept.getCategory(), dto.getLabelEn(), dto.getLabel(), id);
+
         concept.setTermKo(dto.getLabel());
         concept.setTermEn(dto.getLabelEn());
         concept.setDescription(dto.getDescription());
@@ -138,6 +141,9 @@ public class DictionaryService {
         OntologyRelationDict relation = relationDictRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Relation not found: " + id));
 
+        // Note: Relation validation can be added here similarly if needed, currently
+        // focusing on Concept as per request.
+
         relation.setRelationKo(dto.getLabel());
         relation.setRelationEn(dto.getLabelEn());
         relation.setDescription(dto.getDescription());
@@ -148,6 +154,37 @@ public class DictionaryService {
         markWorkspaceSyncNeeded(relation.getWorkspaceId());
 
         return dto;
+    }
+
+    private void validateUniqueConcept(Long workspaceId, String category, String termEn, String termKo,
+            Long excludeId) {
+        // 1. Check Object Dict (Term EN)
+        objectDictRepository.findByWorkspaceIdAndCategoryAndTermEn(workspaceId, category, termEn)
+                .ifPresent(dup -> {
+                    if (excludeId == null || !dup.getId().equals(excludeId)) {
+                        throw new IllegalArgumentException("이미 존재하는 영문 용어입니다: " + termEn);
+                    }
+                });
+
+        // 2. Check Object Dict (Term KO)
+        objectDictRepository.findByWorkspaceIdAndCategoryAndTermKo(workspaceId, category, termKo)
+                .ifPresent(dup -> {
+                    if (excludeId == null || !dup.getId().equals(excludeId)) {
+                        throw new IllegalArgumentException("이미 존재하는 한글 용어입니다: " + termKo);
+                    }
+                });
+
+        // 3. Check Synonyms (Term EN)
+        objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, termEn)
+                .ifPresent(dup -> {
+                    throw new IllegalArgumentException("이미 동의어로 존재하는 용어입니다 (영문): " + termEn);
+                });
+
+        // 4. Check Synonyms (Term KO)
+        objectSynonymsRepository.findByWorkspaceIdAndCategoryAndSynonym(workspaceId, category, termKo)
+                .ifPresent(dup -> {
+                    throw new IllegalArgumentException("이미 동의어로 존재하는 용어입니다 (한글): " + termKo);
+                });
     }
 
     public void deleteConcept(Long id) {
@@ -202,7 +239,7 @@ public class DictionaryService {
     }
 
     @Transactional
-    public void mergeConcepts(Long sourceId, Long targetId, Long workspaceId) {
+    public void mergeConcepts(Long sourceId, Long targetId, Long workspaceId, boolean keepSourceAsSynonym) {
         if (sourceId.equals(targetId)) {
             throw new IllegalArgumentException("Cannot merge a concept into itself.");
         }
@@ -215,8 +252,10 @@ public class DictionaryService {
         // 1. Merge Document References
         mergeDocumentReferences(sourceConcept, targetConcept);
 
-        // 2a. Add Source Name as Synonym to Target
-        addAsSynonym(sourceConcept, targetConcept, workspaceId);
+        // 2a. Add Source Name as Synonym to Target (Conditional: MOVE vs MERGE)
+        if (keepSourceAsSynonym) {
+            addAsSynonym(sourceConcept, targetConcept, workspaceId);
+        }
 
         // 2b. Merge Existing Synonyms
         List<OntologyObjectSynonyms> sourceSynonyms = objectSynonymsRepository.findByObjectId(sourceId);
