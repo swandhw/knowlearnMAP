@@ -116,10 +116,14 @@ public class PipelineOrchestrator {
             pipelineMonitor.publishCompletion(context);
 
             // Mark workspace as needing sync
-            workspaceRepository.findById(workspaceId).ifPresent(ws -> {
-                ws.setNeedsArangoSync(true);
-                workspaceRepository.save(ws);
-            });
+            // Mark workspace as needing sync - SKIPPED because ArangoSyncProcessor handles
+            // it
+            /*
+             * workspaceRepository.findById(workspaceId).ifPresent(ws -> {
+             * ws.setNeedsArangoSync(true);
+             * workspaceRepository.save(ws);
+             * });
+             */
 
             return context;
 

@@ -38,7 +38,7 @@ public interface OntologyKnowlearnTypeRepository extends JpaRepository<OntologyK
      */
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyKnowlearnType o WHERE SIZE(o.references) = 0")
+    @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyKnowlearnType o WHERE o.references IS EMPTY")
     void deleteOrphans();
 
 }

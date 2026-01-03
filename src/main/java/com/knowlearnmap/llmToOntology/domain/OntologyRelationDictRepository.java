@@ -42,7 +42,7 @@ public interface OntologyRelationDictRepository extends JpaRepository<OntologyRe
          */
         @org.springframework.data.jpa.repository.Modifying
         @org.springframework.transaction.annotation.Transactional
-        @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyRelationDict o WHERE SIZE(o.references) = 0")
+        @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyRelationDict o WHERE o.references IS EMPTY")
         void deleteOrphans();
 
         @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o FROM OntologyRelationDict o JOIN o.references r WHERE o.workspaceId = :workspaceId AND r.documentId IN :documentIds")

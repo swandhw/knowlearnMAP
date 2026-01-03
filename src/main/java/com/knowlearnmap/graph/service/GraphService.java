@@ -37,79 +37,116 @@ public class GraphService {
         String dbName = workspace.getDomain().getArangoDbName();
         ArangoDatabase db = arangoDB.db(dbName);
 
+        log.info("Connecting to ArangoDB: {}", dbName);
+
         if (!db.exists()) {
+            log.error("Database {} does not exist!", dbName);
             return new GraphDataDto(Collections.emptyList(), Collections.emptyList());
         }
 
-        // 2. Build AQL Query
-        // Supports both global view (documentIds empty) and filtered view
-        boolean filterByDoc = documentIds != null && !documentIds.isEmpty();
-
-        // [DEBUG] Inspect what kind of document_ids exist in the DB for this workspace
-        try {
-            String debugAql = "FOR e IN KnowlearnEdges FILTER e.workspace_id == @wsId LIMIT 5 RETURN { ids: e.document_ids, type: TYPENAME(e.document_ids[0]) }";
-            Map<String, Object> debugBind = new HashMap<>();
-            debugBind.put("wsId", workspaceId);
-
-            ArangoCursor<Object> debugCursor = db.query(debugAql, Object.class, debugBind,
-                    new com.arangodb.model.AqlQueryOptions());
-            List<Object> debugList = debugCursor.asListRemaining();
-            log.info("[DEBUG] Workspace {} Data Inspection: {}", workspaceId, debugList);
-        } catch (Exception e) {
-            log.warn("Debug query failed: {}", e.getMessage());
+        com.arangodb.ArangoCollection edgeCol = db.collection("KnowlearnEdges");
+        if (!edgeCol.exists()) {
+            log.error("Collection KnowlearnEdges does not exist in db {}!", dbName);
+            return new GraphDataDto(Collections.emptyList(), Collections.emptyList());
         }
 
-        String aql = "LET edges = ( " +
-                "  FOR e IN KnowlearnEdges " +
-                "  FILTER e.workspace_id == @wsId " +
-                (filterByDoc ? "  AND IS_LIST(e.document_ids) AND LENGTH(INTERSECTION(e.document_ids, @docIds)) > 0 "
-                        : "")
-                +
-                "  RETURN e " +
-                ") " +
-                "LET nodeIds = UNIQUE(UNION(edges[*]._from, edges[*]._to)) " +
-                "LET nodes = ( " +
-                "  FOR id IN nodeIds " +
-                "  LET doc = DOCUMENT(id) " +
-                "  FILTER doc != null " +
-                "  RETURN doc " +
-                ") " +
-                "RETURN { nodes: nodes, links: edges }";
+        try {
+            log.info("KnowlearnEdges count: {}", edgeCol.count().getCount());
+        } catch (Exception e) {
+            log.error("Failed to count edges in KnowlearnEdges", e);
+            // Don't throw, try to proceed, maybe just count failed
+        }
 
+        // 2. Fetch Edges with AQL Filtering
+        String edgeAql;
         Map<String, Object> bindVars = new HashMap<>();
-        bindVars.put("wsId", workspaceId);
-        if (filterByDoc) {
-            // ArangoDB stores document_ids as Strings (from JSON), so we need to match
-            // types
-            List<String> stringDocIds = documentIds.stream()
+        bindVars.put("workspaceId", workspaceId);
+
+        if (documentIds != null && !documentIds.isEmpty()) {
+            // Convert Long list to String list for AQL
+            List<String> targetDocIdsStr = documentIds.stream()
                     .map(String::valueOf)
                     .collect(java.util.stream.Collectors.toList());
-            bindVars.put("docIds", stringDocIds);
-            log.info("Filtering graph by Document IDs: {}", stringDocIds);
+            bindVars.put("targetDocIds", targetDocIdsStr);
+
+            // Filter by workspace AND document intersection
+            // INTERSECTION(e.document_ids, @targetDocIds) returns elements present in both.
+            // If length > 0, the edge is related to at least one selected document.
+            edgeAql = "FOR e IN KnowlearnEdges " +
+                    "FILTER e.workspace_id == @workspaceId " +
+                    "FILTER LENGTH(INTERSECTION(e.document_ids, @targetDocIds)) > 0 " +
+                    "LIMIT 2000 " +
+                    "RETURN { " +
+                    " _id: e._id, " +
+                    " _key: e._key, " +
+                    " _from: e._from, " +
+                    " _to: e._to, " +
+                    " workspace_id: e.workspace_id, " +
+                    " document_ids: e.document_ids " +
+                    "}";
         } else {
-            log.info("Fetching full graph (no document filter)");
+            // Filter only by workspace
+            edgeAql = "FOR e IN KnowlearnEdges " +
+                    "FILTER e.workspace_id == @workspaceId " +
+                    "LIMIT 2000 " +
+                    "RETURN { " +
+                    " _id: e._id, " +
+                    " _key: e._key, " +
+                    " _from: e._from, " +
+                    " _to: e._to, " +
+                    " workspace_id: e.workspace_id, " +
+                    " document_ids: e.document_ids " +
+                    "}";
         }
 
+        List<Map<String, Object>> edges;
         try {
-            log.debug("Executing Graph AQL. BindVars: {}", bindVars);
-            ArangoCursor<GraphDataDto> cursor = db.query(
-                    aql,
-                    GraphDataDto.class,
-                    bindVars,
-                    new com.arangodb.model.AqlQueryOptions());
-            if (cursor.hasNext()) {
-                GraphDataDto result = cursor.next();
-                log.info("Graph query successful. Nodes: {}, Links: {}",
-                        result.getNodes() != null ? result.getNodes().size() : 0,
-                        result.getLinks() != null ? result.getLinks().size() : 0);
-                return result;
-            }
-            log.info("Graph query returned empty result.");
+            log.debug("Executing Edge AQL: {} with vars: {}", edgeAql, bindVars);
+            ArangoCursor<Map> cursor = db.query(edgeAql, Map.class, bindVars, new com.arangodb.model.AqlQueryOptions());
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> result = (List<Map<String, Object>>) (List<?>) cursor.asListRemaining();
+            edges = result;
         } catch (Exception e) {
-            log.error("Failed to query graph data for workspace {}", workspaceId, e);
-            throw new RuntimeException("Graph Query Error", e);
+            log.error("Failed to query edges with AQL", e);
+            throw new RuntimeException("Graph AQL Query Error: " + e.getMessage(), e);
         }
 
-        return new GraphDataDto(Collections.emptyList(), Collections.emptyList());
+        if (edges.isEmpty()) {
+            return new GraphDataDto(Collections.emptyList(), Collections.emptyList());
+        }
+
+        // 3. Collect Unique Node IDs
+        java.util.Set<String> nodeIds = new java.util.HashSet<>();
+        for (Map<String, Object> edge : edges) {
+            if (edge.containsKey("_from"))
+                nodeIds.add((String) edge.get("_from"));
+            if (edge.containsKey("_to"))
+                nodeIds.add((String) edge.get("_to"));
+        }
+
+        if (nodeIds.isEmpty()) {
+            return new GraphDataDto(Collections.emptyList(), edges);
+        }
+
+        // 4. Fetch Nodes by IDs
+        String nodeAql = "FOR id IN @ids RETURN DOCUMENT(id)";
+        Map<String, Object> nodeBindVars = new HashMap<>();
+        nodeBindVars.put("ids", nodeIds);
+
+        List<Map<String, Object>> nodes;
+        try {
+            log.debug("Executing Node AQL for {} ids", nodeIds.size());
+            ArangoCursor<Map> cursor = db.query(nodeAql, Map.class, nodeBindVars,
+                    new com.arangodb.model.AqlQueryOptions());
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> result = (List<Map<String, Object>>) (List<?>) cursor.asListRemaining();
+            nodes = result;
+        } catch (Exception e) {
+            log.error("Failed to query nodes for workspace {}", workspaceId, e);
+            throw new RuntimeException("Graph Node Query Error", e);
+        }
+
+        log.info("Graph query successful. Nodes: {}, Links: {}", nodes.size(), edges.size());
+        return new GraphDataDto(nodes, edges);
     }
 }

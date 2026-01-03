@@ -24,21 +24,23 @@ public class OntologySyncController {
      * @param workspaceId 동기화할 Workspace ID
      */
     @PostMapping("/{workspaceId}")
-    public ResponseEntity<String> syncToArango(
+    public ResponseEntity<com.knowlearnmap.common.dto.ApiResponse<String>> syncToArango(
             @PathVariable Long workspaceId,
             @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") boolean dropExist) {
 
         try {
             log.info("Starting ArangoDB sync for Workspace ID: {}, dropExist: {}", workspaceId, dropExist);
             arangoService.syncOntologyToArango(workspaceId, dropExist);
-            return ResponseEntity.ok("Workspace ID " + workspaceId + "의 데이터가 ArangoDB로 성공적으로 동기화되었습니다.");
+            return ResponseEntity.ok(com.knowlearnmap.common.dto.ApiResponse
+                    .success("Workspace ID " + workspaceId + "의 데이터가 ArangoDB로 성공적으로 동기화되었습니다."));
         } catch (IllegalArgumentException e) {
             log.error("Workspace configuration error: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(com.knowlearnmap.common.dto.ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             log.error("ArangoDB 동기화 중 에러 발생 (Workspace ID: {})", workspaceId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("ArangoDB 동기화 실패: 내부 서버 오류.");
+                    .body(com.knowlearnmap.common.dto.ApiResponse.error("ArangoDB 동기화 실패: 내부 서버 오류."));
         }
     }
 }

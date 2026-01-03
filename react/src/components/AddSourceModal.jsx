@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './AddSourceModal.css';
 import { API_URL } from '../config/api';
 
-function AddSourceModal({ isOpen, onClose, workspaceId }) {
+function AddSourceModal({ isOpen, onClose, workspaceId, onUploadComplete }) {
     const [currentView, setCurrentView] = useState('main'); // main, website, youtube, text, drive
     const [inputValue, setInputValue] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -69,8 +69,10 @@ function AddSourceModal({ isOpen, onClose, workspaceId }) {
             setSelectedFile(null);
             onClose();
 
-            // 페이지 새로고침하여 소스 목록 갱신
-            window.location.reload();
+            // Notify parent to refresh list
+            if (onUploadComplete) {
+                onUploadComplete();
+            }
 
         } catch (error) {
             console.error('업로드 오류:', error);

@@ -12,6 +12,8 @@ import EmailVerification from './pages/EmailVerification';
 import SetPassword from './pages/SetPassword';
 import PrivateRoute from './components/PrivateRoute';
 
+import MainLayout from './components/common/MainLayout';
+
 function App() {
   return (
     <div className="app">
@@ -22,12 +24,14 @@ function App() {
         <Route path="/set-password" element={<SetPassword />} />
 
         <Route element={<PrivateRoute />}>
-          <Route path="/" element={<DomainSelection />} />
-          <Route path="/workspaces" element={<Home />} />
-          <Route path="/notebook/:id" element={<NotebookDetail />} />
-          <Route path="/admin/*" element={<Admin />} />
-          <Route path="/prompts" element={<PromptList />} />
-          <Route path="/prompts/:code" element={<PromptDetail />} />
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<DomainSelection />} />
+            <Route path="/workspaces" element={<Home />} />
+            <Route path="/notebook/:id" element={<NotebookDetail />} />
+            <Route path="/admin/*" element={<Admin />} />
+            <Route path="/prompts" element={<PromptList />} />
+            <Route path="/prompts/:code" element={<PromptDetail />} />
+          </Route>
         </Route>
       </Routes>
     </div>

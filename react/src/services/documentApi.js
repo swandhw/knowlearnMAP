@@ -68,5 +68,40 @@ export const documentApi = {
         }
         const result = await response.json();
         return result.data || [];
+    },
+
+    /**
+     * 문서 삭제
+     * @param {number} documentId - 문서 ID
+     */
+    delete: async (documentId) => {
+        const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        if (!response.ok) {
+            throw new Error('Failed to delete document');
+        }
+        return await response.json();
+    },
+
+    /**
+     * 문서 이름 변경 (Update)
+     * @param {number} documentId - 문서 ID
+     * @param {string} newFilename - 새 파일명
+     */
+    rename: async (documentId, newFilename) => {
+        const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename: newFilename }),
+            credentials: 'include'
+        });
+        if (!response.ok) {
+            throw new Error('Failed to rename document');
+        }
+        return await response.json();
     }
 };

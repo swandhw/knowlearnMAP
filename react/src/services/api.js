@@ -129,3 +129,17 @@ export const promptApi = {
         });
     },
 };
+
+/**
+ * Ontology API
+ */
+export const ontologyApi = {
+    /**
+     * ArangoDB 동기화
+     */
+    sync: async (workspaceId, dropExist = true) => {
+        return await apiCall(`/ontology/sync/${workspaceId}?dropExist=${dropExist}`, {
+            method: 'POST',
+        });
+    },
+};

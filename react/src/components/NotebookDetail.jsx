@@ -1,1176 +1,578 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { workspaceApi } from '../services/api';
+import { workspaceApi, ontologyApi } from '../services/api';
+
 import { documentApi } from '../services/documentApi';
-import { API_URL } from '../config/api';
-import './NotebookDetail.css';
-import AddSourceModal from './AddSourceModal';
-import ReportGenerationModal from './ReportGenerationModal';
-import SlideCreationModal from './SlideCreationModal';
-import KnowledgeGraphModal from './KnowledgeGraphModal';
-import DictionaryModal from './DictionaryModal';
+import { useAuth } from '../context/AuthContext';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, MessageSquare, Network, Book, FileText, Presentation, FileBarChart, Plus, Upload, Trash2, Search, RefreshCw } from 'lucide-react';
+
 import DocumentSourceItem from './DocumentSourceItem';
-import DocumentViewer from './DocumentViewer';
-
+import AddSourceModal from './AddSourceModal';
+import KnowledgeMapView from './KnowledgeMapView';
+import DictionaryView from './DictionaryView';
 import RenameDialog from './RenameDialog';
+import SlideCreationModal from './SlideCreationModal';
+import ReportGenerationModal from './ReportGenerationModal';
 
+import './NotebookDetail.css';
 
 function NotebookDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const [notebook, setNotebook] = useState(null);
-    const initialOpenAddSource = location.state?.openAddSource || false;
-    const [selectedSources, setSelectedSources] = useState([]);
-    const [selectedDocument, setSelectedDocument] = useState(null); // 문서 상세 보기
+    const { user } = useAuth();
+
+    // --- State: Layout & Tabs ---
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-    const [rightPanelOpen, setRightPanelOpen] = useState(true);
-    const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(initialOpenAddSource);
-    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [isSlideModalOpen, setIsSlideModalOpen] = useState(false);
-    const [isKnowledgeGraphModalOpen, setIsKnowledgeGraphModalOpen] = useState(false);
-    const [isDictionaryModalOpen, setIsDictionaryModalOpen] = useState(false);
+    const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+    const [activeTab, setActiveTab] = useState('chat'); // chat, graph, dictionary
 
-
-    const [currentTab, setCurrentTab] = useState('chat'); // chat, knowledge, dictionary
-    const [memos, setMemos] = useState([]);
-    const [activeMemoMenuId, setActiveMemoMenuId] = useState(null);
-    const [isMemoEditorOpen, setIsMemoEditorOpen] = useState(false);
-    const [currentMemoContent, setCurrentMemoContent] = useState('');
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [showHeadings, setShowHeadings] = useState(false);
-    const [leftPanelWidth, setLeftPanelWidth] = useState(280);
-    const [rightPanelWidth, setRightPanelWidth] = useState(360);
-    const [isResizing, setIsResizing] = useState(null); // 'left' or 'right' or null
-
-    // Document 관련 상태
+    // --- State: Data ---
+    const [notebook, setNotebook] = useState(null);
     const [documents, setDocuments] = useState([]);
-    const [loadingDocuments, setLoadingDocuments] = useState(false);
-    const [documentProgress, setDocumentProgress] = useState({});
-    const pollingIntervalsRef = useRef({});
+    const [loading, setLoading] = useState(true);
 
-    // 체크박스 및 제목 수정 관련 상태
+    // --- State: Chat ---
+    const [messages, setMessages] = useState([]);
+    const [inputMessage, setInputMessage] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    // --- State: Source Management ---
+    const [uploadModalOpen, setUploadModalOpen] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [progressMap, setProgressMap] = useState({}); // documentId -> { status, progress, stage }
+    const pollingRef = useRef({});
+
+    // --- State: Document Selection ---
     const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
-    const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+
+    // --- State: Rename ---
+    const [renameDialogOpen, setRenameDialogOpen] = useState(false);
     const [documentToRename, setDocumentToRename] = useState(null);
 
-    // Chat State
-    const [chatMessages, setChatMessages] = useState([]);
-    const [chatInput, setChatInput] = useState('');
-    const [loadingChat, setLoadingChat] = useState(false);
-    const [isSyncing, setIsSyncing] = useState(false);
+    // --- State: Studio Modals ---
+    const [slideModalOpen, setSlideModalOpen] = useState(false);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
 
-    const handleSendMessage = async () => {
-        if (!chatInput.trim()) return;
-
-        const userMsg = { role: 'user', content: chatInput };
-        setChatMessages(prev => [...prev, userMsg]);
-        setChatInput('');
-        setLoadingChat(true);
-
+    // --- Helper Functions ---
+    const fetchNotebook = async () => {
         try {
-            const response = await fetch(`${API_URL}/api/search/debug`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query: userMsg.content,
-                    workspaceId: id,
-                    documentIds: selectedDocumentIds.length > 0 ? selectedDocumentIds : []
-                })
-            });
-
-            if (!response.ok) throw new Error('Search failed');
-
-            const debugData = await response.json();
-
-            const systemMsg = {
-                role: 'system',
-                content: '검색 결과는 다음과 같습니다 (Debug Mode):',
-                debugData: debugData
-            };
-            setChatMessages(prev => [...prev, systemMsg]);
+            const data = await workspaceApi.getById(id);
+            setNotebook(data);
+            if (data && data.needsArangoSync !== undefined) {
+                setIsSyncNeeded(data.needsArangoSync);
+            }
         } catch (error) {
-            console.error(error);
-            setChatMessages(prev => [...prev, { role: 'system', content: '오류가 발생했습니다.' }]);
-        } finally {
-            setLoadingChat(false);
+            console.error('Error fetching notebook:', error);
+            // navigate('/workspaces'); // Optional: redirect on error
         }
     };
 
-    const handleArangoSync = async () => {
-        if (!window.confirm("ArangoDB 동기화를 진행하시겠습니까?")) return;
+    const handleContentUpdate = () => {
+        fetchNotebook();
+    };
+
+    // ... Polling Logic ... (Existing code)
+
+
+    const startProgressPolling = (documentId) => {
+        if (pollingRef.current[documentId]) return;
+
+        const poll = async () => {
+            try {
+                const status = await documentApi.getPipelineStatus(documentId);
+                setProgressMap(prev => ({
+                    ...prev,
+                    [documentId]: status
+                }));
+
+                if (status.status === 'COMPLETED' || status.status === 'FAILED') {
+                    clearInterval(pollingRef.current[documentId]);
+                    delete pollingRef.current[documentId];
+                    // Update local state instead of refetching to prevent infinite loops caused by stale backend data
+                    setDocuments(prev => prev.map(doc =>
+                        doc.id === documentId
+                            ? { ...doc, status: status.status, pipelineStatus: status.status }
+                            : doc
+                    ));
+                }
+            } catch (error) {
+                console.error(`Polling error for ${documentId}:`, error);
+                clearInterval(pollingRef.current[documentId]);
+                delete pollingRef.current[documentId];
+            }
+        };
+
+        // Initial call
+        poll();
+        // Set interval
+        pollingRef.current[documentId] = setInterval(poll, 2000);
+    };
+
+    const fetchDocuments = useCallback(async () => {
+        if (!id) return;
+        try {
+            const data = await documentApi.getByWorkspace(id);
+            setDocuments(data || []);
+
+            // Check for processing documents to start polling
+            data?.forEach(doc => {
+                if (doc.pipelineStatus === 'PROCESSING' || doc.pipelineStatus === 'PENDING') {
+                    startProgressPolling(doc.id);
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching documents:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
+    // --- Initial Load ---
+    useEffect(() => {
+        fetchNotebook();
+        fetchDocuments();
+
+        // Check for state from navigation (e.g. create new workspace -> open add source)
+        if (location.state?.openAddSource) {
+            setUploadModalOpen(true);
+            // Clear state to prevent reopening on refresh
+            window.history.replaceState({}, document.title);
+        }
+
+        return () => {
+            // Cleanup polling
+            Object.values(pollingRef.current).forEach(intervalId => clearInterval(intervalId));
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, fetchDocuments]);
+
+    // --- Event Handlers: Chat ---
+    const handleSendMessage = async (e) => {
+        e?.preventDefault();
+        if (!inputMessage.trim() || isProcessing) return;
+
+        const userMsg = { role: 'user', content: inputMessage, timestamp: new Date() };
+        setMessages(prev => [...prev, userMsg]);
+        setInputMessage('');
+        setIsProcessing(true);
+
+        try {
+            // Mock response for now, replace with actual API call
+            // const response = await chatApi.send(id, inputMessage, selectedDocumentIds);
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: `Echo: ${userMsg.content} (Backend integration pending)`,
+                    timestamp: new Date()
+                }]);
+                setIsProcessing(false);
+            }, 1000);
+        } catch (error) {
+            console.error('Chat error:', error);
+            setIsProcessing(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            handleSendMessage(e);
+        }
+    };
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    // --- Event Handlers: Source ---
+    const handleCheckDocument = (docId) => {
+        setSelectedDocumentIds(prev =>
+            prev.includes(docId)
+                ? prev.filter(id => id !== docId)
+                : [...prev, docId]
+        );
+    };
+
+    // --- State: Sync Status ---
+    const [isSyncNeeded, setIsSyncNeeded] = useState(false);
+
+    // ... existing handlers ...
+
+    const handleDeleteDocument = async (doc) => {
+        if (!window.confirm(`'${doc.filename}' 문서를 삭제하시겠습니까?`)) return;
+        try {
+            await documentApi.delete(doc.id);
+            setDocuments(prev => prev.filter(d => d.id !== doc.id));
+            setSelectedDocumentIds(prev => prev.filter(id => id !== doc.id));
+            setIsSyncNeeded(true); // Mark sync needed on delete
+        } catch (err) {
+            console.error('삭제 실패:', err);
+            alert('문서 삭제 실패');
+        }
+    };
+
+    const handleRenameDocument = (doc) => {
+        setDocumentToRename(doc);
+        setRenameDialogOpen(true);
+    };
+
+    const handleRenameConfirm = async (newTitle) => {
+        try {
+            await documentApi.rename(documentToRename.id, newTitle);
+            console.log("Renaming to", newTitle);
+            setDocuments(prev => prev.map(d => d.id === documentToRename.id ? { ...d, filename: newTitle } : d));
+            setRenameDialogOpen(false);
+            setDocumentToRename(null);
+        } catch (err) {
+            console.error('이름 변경 실패:', err);
+        }
+    };
+
+    const handleUploadComplete = () => {
+        fetchDocuments();
+        setUploadModalOpen(false);
+        setIsSyncNeeded(true); // Mark sync needed on upload
+    };
+
+    const handleSync = async () => {
+        if (!isSyncNeeded && !window.confirm('변경된 사항이 없습니다. 그래도 동기화를 진행하시겠습니까?')) return;
+        if (isSyncNeeded && !window.confirm('ArangoDB와 동기화를 진행하시겠습니까?')) return;
+
         setIsSyncing(true);
         try {
-            const response = await fetch(`${API_URL}/api/ontology/sync/${id}?dropExist=true`, {
-                method: 'POST',
-            });
-            if (response.ok) {
-                alert("동기화가 완료되었습니다. 이제 지식 그래프를 다시 확인해보세요.");
-                // Update local state to reflect sync completion
-                setNotebook(prev => ({ ...prev, needsArangoSync: false }));
-            } else {
-                const msg = await response.text();
-                alert("동기화 실패: " + msg);
-            }
+            await ontologyApi.sync(id, true);
+            alert('동기화가 완료되었습니다.');
+            fetchDocuments();
+            setIsSyncNeeded(false); // Reset sync needed
         } catch (error) {
-            console.error("Sync error", error);
-            alert("동기화 중 오류가 발생했습니다.");
+            console.error('동기화 실패:', error);
+            alert('동기화 실패: ' + (error.message || '알 수 없는 오류'));
         } finally {
             setIsSyncing(false);
         }
     };
 
-
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (activeMemoMenuId && !event.target.closest('.memo-menu-container')) {
-                setActiveMemoMenuId(null);
-            }
-            if (showHeadings && !event.target.closest('.toolbar-btn.text-btn')) {
-                setShowHeadings(false);
-            }
-        };
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
-    }, [activeMemoMenuId, showHeadings]);
-
-    // 크기 조절 핸들러
-    useEffect(() => {
-        const handleMouseMove = (e) => {
-            if (isResizing === 'left') {
-                const newWidth = e.clientX;
-                if (newWidth >= 200 && newWidth <= 600) {
-                    setLeftPanelWidth(newWidth);
-                }
-            } else if (isResizing === 'right') {
-                const newWidth = window.innerWidth - e.clientX;
-                if (newWidth >= 300 && newWidth <= 800) {
-                    setRightPanelWidth(newWidth);
-                }
-            }
-        };
-
-        const handleMouseUp = () => {
-            setIsResizing(null);
-        };
-
-        if (isResizing) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        }
-
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isResizing]);
-
-    console.log("NotebookDetail Render", { id, notebook, memos });
-
-    // ... existing useEffect ...
-
-    // ... existing handlers ...
-
-    const handleDeleteClick = () => {
-        setShowDeleteConfirm(true);
-    };
-
-    const handleConfirmDelete = () => {
-        setIsMemoEditorOpen(false);
-        setCurrentMemoContent('');
-        setShowDeleteConfirm(false);
-    };
-
-    const handleCancelDelete = () => {
-        setShowDeleteConfirm(false);
-    };
-
-    const insertHeading = (level) => {
-        const prefix = level === 0 ? '' : '#'.repeat(level) + ' ';
-        // Simple insertion logic: replace content for now or append?
-        // Ideally should insert at cursor, but for simplicity let's just prepend to current line or simplify.
-        // Given current simple textarea, let's just append or replace selection logic if possible.
-        // For MVP, just append to end or replace content is tricky without ref.
-        // Let's assume we just append if empty, or wrap?
-        // Actually, let's just set the text area value logic:
-        // A better way for textarea manipulation:
-        const textarea = document.querySelector('.editor-textarea');
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = currentMemoContent;
-        const before = text.substring(0, start);
-        const after = text.substring(end);
-
-        // Find beginning of current line
-        const lastNewLine = before.lastIndexOf('\n');
-        const lineStart = lastNewLine === -1 ? 0 : lastNewLine + 1;
-        const lineContent = text.substring(lineStart, end); // from line start to cursor/end
-
-        // Check if already has heading
-        const match = lineContent.match(/^(#{1,3}\s)?(.*)/);
-        const cleanContent = match ? match[2] : lineContent;
-
-        const newContent = text.substring(0, lineStart) + prefix + cleanContent + after;
-
-        setCurrentMemoContent(newContent);
-        setShowHeadings(false);
-        // Should restore cursor but standard React flow might reset it. 
-    };
-
-    const insertList = (type) => {
-        const textarea = document.querySelector('.editor-textarea');
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const text = currentMemoContent;
-        const before = text.substring(0, start);
-        const after = text.substring(start);
-
-        // Find beginning of current line
-        const lastNewLine = before.lastIndexOf('\n');
-        const lineStart = lastNewLine === -1 ? 0 : lastNewLine + 1;
-
-        const prefix = type === 'bullet' ? '- ' : '1. ';
-        const newContent = text.substring(0, lineStart) + prefix + text.substring(lineStart);
-
-        setCurrentMemoContent(newContent);
-    };
-
-    useEffect(() => {
-        const fetchNotebook = async () => {
-            if (id) {
-                try {
-                    const data = await workspaceApi.getById(id);
-                    if (data) {
-                        setNotebook(data);
-                    } else {
-                        navigate('/');
-                    }
-                } catch (error) {
-                    console.error('워크스페이스 로드 실패:', error);
-                    navigate('/');
-                }
-            }
-        };
-
-
-        fetchNotebook();
-    }, [id, navigate]);
-
-    // Document 목록 로드 및 진행 상태 폴링
-    useEffect(() => {
-        const fetchDocuments = async () => {
-            if (!id) return;
-
-            setLoadingDocuments(true);
-            try {
-                const docs = await documentApi.getByWorkspace(id);
-                setDocuments(docs);
-
-                // 진행 중인 문서들의 상태 폴링 시작
-                docs.forEach(doc => {
-                    if (doc.pipelineStatus === 'PROCESSING' || doc.pipelineStatus === 'PENDING') {
-                        startProgressPolling(doc.id);
-                    }
-                });
-            } catch (error) {
-                console.error('문서 로드 실패:', error);
-            } finally {
-                setLoadingDocuments(false);
-            }
-        };
-
-        fetchDocuments();
-
-        // 주기적으로 문서 목록 갱신 (30초마다)
-        const interval = setInterval(fetchDocuments, 30000);
-
-        return () => {
-            clearInterval(interval);
-            // 모든 폴링 정리
-            Object.values(pollingIntervalsRef.current).forEach(clearInterval);
-            pollingIntervalsRef.current = {};
-        };
-    }, [id]);
-
-    // 진행 상태 폴링 시작
-    const startProgressPolling = (documentId) => {
-        // 이미 폴링 중이면 중복 시작 방지
-        if (pollingIntervalsRef.current[documentId]) {
-            return;
-        }
-
-        const pollInterval = setInterval(async () => {
-            try {
-                const status = await documentApi.getPipelineStatus(documentId);
-                if (!status) {
-                    clearInterval(pollingIntervalsRef.current[documentId]);
-                    delete pollingIntervalsRef.current[documentId];
-                    return;
-                }
-
-                setDocumentProgress(prev => ({
-                    ...prev,
-                    [documentId]: {
-                        status: status.status,
-                        progress: status.progress || 0,
-                        currentStage: status.currentStage
-                    }
-                }));
-
-                // 완료되면 폴링 중지
-                if (status.status === 'COMPLETED' || status.status === 'FAILED') {
-                    clearInterval(pollingIntervalsRef.current[documentId]);
-                    delete pollingIntervalsRef.current[documentId];
-
-                    // 문서 목록 갱신
-                    const docs = await documentApi.getByWorkspace(id);
-                    setDocuments(docs);
-                }
-            } catch (error) {
-                console.error('진행 상태 조회 실패:', error);
-            }
-        }, 3000); // 3초마다 체크
-
-        pollingIntervalsRef.current[documentId] = pollInterval;
-    };
-
-    if (!notebook) return <div>Loading...</div>;
-
-
-    // Use documents instead of notebook sources
-    const isEmpty = documents.length === 0 && !loadingDocuments;
-
-
-    const studioActions = [
-        { id: 1, title: '슬라이드', icon: '📑', color: '#C084CC', bgColor: '#F3E8F5' },
-        { id: 2, title: '보고서', icon: '📄', color: '#D4C5A9', bgColor: '#F5F1E8' },
-    ];
-
-    const handleSourceToggle = (id) => {
-        setSelectedSources(prev =>
-            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
-        );
-    };
-
-    const handleSelectAll = () => {
-        if (selectedSources.length === documents.length) {
-            setSelectedSources([]);
-        } else {
-            setSelectedSources(documents.map(d => d.id));
-        }
-    };
-
-    const handleSaveMemo = () => {
-        const textToSave = `이 노트북은 ${documents.length}개의 소스 파일에서 추출한 데이터를 기반으로 합니다.`;
-        const newMemo = {
-            id: Date.now(),
-            content: textToSave,
-            date: new Date().toLocaleDateString()
-        };
-        setMemos(prev => [newMemo, ...prev]);
-        if (!rightPanelOpen) setRightPanelOpen(true);
-    };
-
-    const deleteMemo = (id) => {
-        setMemos(prev => prev.filter(memo => memo.id !== id));
-        setActiveMemoMenuId(null);
-    };
-
-    const convertMemoToSource = (memo) => {
-        const newSource = {
-            id: `memo-${memo.id}`,
-            name: `메모: ${memo.content.substring(0, 20)}...`,
-            icon: '📝',
-            type: 'text'
-        };
-
-        setNotebook(prev => ({
-            ...prev,
-            sources: [...prev.sources, newSource]
-        }));
-
-        // Optional: Remove memo after converting? For now, keep it.
-        setActiveMemoMenuId(null);
-        alert('메모가 소스로 변환되었습니다.');
-    };
-
-    const convertAllMemosToSource = () => {
-        if (memos.length === 0) return;
-
-        const newSources = memos.map(memo => ({
-            id: `memo-${memo.id}`,
-            name: `메모: ${memo.content.substring(0, 20)}...`,
-            icon: '📝',
-            type: 'text'
-        }));
-
-        setNotebook(prev => ({
-            ...prev,
-            sources: [...prev.sources, ...newSources]
-        }));
-
-        setActiveMemoMenuId(null);
-        alert('모든 메모가 소스로 변환되었습니다.');
-    };
-
-    const handleCopy = () => {
-        const textToCopy = `이 노트북은 ${documents.length}개의 소스 파일에서 추출한 데이터를 기반으로 합니다.`;
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            alert('클립보드에 복사되었습니다.');
-        });
-    };
-
-    const handleSaveMemoAsSource = () => {
-        if (!currentMemoContent.trim()) {
-            alert('내용을 입력해주세요.');
-            return;
-        }
-
-        const newSource = {
-            id: `memo-${Date.now()}`,
-            name: `메모: ${currentMemoContent.substring(0, 20)}...`,
-            icon: '📝',
-            type: 'text'
-        };
-
-        setNotebook(prev => ({
-            ...prev,
-            sources: [...prev.sources, newSource]
-        }));
-
-        setIsMemoEditorOpen(false);
-        setCurrentMemoContent('');
-        alert('소스로 변환되었습니다.');
-    };
-
-    // 체크박스 전체 선택/해제
-    const handleSelectAllDocuments = (e) => {
+    const handleSelectAll = (e) => {
         if (e.target.checked) {
-            const allIds = documents.map(doc => doc.id);
-            setSelectedDocumentIds(allIds);
+            setSelectedDocumentIds(documents.map(d => d.id));
         } else {
             setSelectedDocumentIds([]);
         }
     };
 
-    // 개별 체크박스 토글
-    const handleCheckDocument = (documentId) => {
-        setSelectedDocumentIds(prev => {
-            if (prev.includes(documentId)) {
-                return prev.filter(id => id !== documentId);
-            } else {
-                return [...prev, documentId];
-            }
-        });
-    };
-
-    // 제목 수정 다이얼로그 열기
-    const handleRenameDocument = (document) => {
-        setDocumentToRename(document);
-        setIsRenameDialogOpen(true);
-    };
-
-    // 제목 수정 확인
-    const handleConfirmRename = async (newFilename) => {
-        if (!documentToRename) return;
-
-        try {
-            const response = await fetch(`${API_URL}/api/documents/${documentToRename.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ filename: newFilename }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update document');
-            }
-
-            // 문서 목록 갱신
-            setDocuments(prev => prev.map(doc =>
-                doc.id === documentToRename.id
-                    ? { ...doc, filename: newFilename }
-                    : doc
-            ));
-
-            setIsRenameDialogOpen(false);
-            setDocumentToRename(null);
-        } catch (error) {
-            console.error('제목 수정 실패:', error);
-            alert('제목 수정에 실패했습니다.');
+    const handleTabChange = (tab) => {
+        if ((tab === 'graph' || tab === 'dictionary') && selectedDocumentIds.length === 0 && documents.length > 0) {
+            setSelectedDocumentIds(documents.map(d => d.id));
         }
+        setActiveTab(tab);
     };
 
-    // 문서 삭제
-    const handleDeleteDocument = async (document) => {
-        if (!confirm(`"${document.filename}"을(를) 삭제하시겠습니까?`)) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/api/documents/${document.id}`, {
-                method: 'DELETE',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete document');
-            }
-
-            // 문서 목록에서 제거
-            setDocuments(prev => prev.filter(doc => doc.id !== document.id));
-            setSelectedDocumentIds(prev => prev.filter(id => id !== document.id));
-
-            // 선택된 문서였다면 뷰어 닫기
-            if (selectedDocument?.id === document.id) {
-                setSelectedDocument(null);
-            }
-        } catch (error) {
-            console.error('문서 삭제 실패:', error);
-            alert('문서 삭제에 실패했습니다.');
-        }
-    };
-
+    // --- Render ---
+    if (loading) return <div className="loading-screen">Loading Workspace...</div>;
 
     return (
-        <div className="notebook-detail">
-            {selectedDocument ? (
-                <DocumentViewer
-                    document={selectedDocument}
-                    onClose={() => setSelectedDocument(null)}
-                />
-            ) : (
-                <>
-                    {/* Header */}
-                    <div className="detail-header">
-                        <button className="home-btn" onClick={() => navigate('/')} title="홈으로">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                            </svg>
-                        </button>
-                        <div className="header-actions">
-                            <button className="icon-btn">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M15.95 10.78c.03-.25.05-.51.05-.78s-.02-.53-.06-.78l1.69-1.32c.15-.12.19-.34.1-.51l-1.6-2.77c-.1-.18-.31-.24-.49-.18l-1.99.8c-.42-.32-.86-.58-1.35-.78L12 2.34c-.03-.2-.2-.34-.4-.34H8.4c-.2 0-.36.14-.39.34l-.3 2.12c-.49.2-.94.47-1.35.78l-1.99-.8c-.18-.07-.39 0-.49.18l-1.6 2.77c-.1.18-.06.39.1.51l1.69 1.32c-.04.25-.07.52-.07.78s.02.53.06.78L2.37 12.1c-.15.12-.19.34-.1.51l1.6 2.77c.1.18.31.24.49.18l1.99-.8c.42.32.86.58 1.35.78l.3 2.12c.04.2.2.34.4.34h3.2c.2 0 .37-.14.39-.34l.3-2.12c.49-.2.94-.47 1.35-.78l1.99.8c.18.07.39 0 .49-.18l1.6-2.77c.1-.18.06-.39-.1-.51l-1.67-1.32zM10 13c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z" />
-                                </svg>
-                            </button>
-                            <button className="icon-btn">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                                    <circle cx="10" cy="4" r="1.5" />
-                                    <circle cx="10" cy="10" r="1.5" />
-                                    <circle cx="10" cy="16" r="1.5" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="detail-content">
-                        {/* Left Sidebar - Sources */}
-                        {leftSidebarOpen ? (
-                            <aside className="sources-sidebar" style={{ width: `${leftPanelWidth}px`, flexShrink: 0 }}>
-                                <div className="sidebar-header">
-                                    <div className="sidebar-header-left">
-                                        <h2 className="sidebar-title">소스</h2>
-                                    </div>
-                                    <button
-                                        className="collapse-btn"
-                                        onClick={() => setLeftSidebarOpen(false)}
-                                        title="출처 닫기"
-                                    >
-                                        <img src="/icons/sidebar-close-left.png" alt="Close" width="20" height="20" />
-                                    </button>
-                                </div>
-
-                                <button className="add-source-btn" onClick={() => setIsAddSourceModalOpen(true)}>
-                                    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                        <path d="M9 1v16M1 9h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                    </svg>
-                                    소스 추가
+        <div className="notebook-layout">
+            {/* Left Panel: Sources */}
+            <div className={`panel panel-left ${leftSidebarOpen ? '' : 'collapsed'}`}>
+                <div className="panel-header">
+                    {leftSidebarOpen && <div className="panel-title"><FileText size={18} /> 소스 자료</div>}
+                    <button className="panel-toggle-btn" onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}>
+                        {leftSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+                    </button>
+                </div>
+                <div className="panel-body">
+                    {leftSidebarOpen ? (
+                        <>
+                            <div className="source-actions" style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
+                                    width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                    backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+                                }}>
+                                    <Plus size={18} /> 소스 추가
                                 </button>
 
-                                <div className="source-search">
-                                    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                        <path d="M12.5 11h-.79l-.28-.27C12.41 9.59 13 8.11 13 6.5 13 2.91 10.09 0 6.5 0S0 2.91 0 6.5 2.91 13 6.5 13c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L17.49 16l-4.99-5zm-6 0C4.01 11 2 8.99 2 6.5S4.01 2 6.5 2 11 4.01 11 6.5 8.99 11 6.5 11z" />
-                                    </svg>
-                                    <input type="text" placeholder="찾아내 새 소스 검색하세요" />
+                                <div style={{ position: 'relative' }}>
+                                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="찾아내 새 소스 검색하세요"
+                                        style={{ width: '100%', padding: '8px 8px 8px 36px', borderRadius: '8px', border: 'none', backgroundColor: '#f1f3f4', fontSize: '13px' }}
+                                    />
                                 </div>
 
-                                <div className="source-actions" style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '8px 16px',
-                                    borderBottom: '1px solid #e0e0e0'
-                                }}>
-                                    {/* 모두 선택 체크박스 (Left) */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {documents.length > 0 && (
-                                            <>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                                    onChange={handleSelectAllDocuments}
-                                                    style={{ cursor: 'pointer' }}
-                                                />
-                                                <label onClick={handleSelectAllDocuments} style={{ cursor: 'pointer', fontSize: '14px', color: '#666' }}>
-                                                    모두 선택
-                                                </label>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Icons (Right) */}
-                                    <div className="sidebar-view-buttons" style={{ display: 'flex', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                            onChange={handleSelectAll}
+                                        />
+                                        모두 선택
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
                                         <button
-                                            className="icon-view-btn"
-                                            onClick={handleArangoSync}
-                                            disabled={isSyncing || !notebook?.needsArangoSync}
-                                            title={isSyncing ? "동기화 중..." : (notebook?.needsArangoSync ? "데이터 변경됨 - 동기화 필요" : "최신 상태")}
+                                            onClick={handleSync}
+                                            title="동기화 (ArangoDB)"
+                                            disabled={isSyncing}
                                             style={{
                                                 background: 'none',
                                                 border: 'none',
-                                                cursor: (isSyncing || !notebook?.needsArangoSync) ? 'default' : 'pointer',
+                                                cursor: isSyncing ? 'wait' : 'pointer',
+                                                color: isSyncNeeded ? '#d93025' : '#5f6368', // Red if needed, else Grey
                                                 padding: '4px',
-                                                opacity: (isSyncing || !notebook?.needsArangoSync) ? 0.5 : 1
+                                                opacity: isSyncing ? 0.6 : 1
                                             }}
                                         >
-                                            <svg
-                                                width="20" height="20"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                style={{
-                                                    color: notebook?.needsArangoSync ? 'red' : '#888',
-                                                    animation: isSyncing ? 'spin 1s linear infinite' : 'none'
-                                                }}
-                                            >
-                                                <path d="M23 4v6h-6"></path>
-                                                <path d="M1 20v-6h6"></path>
-                                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                                            </svg>
-                                            <style>{`
-                                                @keyframes spin {
-                                                    0% { transform: rotate(0deg); }
-                                                    100% { transform: rotate(360deg); }
-                                                }
-                                            `}</style>
+                                            <RefreshCw size={16} className={isSyncing ? "spin-animation" : ""} />
                                         </button>
                                         <button
-                                            className="icon-view-btn"
-                                            onClick={() => setIsKnowledgeGraphModalOpen(true)}
-                                            title="지식맵"
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                            onClick={() => handleTabChange('graph')}
+                                            disabled={selectedDocumentIds.length === 0}
+                                            title="지식 그래프"
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
+                                                color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
+                                                padding: '4px'
+                                            }}
                                         >
-                                            <img src="/icons/icon_knowledge.png" alt="지식맵" style={{ width: '20px', height: '20px' }} />
+                                            <Network size={16} />
                                         </button>
                                         <button
-                                            className="icon-view-btn"
-                                            onClick={() => setIsDictionaryModalOpen(true)}
+                                            onClick={() => handleTabChange('dictionary')}
+                                            disabled={selectedDocumentIds.length === 0}
                                             title="사전"
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
+                                                color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
+                                                padding: '4px'
+                                            }}
                                         >
-                                            <img src="/icons/icon_dictionary.png" alt="사전" style={{ width: '20px', height: '20px' }} />
+                                            <Book size={16} />
                                         </button>
                                     </div>
                                 </div>
-
-                                <div className="sources-list">
-                                    {loadingDocuments ? (
-                                        <div className="loading-sources">
-                                            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                                                로딩 중...
-                                            </div>
-                                        </div>
-                                    ) : documents.length === 0 ? (
-                                        <div className="empty-sources-sidebar">
-                                            <div className="empty-icon">
-                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                                    <polyline points="10 9 9 9 8 9"></polyline>
-                                                </svg>
-                                            </div>
-                                            <p>저장된 소스가 여기에 표시됩니다</p>
-                                            <p className="empty-subtext">
-                                                위의 소스 추가를 클릭하여 PDF, 웹사이트, 텍스트, 동영상 또는 오디오 파일을 추가하세요.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        documents.map(document => (
-                                            <DocumentSourceItem
-                                                key={document.id}
-                                                document={document}
-                                                progress={documentProgress[document.id]}
-                                                onSelect={() => setSelectedDocument(document)}
-                                                isChecked={selectedDocumentIds.includes(document.id)}
-                                                onCheckChange={handleCheckDocument}
-                                                onRename={handleRenameDocument}
-                                                onDelete={handleDeleteDocument}
-                                            />
-                                        ))
-                                    )}
-                                </div>
-                            </aside>
-                        ) : (
-                            <aside className="sources-sidebar-collapsed">
-                                <button
-                                    className="expand-btn vertically"
-                                    onClick={() => setLeftSidebarOpen(true)}
-                                    title="출처 열기"
-                                >
-                                    <img src="/icons/source-panel-open.png" alt="Open" width="20" height="20" />
-                                </button>
-                                <div className="collapsed-icon-list">
-                                    {documents.slice(0, 5).map(document => (
-                                        <div key={document.id} className="collapsed-icon-item" title={document.filename}>
-                                            📄
-                                        </div>
-                                    ))}
-                                    {documents.length > 5 && (
-                                        <div className="collapsed-more-indicator">...</div>
-                                    )}
-                                </div>
-                            </aside>
-                        )}
-
-                        {/* 왼쪽 크기 조절 핸들 */}
-                        {leftSidebarOpen && (
-                            <div
-                                className="resizer resizer-left"
-                                onMouseDown={() => setIsResizing('left')}
-                            />
-                        )}
-
-                        {/* Center Content */}
-                        <main className="notebook-content">
-                            {!isEmpty && (
-                                <div className="content-header-tabs">
-                                    {/* Tabs Removed for Knowledge/Dictionary as they are now modals */}
-                                    <button
-                                        className="header-tab active"
-                                        onClick={() => setCurrentTab('chat')}
-                                    >
-                                        채팅
-                                    </button>
-                                </div>
-                            )}
-
-                            {isEmpty ? (
-                                <div className="empty-state-container">
-                                    <div className="empty-state-content">
-                                        <div className="empty-upload-icon">
-                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                <polyline points="17 8 12 3 7 8" />
-                                                <line x1="12" y1="3" x2="12" y2="15" />
-                                            </svg>
-                                        </div>
-                                        <h2>시작하려면 소스 추가</h2>
-                                        <button className="empty-upload-btn" onClick={() => setIsAddSourceModalOpen(true)}>
-                                            소스 업로드
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                null
-                            )}
-
-                            {/* Content based on Tab */}
-                            {/* Modals rendered outside main content flow usually, or here */}
-
-                            {!isEmpty && currentTab === 'chat' && (
-                                <>
-                                    <div className="chat-summary">
-                                        <p className="summary-text">
-                                            {selectedDocumentIds.length > 0
-                                                ? `${selectedDocumentIds.length}개의 선택된 소스 파일에서 검색 중 (전체 ${documents.length}개)`
-                                                : `이 노트북은 ${documents.length}개의 소스 파일에서 추출한 데이터를 기반으로 합니다.`}
-                                        </p>
-
-                                        <div className="summary-actions">
-                                            <button className="action-btn primary" onClick={handleSaveMemo}>
-                                                <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                                    <path d="M14 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H5V9h8v2z" />
-                                                </svg>
-                                                메모에 저장
-                                            </button>
-                                            <button className="icon-btn-small" onClick={handleCopy} title="복사">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="suggested-questions">
-                                        <h3 className="questions-title">제안된 질문</h3>
-                                        <div className="questions-list">
-                                            <button className="question-item">
-                                                비즈니스 메타데이터와 IT 메타데이터의 차이점은 무엇인가요?
-                                            </button>
-                                            <button className="question-item">
-                                                프로젝트 인력 운영은 어떻게 관리되나요?
-                                            </button>
-                                            <button className="question-item">
-                                                데이터 모델의 주요 엔터티들 간의 관계를 설명해주세요.
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                                        <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
-                                            {chatMessages.map((msg, idx) => (
-                                                <div key={idx} className={`message ${msg.role}`} style={{ marginBottom: '1.5rem' }}>
-                                                    <div className="message-content" style={{ background: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5', padding: '1rem', borderRadius: '8px' }}>
-                                                        <strong>{msg.role === 'user' ? 'You' : 'System'}</strong>: {msg.content}
-                                                    </div>
-                                                    {msg.debugData && (
-                                                        <div className="debug-results" style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-                                                            {['ragResults', 'aqlResults', 'knowlearnResults'].map(type => (
-                                                                <div key={type} style={{ marginBottom: '1rem', border: '1px solid #ddd', padding: '0.5rem', borderRadius: '4px' }}>
-                                                                    <h4 style={{ margin: '0 0 0.5rem 0', textTransform: 'uppercase', color: '#666' }}>
-                                                                        {type.replace('Results', ' Search')}
-                                                                    </h4>
-                                                                    {msg.debugData[type]?.length > 0 ? (
-                                                                        <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-                                                                            {msg.debugData[type].map((res, i) => (
-                                                                                <li key={i} style={{ marginBottom: '0.5rem' }}>
-                                                                                    <div>{res.content}</div>
-                                                                                    <div style={{ fontSize: '0.8rem', color: '#888' }}>
-                                                                                        Score: {res.score?.toFixed(4)}
-                                                                                    </div>
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    ) : (
-                                                                        <div style={{ color: '#999', fontStyle: 'italic' }}>No results</div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {loadingChat && <div style={{ color: '#666', padding: '1rem' }}>Searching...</div>}
-                                        </div>
-
-                                        <div className="chat-input-area" style={{ padding: '1rem', borderTop: '1px solid #eee' }}>
-                                            <textarea
-                                                className="chat-input"
-                                                placeholder="질문을 입력하세요..."
-                                                rows="3"
-                                                value={chatInput}
-                                                onChange={(e) => setChatInput(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault();
-                                                        handleSendMessage();
-                                                    }
-                                                }}
-                                            />
-                                            <button className="send-btn" onClick={handleSendMessage} disabled={loadingChat}>
-                                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M2.01 2L2 8l10 2-10 2 .01 6L18 10z" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </main>
-
-                        {/* 오른쪽 크기 조절 핸들 */}
-                        {rightPanelOpen && (
-                            <div
-                                className="resizer resizer-right"
-                                onMouseDown={() => setIsResizing('right')}
-                            />
-                        )}
-
-                        {/* Right Panel - Studio */}
-                        {rightPanelOpen ? (
-                            <aside className="studio-panel" style={{ width: `${rightPanelWidth}px`, flexShrink: 0 }}>
-                                {/* Editor Mode */}
-                                {isMemoEditorOpen ? (
-                                    <div className="memo-editor">
-                                        <div className="editor-header">
-                                            <div className="editor-breadcrumb">스튜디오 {'>'} 메모</div>
-                                            <button
-                                                className="close-editor-btn"
-                                                onClick={() => setIsMemoEditorOpen(false)}
-                                            >
-                                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div className="editor-title-row">
-                                            <input type="text" value="새 메모" readOnly className="editor-title-input" />
-                                            <button className="editor-delete-btn" onClick={handleDeleteClick}>
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2v2"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div className="editor-toolbar">
-                                            <button className="toolbar-btn">↩</button>
-                                            <button className="toolbar-btn">↪</button>
-                                            <div className="toolbar-divider"></div>
-                                            <div className="heading-dropdown-container">
-                                                <button
-                                                    className="toolbar-btn text-btn"
-                                                    onClick={() => setShowHeadings(!showHeadings)}
-                                                >
-                                                    Normal <span className="arrow">▼</span>
-                                                </button>
-                                                {showHeadings && (
-                                                    <div className="heading-dropdown">
-                                                        <button onClick={() => insertHeading(0)}>Normal</button>
-                                                        <button className="h1-option" onClick={() => insertHeading(1)}>Heading 1</button>
-                                                        <button className="h2-option" onClick={() => insertHeading(2)}>Heading 2</button>
-                                                        <button className="h3-option" onClick={() => insertHeading(3)}>Heading 3</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="toolbar-divider"></div>
-                                            <button className="toolbar-btn bold">B</button>
-                                            <button className="toolbar-btn italic">I</button>
-                                            <button className="toolbar-btn">🔗</button>
-                                            <div className="toolbar-divider"></div>
-                                            <button className="toolbar-btn" onClick={() => insertList('number')}>≡</button>
-                                            <button className="toolbar-btn" onClick={() => insertList('bullet')}>⋮≡</button>
-                                        </div>
-                                        <div className="editor-content-area">
-                                            <textarea
-                                                className="editor-textarea"
-                                                placeholder="메모를 입력하세요..."
-                                                value={currentMemoContent}
-                                                onChange={(e) => setCurrentMemoContent(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="editor-footer">
-                                            <button className="convert-source-btn" onClick={handleSaveMemoAsSource}>
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                                    <polyline points="10 9 9 9 8 9"></polyline>
-                                                </svg>
-                                                소스로 전환
-                                            </button>
-                                        </div>
-
-                                        {showDeleteConfirm && (
-                                            <div className="delete-confirm-overlay">
-                                                <div className="delete-confirm-box">
-                                                    <h3>삭제 메모?</h3>
-                                                    <div className="delete-confirm-actions">
-                                                        <button className="cancel-delete-btn" onClick={handleCancelDelete}>취소</button>
-                                                        <button className="confirm-delete-btn" onClick={handleConfirmDelete}>삭제</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                            </div>
+                            <div className="source-list">
+                                {documents.length === 0 ? (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
+                                        등록된 문서가 없습니다.<br />자료를 추가해보세요.
                                     </div>
                                 ) : (
-                                    /* Default List Mode */
-                                    <>
-                                        <div className="panel-header-with-btn">
-                                            <div>
-                                                <h2 className="panel-title">스튜디오</h2>
-                                                <p className="panel-subtitle">소스를 통해 더 깊이있게 탐색하세요</p>
-                                            </div>
-                                            <button
-                                                className="collapse-btn"
-                                                onClick={() => setRightPanelOpen(false)}
-                                                title="스튜디오 닫기"
-                                            >
-                                                <img src="/icons/sidebar-close-right.png" alt="Close" width="20" height="20" />
-                                            </button>
-                                        </div>
+                                    documents.map(doc => (
+                                        <DocumentSourceItem
+                                            key={doc.id}
+                                            document={doc}
+                                            progress={progressMap[doc.id]} // Pass polling status
+                                            isChecked={selectedDocumentIds.includes(doc.id)}
+                                            onCheckChange={handleCheckDocument}
+                                            onSelect={() => {/* Maybe preview? */ }}
+                                            onRename={handleRenameDocument}
+                                            onDelete={handleDeleteDocument}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="vertical-text">SOURCE</div>
+                    )}
+                </div>
+            </div>
 
-                                        <div className="studio-grid">
-                                            {studioActions.map(action => (
-                                                <div key={action.id} className="studio-card-wrapper">
-                                                    <button
-                                                        className="studio-card"
-                                                        style={{
-                                                            '--card-color': action.color,
-                                                            '--card-bg-color': action.bgColor
-                                                        }}
-                                                        onClick={() => {
-                                                            if (action.id === 1) { // 슬라이드
-                                                                setIsSlideModalOpen(true);
-                                                            } else if (action.id === 2) { // 보고서
-                                                                setIsReportModalOpen(true);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <span className="card-icon">{action.icon}</span>
-                                                        <h3 className="card-title">{action.title}</h3>
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+            {/* Center Panel: Content */}
+            <div className="panel panel-center">
+                <div className="tabs-header">
+                    <button
+                        className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('chat')}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <MessageSquare size={16} /> 채팅
+                        </div>
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'graph' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('graph')}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <Network size={16} /> 지식 그래프
+                        </div>
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'dictionary' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('dictionary')}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <Book size={16} /> 사전
+                        </div>
+                    </button>
+                </div>
 
-                                        {/* Memos List */}
-                                        <div className="studio-memos">
-                                            {memos.length > 0 && <h3 className="section-title">메모 ({memos.length})</h3>}
-                                            <div className="memo-list">
-                                                {memos.map(memo => (
-                                                    <div key={memo.id} className="memo-card memo-menu-container">
-                                                        <div className="memo-content">{memo.content}</div>
-                                                        <div className="memo-footer">
-                                                            <div className="memo-date">{memo.date}</div>
-                                                            <div className="memo-menu-wrapper">
-                                                                <button
-                                                                    className="memo-menu-btn"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setActiveMemoMenuId(activeMemoMenuId === memo.id ? null : memo.id);
-                                                                    }}
-                                                                >
-                                                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                                                        <circle cx="8" cy="3" r="1.5" />
-                                                                        <circle cx="8" cy="8" r="1.5" />
-                                                                        <circle cx="8" cy="13" r="1.5" />
-                                                                    </svg>
-                                                                </button>
-                                                                {activeMemoMenuId === memo.id && (
-                                                                    <div className="memo-dropdown-menu">
-                                                                        <button onClick={() => convertMemoToSource(memo)}>
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
-                                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                                                <polyline points="14 2 14 8 20 8"></polyline>
-                                                                                <line x1="12" y1="18" x2="12" y2="12"></line>
-                                                                                <line x1="9" y1="15" x2="15" y2="15"></line>
-                                                                            </svg>
-                                                                            소스로 변환
-                                                                        </button>
-                                                                        <button onClick={convertAllMemosToSource}>
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
-                                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                                            </svg>
-                                                                            모든 메모를 소스로 변환
-                                                                        </button>
-                                                                        <button
-                                                                            className="delete-item"
-                                                                            onClick={() => deleteMemo(memo.id)}
-                                                                        >
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
-                                                                                <polyline points="3 6 5 6 21 6"></polyline>
-                                                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                                            </svg>
-                                                                            삭제
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                <div className="tab-content">
+                    {activeTab === 'chat' && (
+                        <div className="chat-container">
+                            <div className="chat-messages">
+                                {messages.length === 0 && notebook && (
+                                    <div className="notebook-welcome-header">
+                                        <div className="workspace-icon-large" style={{ fontSize: '48px', marginBottom: '16px' }}>
+                                            {notebook.icon || '📄'}
                                         </div>
-
-                                        {isEmpty && memos.length === 0 && (
-                                            <div className="empty-studio-placeholder">
-                                                <div className="placeholder-icon">✨</div>
-                                                <p>스튜디오 출력이 여기에 저장됩니다</p>
-                                                <p className="placeholder-subtext">
-                                                    소스를 추가한 후 클릭하여 AI 오디오 오버뷰, 학습 가이드, 마인드맵 등을 추가해 보세요.
-                                                </p>
+                                        <h1 className="workspace-title" style={{ fontSize: '32px', fontWeight: '400', color: '#202124', marginBottom: '8px', lineHeight: '1.2' }}>
+                                            {notebook.name || 'Untitled notebook'}
+                                        </h1>
+                                        <div className="workspace-meta" style={{ fontSize: '13px', color: '#5f6368', marginBottom: '24px' }}>
+                                            소스 {documents.length}개
+                                        </div>
+                                        {notebook.description && (
+                                            <div className="workspace-description" style={{ fontSize: '16px', color: '#3c4043', lineHeight: '1.6', maxWidth: '800px' }}>
+                                                {notebook.description}
                                             </div>
                                         )}
-
-                                        <button
-                                            className="add-note-btn"
-                                            onClick={() => setIsMemoEditorOpen(true)}
-                                        >
-                                            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                                <path d="M9 1v16M1 9h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                            </svg>
-                                            메모 추가
-                                        </button>
-                                    </>
+                                    </div>
                                 )}
-                            </aside>
-                        ) : (
-                            <aside className="studio-panel-collapsed">
-                                <button
-                                    className="expand-btn vertically"
-                                    onClick={() => setRightPanelOpen(true)}
-                                    title="스튜디오 열기"
-                                >
-                                    <img src="/icons/studio-panel-open.png" alt="Open" width="20" height="20" />
-                                </button>
-                            </aside>
-                        )}
-                    </div>
+                                {messages.map((msg, idx) => (
+                                    <div key={idx} className={`message ${msg.role}`} style={{
+                                        display: 'flex', flexDirection: 'column',
+                                        alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                        marginBottom: '16px'
+                                    }}>
+                                        <div style={{
+                                            maxWidth: '80%', padding: '12px 16px', borderRadius: '12px',
+                                            backgroundColor: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5',
+                                            color: '#333', fontSize: '14px', lineHeight: '1.5'
+                                        }}>
+                                            {msg.content}
+                                        </div>
+                                        <span style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
+                                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                ))}
+                                <div ref={messagesEndRef} />
+                            </div>
+                            <div className="message-input-area">
+                                <textarea
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder="질문을 입력하세요..."
+                                    style={{
+                                        width: '100%', height: '80px', padding: '12px', borderRadius: '8px',
+                                        border: '1px solid #ddd', resize: 'none', fontFamily: 'inherit'
+                                    }}
+                                    disabled={isProcessing}
+                                />
+                                <div style={{ textAlign: 'right', marginTop: '8px' }}>
+                                    <button
+                                        onClick={handleSendMessage}
+                                        disabled={!inputMessage.trim() || isProcessing}
+                                        style={{
+                                            padding: '8px 24px', backgroundColor: '#1a73e8', color: 'white',
+                                            border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isProcessing ? 0.7 : 1
+                                        }}
+                                    >
+                                        전송
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                    {/* Add Source Modal */}
-                    <AddSourceModal
-                        isOpen={isAddSourceModalOpen}
-                        onClose={() => setIsAddSourceModalOpen(false)}
-                        workspaceId={id}
-                    />
-
-                    {/* Report Generation Modal */}
-                    <ReportGenerationModal
-                        isOpen={isReportModalOpen}
-                        onClose={() => setIsReportModalOpen(false)}
-                    />
-
-                    {/* Slide Creation Modal */}
-                    <SlideCreationModal
-                        isOpen={isSlideModalOpen}
-                        onClose={() => setIsSlideModalOpen(false)}
-                    />
-
-                    {/* Rename Dialog */}
-                    {isRenameDialogOpen && (
-                        <RenameDialog
-                            document={documentToRename}
-                            onClose={() => setIsRenameDialogOpen(false)}
-                            onConfirm={handleConfirmRename}
+                    {activeTab === 'graph' && (
+                        <KnowledgeMapView
+                            workspaceId={id}
+                            documents={documents}
+                            initialSelectedDocIds={selectedDocumentIds}
                         />
                     )}
-                </>
-            )}
 
+                    {activeTab === 'dictionary' && (
+                        <DictionaryView
+                            workspaceId={id}
+                            initialSelectedDocIds={selectedDocumentIds}
+                            onUpdate={handleContentUpdate}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {/* Right Panel: Studio */}
+            <div className={`panel panel-right ${rightSidebarOpen ? '' : 'collapsed'}`}>
+                <div className="panel-header">
+                    <button className="panel-toggle-btn" onClick={() => setRightSidebarOpen(!rightSidebarOpen)} style={{ marginRight: 'auto' }}>
+                        {rightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+                    </button>
+                    {rightSidebarOpen && <div className="panel-title">스튜디오</div>}
+                </div>
+                <div className="panel-body">
+                    {rightSidebarOpen ? (
+                        <>
+                            <div className="studio-item">
+                                <div className="studio-icon"><Presentation size={20} /></div>
+                                <div className="studio-info">
+                                    <h4>슬라이드 생성</h4>
+                                    <p>문서를 기반으로 발표 자료 생성</p>
+                                </div>
+                                <button className="studio-action-btn" onClick={() => setSlideModalOpen(true)}><Plus size={16} /></button>
+                            </div>
+
+                            <div className="studio-item">
+                                <div className="studio-icon"><FileBarChart size={20} /></div>
+                                <div className="studio-info">
+                                    <h4>보고서 작성</h4>
+                                    <p>데이터 분석 및 리포트 작성</p>
+                                </div>
+                                <button className="studio-action-btn" onClick={() => setReportModalOpen(true)}><Plus size={16} /></button>
+                            </div>
+
+                            <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>최근 생성물</h4>
+                                <div style={{ fontSize: '12px', color: '#999', textAlign: 'center', padding: '10px' }}>
+                                    생성된 항목이 없습니다.
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="vertical-text">STUDIO</div>
+                    )}
+                </div>
+            </div>
 
             {/* Modals */}
-            {isKnowledgeGraphModalOpen && (
-                <KnowledgeGraphModal
-                    isOpen={isKnowledgeGraphModalOpen}
-                    onClose={() => setIsKnowledgeGraphModalOpen(false)}
-                    workspaceId={id}
-                    initialSelectedDocIds={selectedDocumentIds}
-                    documents={documents}
-                />
-            )}
-            <DictionaryModal
-                isOpen={isDictionaryModalOpen}
-                onClose={() => setIsDictionaryModalOpen(false)}
+            <AddSourceModal
+                isOpen={uploadModalOpen}
+                onClose={() => setUploadModalOpen(false)}
+                onUploadComplete={handleUploadComplete}
                 workspaceId={id}
-                initialSelectedDocIds={selectedDocumentIds}
-                onUpdate={() => setNotebook(prev => ({ ...prev, needsArangoSync: true }))}
             />
-            {/* ... other modals ... */}
-        </div >
+
+            <RenameDialog
+                isOpen={renameDialogOpen}
+                onClose={() => setRenameDialogOpen(false)}
+                title="문서 이름 변경"
+                currentName={documentToRename?.filename || ''}
+                onConfirm={handleRenameConfirm}
+            />
+
+            <SlideCreationModal
+                isOpen={slideModalOpen}
+                onClose={() => setSlideModalOpen(false)}
+                workspaceId={id}
+            />
+
+            <ReportGenerationModal
+                isOpen={reportModalOpen}
+                onClose={() => setReportModalOpen(false)}
+                workspaceId={id}
+            />
+
+        </div>
     );
 }
 

@@ -1,0 +1,77 @@
+/* MainLayout.css */
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  /* Light grey background */
+  font-family: 'Inter', sans-serif;
+  /* Example font */
+}
+
+/* Header (GNB) */
+.gnb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.gnb-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-logo {
+  font-weight: 700;
+  font-size: 18px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 0;
+  /* Remove padding if panels need to touch edges, or keep small padding */
+  width: 100%;
+  max-width: none;
+  /* Explicitly ensure no max-width */
+  margin: 0;
+  /* Explicitly ensure no margin */
+  box-sizing: border-box;
+  display: flex;
+  /* Ensure children can flex to fill */
+  flex-direction: column;
+}
+
+/* Ensure GNB items don't wrap and have consistent alignment */
+.gnb-menu {
+  display: flex;
+  gap: 32px;
+  white-space: nowrap;
+  /* Prevent text wrapping */
+  flex-shrink: 0;
+  /* Don't shrink menu if screen is small */
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+  font-size: 12px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #eaeaea;
+}

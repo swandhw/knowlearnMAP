@@ -6,7 +6,6 @@ import com.knowlearnmap.pipeline.core.PipelineStage;
 import com.knowlearnmap.pipeline.core.StageProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 /**
  * ArangoDB synchronization stage processor.
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Service;
  * Synchronizes ontology data to ArangoDB.
  * </p>
  */
+
 // @Service
 @RequiredArgsConstructor
 @Slf4j
