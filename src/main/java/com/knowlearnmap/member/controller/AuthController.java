@@ -32,7 +32,7 @@ public class AuthController {
     @GetMapping("/verify-email")
     public ResponseEntity<String> verifyEmail(@RequestParam String token) {
         memberService.verifyEmail(token);
-        return ResponseEntity.ok("Email verified successfully. Waiting for administrator approval.");
+        return ResponseEntity.ok("Email verified successfully. Please check your email to set your password.");
     }
 
     @PostMapping("/approve/{memberId}")
@@ -87,10 +87,34 @@ public class AuthController {
     }
 
     @GetMapping("/check")
-    public ResponseEntity<String> checkAuth(Authentication authentication) {
+    public ResponseEntity<java.util.Map<String, Object>> checkAuth(Authentication authentication) {
         if (authentication != null && authentication.isAuthenticated()) {
-            return ResponseEntity.ok(authentication.getName());
+            String email = authentication.getName();
+            // Fetch basic details effectively
+            // Note: Optimally we should have this in Principal but fetching from DB ensures
+            // freshness
+            com.knowlearnmap.member.domain.Member member = memberService.getMember(email)
+                    .orElse(null);
+
+            if (member != null) {
+                java.util.Map<String, Object> userInfo = new java.util.HashMap<>();
+                userInfo.put("email", member.getEmail());
+                userInfo.put("role", member.getRole().name()); // "USER", "ADMIN"
+                userInfo.put("domain", member.getDomain());
+                userInfo.put("grade", member.getGrade().name()); // "FREE", "PRO", "MAX"
+                return ResponseEntity.ok(userInfo);
+            }
         }
-        return ResponseEntity.status(401).body("Not authenticated");
+        return ResponseEntity.status(401).build();
+    }
+
+    @GetMapping("/test-email")
+    public ResponseEntity<String> testEmail(@RequestParam String to) {
+        try {
+            memberService.sendTestEmail(to);
+            return ResponseEntity.ok("Test email sent to: " + to);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to send email: " + e.getMessage());
+        }
     }
 }

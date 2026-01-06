@@ -26,10 +26,12 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for API usage
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/*.js", "/*.css", "/*.ico", "/*.json",
+                        .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/*.js", "/*.css", "/*.ico",
+                                "/*.json",
                                 "/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/api/graph/**",
                                 "/api/dictionary/**", "/api/documents/**", "/api/pipeline/**", "/api/ontology/**",
-                                "/api/v1/prompts/**", "/actuator/**", "/api/workspaces/**", "/api/domains/**")
+                                "/api/v1/prompts/**", "/actuator/**", "/api/workspaces/**", "/api/domains/**",
+                                "/api/upgrade/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .formLogin(AbstractHttpConfigurer::disable) // Disable default form login page
@@ -55,8 +57,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173", "http://127.0.0.1:5173",
                 "http://mapdev.knowlearn.kr", "https://mapdev.knowlearn.kr",
-                "http://map.knowlearn.kr", "https://map.knowlearn.kr"
-        )); // Frontend URL
+                "http://map.knowlearn.kr", "https://map.knowlearn.kr")); // Frontend URL
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true); // Allow cookies

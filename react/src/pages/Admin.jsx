@@ -1,17 +1,23 @@
+import AdminUpgradeRequests from './admin/AdminUpgradeRequests';
 import { useState } from 'react';
-import { useNavigate, Routes, Route } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PromptList from '../prompt/components/prompts/PromptList';
-import PromptDetail from '../prompt/components/prompts/PromptDetail';
 import DomainManagement from '../components/DomainManagement';
-import './Admin.css';
+import PromptDetail from '../prompt/components/prompts/PromptDetail';
 
 function Admin() {
     const [activeTab, setActiveTab] = useState('prompts');
     const { isAdmin } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
-    // 관리자가 아니면 홈으로 리다이렉트
+    // Sync tab with URL if needed, or just let routing handle it. 
+    // The current Admin.jsx uses internal state 'activeTab' for the root route, which is confusing if getting there via direct link.
+    // However, MainLayout links to /admin/upgrades, which hits the Router *inside* Admin.jsx
+
+    // Let's support the direct route `/admin/upgrades`
+
     if (!isAdmin) {
         navigate('/');
         return null;
@@ -50,16 +56,26 @@ function Admin() {
                             >
                                 🌐 도메인 관리
                             </button>
+                            <button
+                                className={`admin-tab ${activeTab === 'upgrades' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('upgrades')}
+                            >
+                                ⭐ 승인 관리
+                            </button>
                         </nav>
 
                         {/* Tab Content */}
                         <div className="admin-tab-content">
                             {activeTab === 'prompts' && <PromptList />}
                             {activeTab === 'domains' && <DomainManagement />}
+                            {activeTab === 'upgrades' && <AdminUpgradeRequests />}
                         </div>
                     </div>
                 } />
+                <Route path="/prompts" element={<PromptList />} />
                 <Route path="/prompts/:code" element={<PromptDetail />} />
+                <Route path="/upgrades" element={<AdminUpgradeRequests />} />
+                <Route path="/domains" element={<DomainManagement />} />
             </Routes>
         </div>
     );

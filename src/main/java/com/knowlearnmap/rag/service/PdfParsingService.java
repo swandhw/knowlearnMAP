@@ -28,8 +28,16 @@ public class PdfParsingService {
      * @return 추출된 페이지 목록
      * @throws IOException PDF 파싱 실패 시
      */
-    public List<DocumentPage> extractPages(DocumentEntity document) throws IOException {
-        log.info("PDF 파싱 시작: {}", document.getFilePath());
+    /**
+     * PDF 파일에서 페이지별로 텍스트 추출 (페이지 제한 포함)
+     *
+     * @param document 문서 엔티티
+     * @param maxPages 최대 페이지 수 (0 이하인 경우 제한 없음)
+     * @return 추출된 페이지 목록
+     * @throws IOException PDF 파싱 실패 시
+     */
+    public List<DocumentPage> extractPages(DocumentEntity document, int maxPages) throws IOException {
+        log.info("PDF 파싱 시작: {}, Limit: {}", document.getFilePath(), maxPages);
 
         List<DocumentPage> pages = new ArrayList<>();
         File pdfFile = new File(document.getFilePath());
@@ -40,7 +48,13 @@ public class PdfParsingService {
 
             log.info("총 페이지 수: {}", totalPages);
 
-            for (int pageNum = 1; pageNum <= totalPages; pageNum++) {
+            int pagesToProcess = totalPages;
+            if (maxPages > 0 && maxPages < totalPages) {
+                pagesToProcess = maxPages;
+                log.info("등급 제한으로 인해 {} 페이지만 처리합니다.", pagesToProcess);
+            }
+
+            for (int pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
                 stripper.setStartPage(pageNum);
                 stripper.setEndPage(pageNum);
 

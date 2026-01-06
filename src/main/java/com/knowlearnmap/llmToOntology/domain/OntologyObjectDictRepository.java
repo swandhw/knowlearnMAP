@@ -38,11 +38,19 @@ public interface OntologyObjectDictRepository extends JpaRepository<OntologyObje
         Optional<OntologyObjectDict> findById(Long id);
 
         /**
-         * Delete Orphaned Objects (No references)
+         * Delete Orphaned Synonyms (Objects with no refs and no usage)
          */
         @org.springframework.data.jpa.repository.Modifying
         @org.springframework.transaction.annotation.Transactional
-        @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyObjectDict o WHERE o.references IS EMPTY")
+        @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyObjectSynonyms s WHERE s.objectId IN (SELECT o.id FROM OntologyObjectDict o WHERE o.references IS EMPTY AND NOT EXISTS (SELECT k FROM OntologyKnowlearnType k WHERE k.subjectId = o.id OR k.objectId = o.id))")
+        void deleteOrphanSynonyms();
+
+        /**
+         * Delete Orphaned Objects (No references and no usage)
+         */
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.transaction.annotation.Transactional
+        @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyObjectDict o WHERE o.references IS EMPTY AND NOT EXISTS (SELECT k FROM OntologyKnowlearnType k WHERE k.subjectId = o.id OR k.objectId = o.id)")
         void deleteOrphans();
 
         @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o FROM OntologyObjectDict o JOIN o.references r WHERE o.workspaceId = :workspaceId AND r.documentId IN :documentIds")

@@ -195,12 +195,16 @@ function NotebookDetail() {
         );
     };
 
+    // --- Read Only Check ---
+    const isReadOnly = notebook?.role !== 'Owner';
+
     // --- State: Sync Status ---
     const [isSyncNeeded, setIsSyncNeeded] = useState(false);
 
     // ... existing handlers ...
 
     const handleDeleteDocument = async (doc) => {
+        if (isReadOnly) return;
         if (!window.confirm(`'${doc.filename}' 문서를 삭제하시겠습니까?`)) return;
         try {
             await documentApi.delete(doc.id);
@@ -214,6 +218,7 @@ function NotebookDetail() {
     };
 
     const handleRenameDocument = (doc) => {
+        if (isReadOnly) return;
         setDocumentToRename(doc);
         setRenameDialogOpen(true);
     };
@@ -237,6 +242,7 @@ function NotebookDetail() {
     };
 
     const handleSync = async () => {
+        if (isReadOnly) return;
         if (!isSyncNeeded && !window.confirm('변경된 사항이 없습니다. 그래도 동기화를 진행하시겠습니까?')) return;
         if (isSyncNeeded && !window.confirm('ArangoDB와 동기화를 진행하시겠습니까?')) return;
 
@@ -286,12 +292,14 @@ function NotebookDetail() {
                     {leftSidebarOpen ? (
                         <>
                             <div className="source-actions" style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
-                                    width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                                    backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
-                                }}>
-                                    <Plus size={18} /> 소스 추가
-                                </button>
+                                {!isReadOnly && (
+                                    <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
+                                        width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                        backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+                                    }}>
+                                        <Plus size={18} /> 소스 추가
+                                    </button>
+                                )}
 
                                 <div style={{ position: 'relative' }}>
                                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
@@ -312,21 +320,23 @@ function NotebookDetail() {
                                         모두 선택
                                     </label>
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button
-                                            onClick={handleSync}
-                                            title="동기화 (ArangoDB)"
-                                            disabled={isSyncing}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: isSyncing ? 'wait' : 'pointer',
-                                                color: isSyncNeeded ? '#d93025' : '#5f6368', // Red if needed, else Grey
-                                                padding: '4px',
-                                                opacity: isSyncing ? 0.6 : 1
-                                            }}
-                                        >
-                                            <RefreshCw size={16} className={isSyncing ? "spin-animation" : ""} />
-                                        </button>
+                                        {!isReadOnly && (
+                                            <button
+                                                onClick={handleSync}
+                                                title="동기화 (ArangoDB)"
+                                                disabled={isSyncing}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: isSyncing ? 'wait' : 'pointer',
+                                                    color: isSyncNeeded ? '#d93025' : '#5f6368', // Red if needed, else Grey
+                                                    padding: '4px',
+                                                    opacity: isSyncing ? 0.6 : 1
+                                                }}
+                                            >
+                                                <RefreshCw size={16} className={isSyncing ? "spin-animation" : ""} />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handleTabChange('graph')}
                                             disabled={selectedDocumentIds.length === 0}
@@ -374,6 +384,7 @@ function NotebookDetail() {
                                             onSelect={() => {/* Maybe preview? */ }}
                                             onRename={handleRenameDocument}
                                             onDelete={handleDeleteDocument}
+                                            readOnly={isReadOnly}
                                         />
                                     ))
                                 )}
@@ -489,6 +500,7 @@ function NotebookDetail() {
                             workspaceId={id}
                             documents={documents}
                             initialSelectedDocIds={selectedDocumentIds}
+                            readOnly={isReadOnly}
                         />
                     )}
 
@@ -497,6 +509,7 @@ function NotebookDetail() {
                             workspaceId={id}
                             initialSelectedDocIds={selectedDocumentIds}
                             onUpdate={handleContentUpdate}
+                            readOnly={isReadOnly}
                         />
                     )}
                 </div>

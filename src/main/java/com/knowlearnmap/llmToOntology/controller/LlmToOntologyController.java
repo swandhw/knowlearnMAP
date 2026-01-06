@@ -20,13 +20,22 @@ public class LlmToOntologyController {
     @PostMapping("/documents/{documentId}")
     public ResponseEntity<String> createOntologyFromDocument(
             @RequestParam Long workspaceId,
-            @PathVariable Long documentId) {
-        
-        log.info("Ontology generation requested for document: {}, workspace: {}", documentId, workspaceId);
-        
-        int count = llmToOntologyService.createOntologyFromDocument(workspaceId, documentId);
-        
-        return ResponseEntity.ok("Ontology generation started for " + count + " chunks.");
+            @PathVariable Long documentId,
+            org.springframework.security.core.Authentication authentication) {
+
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        log.info("Ontology generation requested for document: {}, workspace: {}, user: {}", documentId, workspaceId,
+                username);
+
+        try {
+            int count = llmToOntologyService.createOntologyFromDocument(workspaceId, documentId, username);
+            return ResponseEntity.ok("Ontology generation started for " + count + " chunks.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
-

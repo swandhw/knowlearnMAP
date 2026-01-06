@@ -255,7 +255,10 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
 
                     {/* Search Controls */}
                     <div className="kg-search-controls">
-                        {/* ... (Existing search controls) ... */}
+                        <div className="kg-node-count" style={{ marginRight: '15px', fontWeight: 'bold', color: '#333', fontSize: '14px' }}>
+                            총 노드: {graphData.nodes.length}개
+                        </div>
+
                         <div className="kg-input-group">
                             <input
                                 type="text"
@@ -273,7 +276,8 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
                                 </ul>
                             )}
                         </div>
-                        <div className="kg-input-group" style={{ width: '80px' }}>
+                        <div className="kg-input-group" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ color: '#333', fontSize: '14px', fontWeight: '500' }}>Depth:</span>
                             <input
                                 type="number"
                                 className="kg-depth-input"
@@ -281,6 +285,7 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
                                 value={depth}
                                 onChange={(e) => setDepth(parseInt(e.target.value))}
                                 title="Depth (깊이)"
+                                style={{ width: '60px' }}
                             />
                         </div>
                         <button className="kg-btn primary" onClick={handleSearch}>검색</button>

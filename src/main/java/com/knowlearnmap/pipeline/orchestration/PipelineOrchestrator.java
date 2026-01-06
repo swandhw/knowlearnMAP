@@ -48,11 +48,20 @@ public class PipelineOrchestrator {
      * @param documentId  Document ID to process
      * @return CompletableFuture of the execution result
      */
+    /**
+     * Execute the full pipeline asynchronously.
+     * 
+     * @param workspaceId Workspace ID
+     * @param documentId  Document ID to process
+     * @param metadata    Optional initial metadata (e.g. limits)
+     * @return CompletableFuture of the execution result
+     */
     @Async
-    public CompletableFuture<PipelineContext> executeAsync(Long workspaceId, Long documentId) {
+    public CompletableFuture<PipelineContext> executeAsync(Long workspaceId, Long documentId,
+            Map<String, Object> metadata) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return execute(workspaceId, documentId);
+                return execute(workspaceId, documentId, metadata);
             } catch (PipelineException e) {
                 log.error("Pipeline execution failed for workspace={}, document={}",
                         workspaceId, documentId, e);
@@ -61,26 +70,39 @@ public class PipelineOrchestrator {
         });
     }
 
+    // Overload for backward compatibility if needed, using empty map
+    @Async
+    public CompletableFuture<PipelineContext> executeAsync(Long workspaceId, Long documentId) {
+        return executeAsync(workspaceId, documentId, null);
+    }
+
     /**
      * Execute the full pipeline synchronously.
      * 
-     * @param workspaceId Workspace ID
-     * @param documentId  Document ID to process
+     * @param workspaceId     Workspace ID
+     * @param documentId      Document ID to process
+     * @param initialMetadata Optional initial metadata
      * @return Pipeline execution context
      * @throws PipelineException if execution fails
      */
-    public PipelineContext execute(Long workspaceId, Long documentId) throws PipelineException {
+    public PipelineContext execute(Long workspaceId, Long documentId, Map<String, Object> initialMetadata)
+            throws PipelineException {
         log.info("=== Starting Pipeline Execution for workspace={}, document={} ===",
                 workspaceId, documentId);
 
         // Initialize context
-        PipelineContext context = PipelineContext.builder()
+        PipelineContext.PipelineContextBuilder builder = PipelineContext.builder()
                 .workspaceId(workspaceId)
                 .documentId(documentId)
                 .status(PipelineStatus.PENDING)
                 .startTime(LocalDateTime.now())
-                .progress(0)
-                .build();
+                .progress(0);
+
+        if (initialMetadata != null) {
+            builder.metadata(new java.util.HashMap<>(initialMetadata));
+        }
+
+        PipelineContext context = builder.build();
 
         // Create execution record
         PipelineExecutionEntity execution = createExecutionRecord(context);

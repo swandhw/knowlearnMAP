@@ -47,7 +47,10 @@ public class PdfParserProcessor implements StageProcessor {
                             false));
 
             // PDF 파싱
-            List<DocumentPage> pages = pdfParsingService.extractPages(document);
+            Integer maxPages = context.getMetadata("maxPages", Integer.class);
+            int pageLimit = (maxPages != null) ? maxPages : 0;
+
+            List<DocumentPage> pages = pdfParsingService.extractPages(document, pageLimit);
 
             // 페이지 저장
             documentPageRepository.saveAll(pages);

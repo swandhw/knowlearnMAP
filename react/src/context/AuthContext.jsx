@@ -15,13 +15,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await axios.get(`${API_URL}/api/auth/check`);
             if (response.status === 200) {
-                // response.data is only the username (string) based on my backend code
-                // Let's assume it returns just the email string or an object if I change it later
-                // For now backend returns String.
-                setUser({ email: response.data, role: response.data === 'admin' ? 'ADMIN' : 'USER' });
-                // Note: The backend checkAuth returns authentication.getName() which is email.
-                // Role is not currently returned by /check, but I can improve backend later.
-                // For now, let's assume valid user.
+                // response.data is { email, role, domain }
+                setUser(response.data);
             }
         } catch (error) {
             setUser(null);

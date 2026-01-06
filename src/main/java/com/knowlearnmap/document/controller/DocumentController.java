@@ -30,13 +30,19 @@ public class DocumentController {
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<DocumentResponseDto>> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("workspaceId") Long workspaceId) {
+            @RequestParam("workspaceId") Long workspaceId,
+            org.springframework.security.core.Authentication authentication) {
 
-        log.debug("POST /api/documents/upload - filename={}, workspaceId={}",
-                file.getOriginalFilename(), workspaceId);
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+        }
+
+        log.debug("POST /api/documents/upload - filename={}, workspaceId={}, username={}",
+                file.getOriginalFilename(), workspaceId, username);
 
         try {
-            DocumentResponseDto response = documentService.uploadFile(file, workspaceId);
+            DocumentResponseDto response = documentService.uploadFile(file, workspaceId, username);
             return ResponseEntity.ok(ApiResponse.success(response));
         } catch (IllegalArgumentException e) {
             log.error("파일 업로드 실패: {}", e.getMessage());
@@ -90,14 +96,23 @@ public class DocumentController {
     /**
      * Document 삭제
      */
+    /**
+     * Document 삭제
+     */
     @DeleteMapping("/{documentId}")
     public ResponseEntity<ApiResponse<Void>> deleteDocument(
-            @PathVariable Long documentId) {
+            @PathVariable Long documentId,
+            org.springframework.security.core.Authentication authentication) {
 
-        log.debug("DELETE /api/documents/{}", documentId);
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+        }
+
+        log.debug("DELETE /api/documents/{} - user={}", documentId, username);
 
         try {
-            documentService.deleteDocument(documentId);
+            documentService.deleteDocument(documentId, username);
             return ResponseEntity.ok(ApiResponse.success(null));
         } catch (IllegalArgumentException e) {
             log.error("Document 삭제 실패: {}", e.getMessage());
@@ -109,15 +124,24 @@ public class DocumentController {
     /**
      * Document 정보 수정 (제목)
      */
+    /**
+     * Document 정보 수정 (제목)
+     */
     @PutMapping("/{documentId}")
     public ResponseEntity<ApiResponse<DocumentResponseDto>> updateDocument(
             @PathVariable Long documentId,
-            @RequestBody DocumentUpdateRequest request) {
+            @RequestBody DocumentUpdateRequest request,
+            org.springframework.security.core.Authentication authentication) {
 
-        log.debug("PUT /api/documents/{} - filename={}", documentId, request.getFilename());
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+        }
+
+        log.debug("PUT /api/documents/{} - filename={}, user={}", documentId, request.getFilename(), username);
 
         try {
-            DocumentResponseDto response = documentService.updateDocument(documentId, request);
+            DocumentResponseDto response = documentService.updateDocument(documentId, request, username);
             return ResponseEntity.ok(ApiResponse.success(response));
         } catch (IllegalArgumentException e) {
             log.error("Document 수정 실패: {}", e.getMessage());

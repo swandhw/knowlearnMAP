@@ -39,6 +39,7 @@ public class WorkspaceResponseDto {
     private Boolean needsArangoSync;
     private LocalDateTime createdAt;
     private String createdBy;
+    private Boolean isShared;
 
     /**
      * Entity -> DTO 변환
@@ -63,6 +64,7 @@ public class WorkspaceResponseDto {
         dto.setNeedsArangoSync(entity.getNeedsArangoSync());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setCreatedBy(entity.getCreatedBy());
+        dto.setIsShared(entity.getIsShared());
 
         // 날짜 포맷 변환
         if (entity.getCreatedAt() != null) {

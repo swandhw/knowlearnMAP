@@ -66,6 +66,39 @@
   /* Don't shrink menu if screen is small */
 }
 
+/* Right side icons/info */
+.gnb-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  /* Push to right if needed, though justify-between on parent handles it */
+}
+
+.user-info {
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
+}
+
+.upgrade-btn,
+.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.upgrade-btn:hover,
+.logout-btn:hover {
+  background-color: #f0f0f0;
+}
+
 /* Footer */
 .site-footer {
   text-align: center;

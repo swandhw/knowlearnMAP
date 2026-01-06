@@ -235,6 +235,9 @@ export default function KnowledgeMapView({ workspaceId, documents = [], initialS
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', position: 'relative' }}>
             {/* Toolbar */}
             <div style={{ display: 'flex', alignItems: 'center', padding: '10px', backgroundColor: '#f5f5f5', borderBottom: '1px solid #ddd', gap: '10px' }}>
+                <div className="kg-node-count" style={{ marginRight: '10px', fontWeight: 'bold', color: '#333', fontSize: '14px' }}>
+                    총 노드: {graphData.nodes.length}개
+                </div>
                 <div className="kg-input-group">
                     <input
                         type="text"
@@ -252,7 +255,8 @@ export default function KnowledgeMapView({ workspaceId, documents = [], initialS
                         </ul>
                     )}
                 </div>
-                <div className="kg-input-group" style={{ width: '60px' }}>
+                <div className="kg-input-group" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ color: '#333', fontSize: '14px', fontWeight: '500' }}>Depth:</span>
                     <input
                         type="number"
                         className="kg-depth-input"

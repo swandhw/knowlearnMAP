@@ -34,24 +34,44 @@ public class DictionaryController {
     }
 
     @PutMapping("/concepts/{id}")
-    public ResponseEntity<DictionaryDto> updateConcept(@PathVariable Long id, @RequestBody DictionaryDto dto) {
-        return ResponseEntity.ok(dictionaryService.updateConcept(id, dto));
+    public ResponseEntity<DictionaryDto> updateConcept(@PathVariable Long id, @RequestBody DictionaryDto dto,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(dictionaryService.updateConcept(id, dto, username));
     }
 
     @PutMapping("/relations/{id}")
-    public ResponseEntity<DictionaryDto> updateRelation(@PathVariable Long id, @RequestBody DictionaryDto dto) {
-        return ResponseEntity.ok(dictionaryService.updateRelation(id, dto));
+    public ResponseEntity<DictionaryDto> updateRelation(@PathVariable Long id, @RequestBody DictionaryDto dto,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(dictionaryService.updateRelation(id, dto, username));
     }
 
     @DeleteMapping("/concepts/{id}")
-    public ResponseEntity<Void> deleteConcept(@PathVariable Long id) {
-        dictionaryService.deleteConcept(id);
+    public ResponseEntity<Void> deleteConcept(@PathVariable Long id,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+        dictionaryService.deleteConcept(id, username);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/relations/{id}")
-    public ResponseEntity<Void> deleteRelation(@PathVariable Long id) {
-        dictionaryService.deleteRelation(id);
+    public ResponseEntity<Void> deleteRelation(@PathVariable Long id,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+        dictionaryService.deleteRelation(id, username);
         return ResponseEntity.ok().build();
     }
 
@@ -66,7 +86,12 @@ public class DictionaryController {
     }
 
     @PostMapping("/concepts/merge")
-    public ResponseEntity<Void> mergeConcepts(@RequestBody java.util.Map<String, Object> request) {
+    public ResponseEntity<Void> mergeConcepts(@RequestBody java.util.Map<String, Object> request,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
         Long sourceId = Long.valueOf(request.get("sourceId").toString());
         Long targetId = Long.valueOf(request.get("targetId").toString());
         Long workspaceId = Long.valueOf(request.get("workspaceId").toString());
@@ -74,7 +99,22 @@ public class DictionaryController {
 
         boolean keepSourceAsSynonym = "move".equalsIgnoreCase(mode);
 
-        dictionaryService.mergeConcepts(sourceId, targetId, workspaceId, keepSourceAsSynonym);
+        dictionaryService.mergeConcepts(sourceId, targetId, workspaceId, keepSourceAsSynonym, username);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/relations/merge")
+    public ResponseEntity<Void> mergeRelations(@RequestBody java.util.Map<String, Object> request,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+        Long sourceId = Long.valueOf(request.get("sourceId").toString());
+        Long targetId = Long.valueOf(request.get("targetId").toString());
+        Long workspaceId = Long.valueOf(request.get("workspaceId").toString());
+
+        dictionaryService.mergeRelations(sourceId, targetId, workspaceId, username);
         return ResponseEntity.ok().build();
     }
 

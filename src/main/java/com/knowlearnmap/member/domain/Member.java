@@ -45,6 +45,13 @@ public class Member {
     @Column
     private String domain;
 
+    @Column
+    private LocalDateTime verificationTokenExpiry;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'FREE'")
+    private Grade grade = Grade.FREE;
+
     public enum Role {
         USER, ADMIN, SYSOP
     }
@@ -54,6 +61,34 @@ public class Member {
         WAITING_APPROVAL,
         APPROVED_WAITING_PASSWORD,
         ACTIVE
+    }
+
+    public enum Grade {
+        FREE(1, 3, 5),
+        PRO(3, 10, 20),
+        MAX(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+
+        private final int maxWorkspaces;
+        private final int maxDocuments;
+        private final int maxPagesPerDocument;
+
+        Grade(int maxWorkspaces, int maxDocuments, int maxPagesPerDocument) {
+            this.maxWorkspaces = maxWorkspaces;
+            this.maxDocuments = maxDocuments;
+            this.maxPagesPerDocument = maxPagesPerDocument;
+        }
+
+        public int getMaxWorkspaces() {
+            return maxWorkspaces;
+        }
+
+        public int getMaxDocuments() {
+            return maxDocuments;
+        }
+
+        public int getMaxPagesPerDocument() {
+            return maxPagesPerDocument;
+        }
     }
 
     public Member(String email, String password, Role role, String verificationToken, String domain) {

@@ -59,7 +59,7 @@ public class OntologyPersistenceService {
     /**
      * Object Dictionary 저장 또는 조회
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public synchronized OntologyObjectDict findAndSaveObjectDict(Long workspaceId, DocumentChunk chunk,
             OntologyObjectDict dict) {
         Long docId = chunk.getDocument().getId();
@@ -175,7 +175,7 @@ public class OntologyPersistenceService {
     /**
      * Relation Dictionary 저장 또는 조회
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public synchronized OntologyRelationDict findAndSaveRelationDict(Long workspaceId, DocumentChunk chunk,
             OntologyRelationDict dict) {
         Long docId = chunk.getDocument().getId();
@@ -288,7 +288,7 @@ public class OntologyPersistenceService {
     /**
      * Knowlearn Type (Triple) 저장
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public synchronized void findAndSaveKnowlearnType(Long workspaceId, DocumentChunk chunk, OntologyDto dto) {
         try {
             // 1. Subject 처리
@@ -372,7 +372,7 @@ public class OntologyPersistenceService {
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void removeDocumentSource(Long documentId, List<Long> chunkIds) {
         // 1. Delete References by Document ID
         // Note: Using documentId is sufficient to remove all references for that
@@ -390,19 +390,20 @@ public class OntologyPersistenceService {
                 documentId, kRefDeleted, oRefDeleted, rRefDeleted);
 
         // 2. Cleanup Orphans (Masters with no References)
-        // This can be heavy if strict consistency is needed instantly.
-        // A common strategy is to do this asynchronously or periodically.
-        // However, user logic requested "remove if no source remains".
+        // User Logic: Remove if no source remains AND no Reference remains (Triples
+        // first)
 
-        // Strategy: We can't easily find *which* objects were affected solely by this
-        // delete without keeping a list.
-        // But we know we just deleted references.
-        // A simple brute-force cleanup for now: Delete where references is empty.
-        // OR better: Delete only those that we know might be affected?
-        // Let's implement a 'Delete Orphaned' query in the repository and call it.
-
+        // A. Delete Orphaned Triples (References empty)
         knowlearnTypeRepository.deleteOrphans();
+
+        // B. Delete Orphaned Objects (References empty AND No Triple Usage)
+        // Must delete Synonyms first
+        objectDictRepository.deleteOrphanSynonyms();
         objectDictRepository.deleteOrphans();
+
+        // C. Delete Orphaned Relations (References empty AND No Triple Usage)
+        // Must delete Synonyms first
+        relationDictRepository.deleteOrphanSynonyms();
         relationDictRepository.deleteOrphans();
     }
 }

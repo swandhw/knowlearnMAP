@@ -34,4 +34,6 @@ public class WorkspaceRequestDto {
     private String folderName;
 
     private String promptCode;
+
+    private Boolean isShared;
 }

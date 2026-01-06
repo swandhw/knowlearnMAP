@@ -8,7 +8,8 @@ function DocumentSourceItem({
     isChecked,
     onCheckChange,
     onRename,
-    onDelete
+    onDelete,
+    readOnly
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -154,32 +155,34 @@ function DocumentSourceItem({
             </div>
 
             {/* 메뉴 버튼 */}
-            <div className="document-menu" ref={menuRef}>
-                <button
-                    className="menu-trigger"
-                    onClick={handleMenuClick}
-                    aria-label="메뉴"
-                >
-                    ⋮
-                </button>
+            {!readOnly && (
+                <div className="document-menu" ref={menuRef}>
+                    <button
+                        className="menu-trigger"
+                        onClick={handleMenuClick}
+                        aria-label="메뉴"
+                    >
+                        ⋮
+                    </button>
 
-                {menuOpen && (
-                    <div className="menu-dropdown">
-                        <button
-                            className="menu-item"
-                            onClick={() => handleMenuItemClick('rename')}
-                        >
-                            제목수정
-                        </button>
-                        <button
-                            className="menu-item delete"
-                            onClick={() => handleMenuItemClick('delete')}
-                        >
-                            삭제
-                        </button>
-                    </div>
-                )}
-            </div>
+                    {menuOpen && (
+                        <div className="menu-dropdown">
+                            <button
+                                className="menu-item"
+                                onClick={() => handleMenuItemClick('rename')}
+                            >
+                                제목수정
+                            </button>
+                            <button
+                                className="menu-item delete"
+                                onClick={() => handleMenuItemClick('delete')}
+                            >
+                                삭제
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

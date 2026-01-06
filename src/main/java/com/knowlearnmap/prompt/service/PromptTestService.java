@@ -183,14 +183,18 @@ public class PromptTestService {
         PromptVersion version = versionRepository.findByPromptCodeAndIsActive(code, true)
                 .orElseThrow(() -> new RuntimeException("배포된 프롬프트 버전을 찾을 수 없습니다: " + code));
 
-        LlmConfigDto config = llmConfigRepository.findByVersionId(version.getId())
-                .map(this::convertToLlmConfigDto)
-                .orElse(null);
+        LlmConfigDto config;
 
-        if (config == null) {
-            if (version.getLlmConfig() != null && !version.getLlmConfig().isEmpty()) {
-                config = convertJsonToLlmConfig(version.getLlmConfig());
-            } else {
+        if (version.getLlmConfig() != null && !version.getLlmConfig().isEmpty()) {
+            config = convertJsonToLlmConfig(version.getLlmConfig());
+            // 버전 생성 시점의 스냅샷 Config를 최우선 사용 (Production Logic)
+        } else {
+            // 스냅샷이 없는 경우에만 환경 설정(Test Config) 조회
+            config = llmConfigRepository.findByVersionId(version.getId())
+                    .map(this::convertToLlmConfigDto)
+                    .orElse(null);
+
+            if (config == null) {
                 config = LlmConfigDto.builder()
                         .model("AISTUDIO")
                         .temperature(0.7)

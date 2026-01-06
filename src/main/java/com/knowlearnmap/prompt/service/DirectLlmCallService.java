@@ -129,8 +129,8 @@ public class DirectLlmCallService {
             throw new IOException("AISTUDIO API 키가 설정되지 않았습니다. application.properties에 api.key.aistudio를 설정해주세요.");
         }
 
-        // Google AI Studio API 엔드포인트 (v1 + gemini-1.5-flash)
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="
+        // Google AI Studio API 엔드포인트 (v1beta + gemini-1.5-flash-001)
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key="
                 + aistudioApiKey;
 
         log.info("AISTUDIO 요청 URL: {}", url.replace(aistudioApiKey, "***"));

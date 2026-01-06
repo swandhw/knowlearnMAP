@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { workspaceApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 // CSS is imported globally or via MainLayout, but we keep Home specific tweaks if any
 // import './Home.css'; 
 
 function Home() {
     const [viewMode, setViewMode] = useState('grid');
     const [sortBy, setSortBy] = useState('최신순');
+    const [filter, setFilter] = useState('MY'); // 'MY' or 'ALL'
     const [openMenuId, setOpenMenuId] = useState(null);
     const [notebooks, setNotebooks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -19,13 +21,26 @@ function Home() {
 
     const menuRef = useRef(null);
     const navigate = useNavigate();
+    const { isAdmin, isAuthenticated } = useAuth();
 
     // 워크스페이스 목록 불러오기
     useEffect(() => {
+        // Wait for auth check to complete (handled by route protection usually, but useAuth helps)
+        if (!isAuthenticated) return;
+
         const fetchWorkspaces = async () => {
             try {
                 setLoading(true);
-                const data = await workspaceApi.getAll();
+                let params = { filter };
+
+                if (isAdmin) {
+                    const selectedDomainId = localStorage.getItem('admin_selected_domain_id');
+                    if (selectedDomainId) {
+                        params.domainId = selectedDomainId;
+                    }
+                }
+
+                const data = await workspaceApi.getAll(params);
                 setNotebooks(data || []);
                 setError(null);
             } catch (err) {
@@ -38,7 +53,7 @@ function Home() {
         };
 
         fetchWorkspaces();
-    }, []);
+    }, [isAuthenticated, isAdmin, navigate, filter]); // dependencies updated
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -116,11 +131,22 @@ function Home() {
 
     const handleCreateNew = async () => {
         try {
+            let selectedDomainId = null;
+            if (isAdmin) {
+                selectedDomainId = localStorage.getItem('admin_selected_domain_id');
+                if (!selectedDomainId) {
+                    alert("도메인을 선택해야 합니다."); // Should be redirected already but safety check
+                    return;
+                }
+            }
+
             const newWorkspace = {
                 name: 'Untitled notebook',
                 description: '',
                 icon: '📄',
-                color: 'yellow'
+                color: 'yellow',
+                domainId: selectedDomainId ? parseInt(selectedDomainId) : null,
+                isShared: filter === 'ALL' && isAdmin ? true : false // If creating in "All" view as Admin, make it shared? Optional logic.
             };
 
             const created = await workspaceApi.create(newWorkspace);
@@ -140,7 +166,43 @@ function Home() {
         <div className="home-container">
             {/* Toolbar */}
             <div className="toolbar">
-                <h1 className="page-title">내 워크스페이스</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h1 className="page-title">워크스페이스</h1>
+                    {/* Filter Tabs */}
+                    <div style={{ display: 'flex', background: '#f1f3f4', borderRadius: '8px', padding: '2px' }}>
+                        <button
+                            onClick={() => setFilter('MY')}
+                            style={{
+                                padding: '6px 12px',
+                                border: 'none',
+                                borderRadius: '6px',
+                                background: filter === 'MY' ? '#fff' : 'transparent',
+                                boxShadow: filter === 'MY' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                cursor: 'pointer',
+                                fontWeight: filter === 'MY' ? '600' : '400',
+                                fontSize: '14px'
+                            }}
+                        >
+                            내 워크스페이스
+                        </button>
+                        <button
+                            onClick={() => setFilter('ALL')}
+                            style={{
+                                padding: '6px 12px',
+                                border: 'none',
+                                borderRadius: '6px',
+                                background: filter === 'ALL' ? '#fff' : 'transparent',
+                                boxShadow: filter === 'ALL' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                cursor: 'pointer',
+                                fontWeight: filter === 'ALL' ? '600' : '400',
+                                fontSize: '14px'
+                            }}
+                        >
+                            전체 (공유)
+                        </button>
+                    </div>
+                </div>
+
 
                 <div className="toolbar-actions">
                     <div className="view-toggle">
@@ -242,44 +304,65 @@ function Home() {
                             key={notebook.id}
                             className={`notebook-card ${notebook.color || 'yellow'}`}
                             onClick={() => handleNotebookClick(notebook.id)}
+                            style={{ position: 'relative' }}
                         >
                             <div className="card-header">
                                 <div className="notebook-icon">{notebook.icon || '📄'}</div>
+                                {notebook.isShared && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: '8px',
+                                        right: viewMode === 'grid' ? '40px' : 'auto', // Adjust based on menu btn
+                                        left: viewMode === 'list' ? '40px' : 'auto',
+                                        fontSize: '10px',
+                                        background: '#e0f2f1',
+                                        color: '#00695c',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        border: '1px solid #b2dfdb'
+                                    }}>
+                                        Shared
+                                    </span>
+                                )}
+
                                 {viewMode === 'grid' && (
-                                    <div className="more-btn-container" ref={openMenuId === notebook.id ? menuRef : null}>
-                                        <button
-                                            className="more-btn"
-                                            onClick={(e) => handleMenuToggle(e, notebook.id)}
-                                        >
-                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                                                <circle cx="10" cy="4" r="1.5" />
-                                                <circle cx="10" cy="10" r="1.5" />
-                                                <circle cx="10" cy="16" r="1.5" />
-                                            </svg>
-                                        </button>
-                                        {openMenuId === notebook.id && (
-                                            <div className="popup-menu">
-                                                <button
-                                                    className="menu-item"
-                                                    onClick={(e) => handleRename(e, notebook.id)}
-                                                >
-                                                    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                                        <path d="M2 12.88V16h3.12L14.06 7.06l-3.12-3.12L2 12.88zM16.71 4.71l-2.42-2.42a1 1 0 0 0-1.42 0l-1.83 1.83 3.12 3.12 1.83-1.83a1 1 0 0 0 0-1.42l.72-.72z" />
-                                                    </svg>
-                                                    제목 수정
-                                                </button>
-                                                <button
-                                                    className="menu-item delete"
-                                                    onClick={(e) => handleDelete(e, notebook.id)}
-                                                >
-                                                    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                                        <path d="M6 16c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V6H6v10zm1-9h4v9H7V7zm6.5-5H11L10.5 1h-3l-.5 1H4.5v2h9V2z" />
-                                                    </svg>
-                                                    삭제
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                                    // Only show menu if Owner
+                                    (notebook.role === 'Owner') && (
+                                        <div className="more-btn-container" ref={openMenuId === notebook.id ? menuRef : null}>
+                                            <button
+                                                className="more-btn"
+                                                onClick={(e) => handleMenuToggle(e, notebook.id)}
+                                            >
+                                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                                    <circle cx="10" cy="4" r="1.5" />
+                                                    <circle cx="10" cy="10" r="1.5" />
+                                                    <circle cx="10" cy="16" r="1.5" />
+                                                </svg>
+                                            </button>
+                                            {openMenuId === notebook.id && (
+                                                <div className="popup-menu">
+                                                    <button
+                                                        className="menu-item"
+                                                        onClick={(e) => handleRename(e, notebook.id)}
+                                                    >
+                                                        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                                                            <path d="M2 12.88V16h3.12L14.06 7.06l-3.12-3.12L2 12.88zM16.71 4.71l-2.42-2.42a1 1 0 0 0-1.42 0l-1.83 1.83 3.12 3.12 1.83-1.83a1 1 0 0 0 0-1.42l.72-.72z" />
+                                                        </svg>
+                                                        제목 수정
+                                                    </button>
+                                                    <button
+                                                        className="menu-item delete"
+                                                        onClick={(e) => handleDelete(e, notebook.id)}
+                                                    >
+                                                        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                                                            <path d="M6 16c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V6H6v10zm1-9h4v9H7V7zm6.5-5H11L10.5 1h-3l-.5 1H4.5v2h9V2z" />
+                                                        </svg>
+                                                        삭제
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
                                 )}
                             </div>
                             <div className="card-body">

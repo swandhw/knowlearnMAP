@@ -67,6 +67,14 @@ public class WorkspaceEntity {
     @Column(name = "needs_arango_sync")
     private Boolean needsArangoSync = false;
 
+    /**
+     * 공유된 워크스페이스 여부
+     * - true: 다른 사용자도 조회 가능 (Read-Only)
+     * - false: 생성자(Owner)만 접근 가능
+     */
+    @Column(name = "is_shared")
+    private Boolean isShared = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "domain_id")
     private com.knowlearnmap.domain.domain.DomainEntity domain;
@@ -98,6 +106,9 @@ public class WorkspaceEntity {
         }
         if (needsArangoSync == null) {
             needsArangoSync = false;
+        }
+        if (isShared == null) {
+            isShared = false;
         }
         // folderName이 없으면 UUID로 고유하게 생성
         if (folderName == null || folderName.isEmpty()) {

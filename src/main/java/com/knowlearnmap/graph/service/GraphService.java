@@ -63,11 +63,16 @@ public class GraphService {
         bindVars.put("workspaceId", workspaceId);
 
         if (documentIds != null && !documentIds.isEmpty()) {
-            // Convert Long list to String list for AQL
-            List<String> targetDocIdsStr = documentIds.stream()
-                    .map(String::valueOf)
-                    .collect(java.util.stream.Collectors.toList());
-            bindVars.put("targetDocIds", targetDocIdsStr);
+            // Robustness: Include both String and Long types in the filter list
+            // This ensures we match whether ArangoDB stored them as ["1"] or [1]
+            List<Object> mixedDocIds = new java.util.ArrayList<>();
+            if (documentIds != null) {
+                for (Long id : documentIds) {
+                    mixedDocIds.add(id); // Add as Long
+                    mixedDocIds.add(String.valueOf(id)); // Add as String
+                }
+            }
+            bindVars.put("targetDocIds", mixedDocIds);
 
             // Filter by workspace AND document intersection
             // INTERSECTION(e.document_ids, @targetDocIds) returns elements present in both.
@@ -75,27 +80,33 @@ public class GraphService {
             edgeAql = "FOR e IN KnowlearnEdges " +
                     "FILTER e.workspace_id == @workspaceId " +
                     "FILTER LENGTH(INTERSECTION(e.document_ids, @targetDocIds)) > 0 " +
-                    "LIMIT 2000 " +
                     "RETURN { " +
                     " _id: e._id, " +
                     " _key: e._key, " +
                     " _from: e._from, " +
                     " _to: e._to, " +
                     " workspace_id: e.workspace_id, " +
-                    " document_ids: e.document_ids " +
+                    " document_ids: e.document_ids, " +
+                    " label_ko: e.label_ko, " +
+                    " label_en: e.label_en, " +
+                    " relation_ko: e.relation_ko, " +
+                    " relation_en: e.relation_en " +
                     "}";
         } else {
             // Filter only by workspace
             edgeAql = "FOR e IN KnowlearnEdges " +
                     "FILTER e.workspace_id == @workspaceId " +
-                    "LIMIT 2000 " +
                     "RETURN { " +
                     " _id: e._id, " +
                     " _key: e._key, " +
                     " _from: e._from, " +
                     " _to: e._to, " +
                     " workspace_id: e.workspace_id, " +
-                    " document_ids: e.document_ids " +
+                    " document_ids: e.document_ids, " +
+                    " label_ko: e.label_ko, " +
+                    " label_en: e.label_en, " +
+                    " relation_ko: e.relation_ko, " +
+                    " relation_en: e.relation_en " +
                     "}";
         }
 

@@ -15,9 +15,9 @@ public interface OntologyObjectSynonymsRepository extends JpaRepository<Ontology
     /**
      * workspace와 object dict, 동의어로 조회
      */
-	 // 동의어 검색
-    Optional<OntologyObjectSynonyms> findByWorkspaceIdAndCategoryAndSynonym(Long workspaceId, String category, String synonym);
-
+    // 동의어 검색
+    Optional<OntologyObjectSynonyms> findByWorkspaceIdAndCategoryAndSynonym(Long workspaceId, String category,
+            String synonym);
 
     /**
      * workspace별 목록 조회
@@ -28,5 +28,6 @@ public interface OntologyObjectSynonymsRepository extends JpaRepository<Ontology
      * object dict로 조회
      */
     List<OntologyObjectSynonyms> findByObjectId(Long objectId);
-}
 
+    void deleteByObjectId(Long objectId);
+}

@@ -21,9 +21,13 @@ const EmailVerification = () => {
         const verify = async () => {
             try {
                 await axios.get(`${API_URL}/api/auth/verify-email?token=${token}`);
-                setStatus('Email Verified Successfully. Your account is now waiting for administrator approval.');
+                setStatus('Email Verified Successfully. Redirecting to password setup...');
+                setTimeout(() => {
+                    navigate(`/set-password?token=${token}`);
+                }, 1500);
             } catch (err) {
-                setStatus('Verification Failed. Token may be invalid or expired.');
+                const errorMessage = err.response?.data || err.message || 'Verification Failed. Token may be invalid or expired.';
+                setStatus(`Verification Failed: ${errorMessage}`);
                 setError(true);
             }
         };

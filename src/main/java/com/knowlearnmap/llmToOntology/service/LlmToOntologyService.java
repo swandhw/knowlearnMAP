@@ -34,10 +34,29 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@SuppressWarnings("null")
 public class LlmToOntologyService {
 
     private final DocumentChunkRepository chunkRepository;
     private final OntologyPersistenceService ontologyPersistenceService;
+    private final com.knowlearnmap.workspace.repository.WorkspaceRepository workspaceRepository;
+    private final com.knowlearnmap.member.repository.MemberRepository memberRepository;
+
+    private void checkPermission(Long workspaceId, String username) {
+        if (username == null)
+            return; // Internal System Call - Bypass Check
+
+        com.knowlearnmap.workspace.domain.WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + workspaceId));
+
+        if (!workspace.getCreatedBy().equals(username)) {
+            com.knowlearnmap.member.domain.Member member = memberRepository.findByEmail(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+            if (member.getRole() != com.knowlearnmap.member.domain.Member.Role.ADMIN) {
+                throw new IllegalArgumentException("Permission denied. Only workspace owner can modify ontology.");
+            }
+        }
+    }
 
     // Self-injection for Transactional method calls within loop
     @Lazy
@@ -221,12 +240,21 @@ public class LlmToOntologyService {
     }
 
     /**
+     * 특정 문서의 모든 Chunk에 대해 Ontology 생성 (Internal Use)
+     */
+    public int createOntologyFromDocument(Long workspaceId, Long documentId) {
+        return createOntologyFromDocument(workspaceId, documentId, null);
+    }
+
+    /**
      * 특정 문서의 모든 Chunk에 대해 Ontology 생성
      * 
      * @return 처리된 청크 개수
      */
     // @Transactional 제거: 각 청크별로 트랜잭션을 분리하기 위함
-    public int createOntologyFromDocument(Long workspaceId, Long documentId) {
+    public int createOntologyFromDocument(Long workspaceId, Long documentId, String username) {
+        checkPermission(workspaceId, username);
+
         // 1. 해당 문서의 LLM 완료된 청크 조회 (Repository 최적화)
         // TODO: ontology_status가 'COMPLETED'가 아닌 것만 조회하는 것이 효율적일 수 있음.
         // 하지만 요구사항에 따라 전체 스캔 혹은 재처리 로직이 필요할 수 있음.

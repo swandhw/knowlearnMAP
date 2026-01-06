@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, Star, User, Layers, MessageSquare, LayoutGrid, Globe } from 'lucide-react';
+import { LogOut, Star, User, Layers, MessageSquare, LayoutGrid, Globe, ArrowUpCircle } from 'lucide-react';
 import UpgradeModal from '../UpgradeModal';
 import './MainLayout.css';
 
@@ -45,18 +45,28 @@ function MainLayout() {
                 <MessageSquare size={16} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} />
                 프롬프트 관리
               </NavLink>
+              <NavLink to="/admin/upgrades" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
+                <Star size={16} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} />
+                승인 관리
+              </NavLink>
             </>
           )}
         </nav>
 
         <div className="gnb-right">
-          <button className="upgrade-btn" onClick={() => setUpgradeModalOpen(true)}>
-            <Star size={14} fill="#FFD700" color="#FFD700" />
-            업그레이드
-          </button>
+          {(!user?.grade || user.grade !== 'MAX') && (
+            <button className="upgrade-btn" onClick={() => setUpgradeModalOpen(true)} title="등급 업그레이드">
+              <ArrowUpCircle size={20} color="#FFD700" />
+            </button>
+          )}
 
-          <div className="user-info">
-            {user?.username || 'admin'}
+          <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {user?.grade && user.grade !== 'FREE' && (
+              <span className={`grade-badge ${user.grade.toLowerCase()}`}>
+                {user.grade}
+              </span>
+            )}
+            {user?.email || user?.username || 'User'}
           </div>
 
           <button className="logout-btn" onClick={handleLogout} title="로그아웃">

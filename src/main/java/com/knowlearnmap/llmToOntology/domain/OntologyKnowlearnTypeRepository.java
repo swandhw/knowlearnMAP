@@ -41,4 +41,15 @@ public interface OntologyKnowlearnTypeRepository extends JpaRepository<OntologyK
     @org.springframework.data.jpa.repository.Query("DELETE FROM OntologyKnowlearnType o WHERE o.references IS EMPTY")
     void deleteOrphans();
 
+    /**
+     * workspace와 subject 또는 object로 조회
+     */
+    List<OntologyKnowlearnType> findByWorkspaceIdAndSubjectIdOrObjectId(Long workspaceId, Long subjectId,
+            Long objectId);
+
+    /**
+     * workspace와 relation으로 조회
+     */
+    List<OntologyKnowlearnType> findByWorkspaceIdAndRelationId(Long workspaceId, Long relationId);
+
 }

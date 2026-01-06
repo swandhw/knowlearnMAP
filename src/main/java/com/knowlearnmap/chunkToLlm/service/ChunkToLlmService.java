@@ -52,7 +52,7 @@ public class ChunkToLlmService {
 
     private static final int MAX_RETRY = 3;
     private static final int THREAD_POOL_SIZE = 5; // 배치 처리이므로 스레드 수 조정
-    private static final String DEFAULT_PROMPT_CODE = "CHUNLIST_TO_ONOTLOGY";
+    private static final String DEFAULT_PROMPT_CODE = "CHUNKLIST_TO_ONTOLOGY";
     private static final int BATCH_SIZE = 10; // 배치 크기 상수
 
     // ==========================================

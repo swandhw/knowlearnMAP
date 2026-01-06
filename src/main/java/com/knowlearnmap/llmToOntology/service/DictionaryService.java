@@ -25,9 +25,24 @@ public class DictionaryService {
     // New Reference Repositories
     private final OntologyObjectReferenceRepository objectReferenceRepository;
     private final OntologyRelationReferenceRepository relationReferenceRepository;
+    private final OntologyKnowlearnReferenceRepository knowlearnReferenceRepository;
 
     private final com.knowlearnmap.workspace.repository.WorkspaceRepository workspaceRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final com.knowlearnmap.member.repository.MemberRepository memberRepository;
+
+    private void checkPermission(Long workspaceId, String username) {
+        com.knowlearnmap.workspace.domain.WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + workspaceId));
+
+        if (!workspace.getCreatedBy().equals(username)) {
+            com.knowlearnmap.member.domain.Member member = memberRepository.findByEmail(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+            if (member.getRole() != com.knowlearnmap.member.domain.Member.Role.ADMIN) {
+                throw new IllegalArgumentException("Permission denied. Only workspace owner can modify dictionary.");
+            }
+        }
+    }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<DictionaryDto> getConcepts(Long workspaceId, List<Long> documentIds,
@@ -118,9 +133,11 @@ public class DictionaryService {
                 .build();
     }
 
-    public DictionaryDto updateConcept(Long id, DictionaryDto dto) {
+    public DictionaryDto updateConcept(Long id, DictionaryDto dto, String username) {
         OntologyObjectDict concept = objectDictRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Concept not found: " + id));
+
+        checkPermission(concept.getWorkspaceId(), username);
 
         // Validation: Check for duplicates
         validateUniqueConcept(concept.getWorkspaceId(), concept.getCategory(), dto.getLabelEn(), dto.getLabel(), id);
@@ -137,9 +154,11 @@ public class DictionaryService {
         return dto;
     }
 
-    public DictionaryDto updateRelation(Long id, DictionaryDto dto) {
+    public DictionaryDto updateRelation(Long id, DictionaryDto dto, String username) {
         OntologyRelationDict relation = relationDictRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Relation not found: " + id));
+
+        checkPermission(relation.getWorkspaceId(), username);
 
         // Note: Relation validation can be added here similarly if needed, currently
         // focusing on Concept as per request.
@@ -187,37 +206,60 @@ public class DictionaryService {
                 });
     }
 
-    public void deleteConcept(Long id) {
+    public void deleteConcept(Long id, String username) {
         // Fetch ID before delete to get workspace
         OntologyObjectDict obj = objectDictRepository.findById(id).orElse(null);
         if (obj != null) {
+            checkPermission(obj.getWorkspaceId(), username);
             Long wsId = obj.getWorkspaceId();
-            // Need to remove references first? Cascade usually handles it if entity defined
-            // cascade.
-            // But we didn't define CascadeType.ALL or orphanRemoval.
-            // Let's assume database FK cascade or we need to delete refs manually.
-            // Since we created refs as separate entities without bidirectional explicit
-            // list in Dict (we added @OneToMany but check Cascade),
-            // if we added CascadeType.ALL in domain, JPA deletes them.
-            // Let's check Domain later. For now, assume JPA handles it or we should delete
-            // refs.
-            // Safe approach: Delete refs first? Or rely on Cascade.
-            // User entity change showed "@OneToMany". Default cascade is lazy/none?
-            // Usually OneToMany requires CascadeType.ALL for parent delete to propagate.
-            // I will assume invalidation is done by DB constraints or Cascade.
-            // But if not, this might fail.
-            // Let's assume Cascade is configured or will be configured.
 
+            // 1. Delete Triples using this concept (Subject or Object)
+            List<OntologyKnowlearnType> triples = knowlearnTypeRepository.findByWorkspaceIdAndSubjectIdOrObjectId(wsId,
+                    id, id);
+            for (OntologyKnowlearnType triple : triples) {
+                // Delete Triple References
+                knowlearnReferenceRepository.deleteByOntologyKnowlearnType(triple);
+                // Delete Triple
+                knowlearnTypeRepository.delete(triple);
+            }
+
+            // 2. Delete Synonyms
+            objectSynonymsRepository.deleteByObjectId(id);
+
+            // 3. Delete Document References
+            objectReferenceRepository.deleteByOntologyObjectDictId(id);
+
+            // 4. Delete Concept
             objectDictRepository.deleteById(id);
+
             markWorkspaceSyncNeeded(wsId);
         }
     }
 
-    public void deleteRelation(Long id) {
+    public void deleteRelation(Long id, String username) {
         OntologyRelationDict rel = relationDictRepository.findById(id).orElse(null);
         if (rel != null) {
+            checkPermission(rel.getWorkspaceId(), username);
             Long wsId = rel.getWorkspaceId();
+
+            // 1. Delete Triples using this relation
+            List<OntologyKnowlearnType> triples = knowlearnTypeRepository.findByWorkspaceIdAndRelationId(wsId, id);
+            for (OntologyKnowlearnType triple : triples) {
+                // Delete Triple References
+                knowlearnReferenceRepository.deleteByOntologyKnowlearnType(triple);
+                // Delete Triple
+                knowlearnTypeRepository.delete(triple);
+            }
+
+            // 2. Delete Synonyms
+            relationSynonymsRepository.deleteByRelationId(id);
+
+            // 3. Delete Document References
+            relationReferenceRepository.deleteByOntologyRelationDictId(id);
+
+            // 4. Delete Relation
             relationDictRepository.deleteById(id);
+
             markWorkspaceSyncNeeded(wsId);
         }
     }
@@ -239,7 +281,9 @@ public class DictionaryService {
     }
 
     @Transactional
-    public void mergeConcepts(Long sourceId, Long targetId, Long workspaceId, boolean keepSourceAsSynonym) {
+    public void mergeConcepts(Long sourceId, Long targetId, Long workspaceId, boolean keepSourceAsSynonym,
+            String username) {
+        checkPermission(workspaceId, username);
         if (sourceId.equals(targetId)) {
             throw new IllegalArgumentException("Cannot merge a concept into itself.");
         }
@@ -281,29 +325,9 @@ public class DictionaryService {
                             workspaceId, targetId, triple.getRelationId(), triple.getObjectId());
 
             if (duplicate.isPresent()) {
-                // If duplicate triple exists, we should merge the references of that triple!
-                // This is important. If (A, rel, B) becomes (Target, rel, B) and (Target, rel,
-                // B) already exists.
-                // We need to move references from 'triple' to 'duplicate.get()'.
-                OntologyKnowlearnType existingTriple = duplicate.get();
-                // MERGE REFERENCES logic for triples not implemented fully in plan but crucial.
-                // Skipped for complexity? User asked for robust integrity.
-                // I should assume triple references might exist too.
-                // But wait, triple references are OntologyKnowlearnReference.
-                // If I delete 'triple', I lose its references.
-                // I should move references from 'triple' to 'existingTriple'.
-
-                // Assuming I can implement mergeTripleReferences helper?
-                // I will just delete for now to match previous logic, but ideally we merge
-                // source IDs.
-                // The previous logic was: knowlearnTypeRepository.delete(triple);
-                // It lost the source info of the merged triple!
-                // Since user wants better source tracking, I should probably handle this in
-                // future.
-                // For now, to stick to refactoring scope without exploding complexity:
-                // I will execute delete. If user complains about lost triple sources during
-                // manual merge, we fix.
-
+                // Safe Merge: Move references from source triple to target triple before
+                // deleting source
+                mergeTripleReferences(triple, duplicate.get());
                 knowlearnTypeRepository.delete(triple);
             } else {
                 triple.setSubjectId(targetId);
@@ -320,6 +344,9 @@ public class DictionaryService {
                             workspaceId, triple.getSubjectId(), triple.getRelationId(), targetId);
 
             if (duplicate.isPresent()) {
+                // Safe Merge: Move references from source triple to target triple before
+                // deleting source
+                mergeTripleReferences(triple, duplicate.get());
                 knowlearnTypeRepository.delete(triple);
             } else {
                 triple.setObjectId(targetId);
@@ -386,6 +413,132 @@ public class DictionaryService {
                         .status("active")
                         .build();
                 objectSynonymsRepository.save(newSynonymEn);
+            }
+        }
+    }
+
+    @Transactional
+    public void mergeRelations(Long sourceId, Long targetId, Long workspaceId, String username) {
+        checkPermission(workspaceId, username);
+        if (sourceId.equals(targetId)) {
+            throw new IllegalArgumentException("Cannot merge a relation into itself.");
+        }
+
+        OntologyRelationDict sourceRelation = relationDictRepository.findById(sourceId)
+                .orElseThrow(() -> new IllegalArgumentException("Source relation not found: " + sourceId));
+        OntologyRelationDict targetRelation = relationDictRepository.findById(targetId)
+                .orElseThrow(() -> new IllegalArgumentException("Target relation not found: " + targetId));
+
+        // 1. Merge Document References
+        mergeRelationReferences(sourceRelation, targetRelation);
+
+        // 2. Merge Synonyms
+        List<OntologyRelationSynonyms> sourceSynonyms = relationSynonymsRepository.findByRelationId(sourceId);
+        for (OntologyRelationSynonyms syn : sourceSynonyms) {
+            boolean exists = relationSynonymsRepository.findByRelationId(targetId).stream()
+                    .anyMatch(ts -> ts.getSynonym().equalsIgnoreCase(syn.getSynonym()));
+
+            if (!exists) {
+                syn.setRelationId(targetId);
+                relationSynonymsRepository.save(syn);
+            } else {
+                relationSynonymsRepository.delete(syn);
+            }
+        }
+
+        // Add Source Name as Synonym to Target
+        addRelationAsSynonym(sourceRelation, targetRelation, workspaceId);
+
+        // 3. Update Triples using this relation
+        List<OntologyKnowlearnType> triplesUsingSource = knowlearnTypeRepository
+                .findByWorkspaceIdAndRelationId(workspaceId, sourceId);
+        for (OntologyKnowlearnType triple : triplesUsingSource) {
+            Optional<OntologyKnowlearnType> duplicate = knowlearnTypeRepository
+                    .findByWorkspaceIdAndSubjectIdAndRelationIdAndObjectId(
+                            workspaceId, triple.getSubjectId(), targetId, triple.getObjectId());
+
+            if (duplicate.isPresent()) {
+                // Safe Merge References
+                mergeTripleReferences(triple, duplicate.get());
+                knowlearnTypeRepository.delete(triple);
+            } else {
+                triple.setRelationId(targetId);
+                knowlearnTypeRepository.save(triple);
+            }
+        }
+
+        // 4. Delete Source Relation
+        relationDictRepository.delete(sourceRelation);
+
+        markWorkspaceSyncNeeded(workspaceId);
+    }
+
+    private void mergeRelationReferences(OntologyRelationDict source, OntologyRelationDict target) {
+        List<OntologyRelationReference> sourceRefs = relationReferenceRepository
+                .findByOntologyRelationDictId(source.getId());
+        for (OntologyRelationReference sourceRef : sourceRefs) {
+            boolean exists = relationReferenceRepository.existsByOntologyRelationDictAndDocumentIdAndChunkId(
+                    target, sourceRef.getDocumentId(), sourceRef.getChunkId());
+
+            if (exists) {
+                relationReferenceRepository.delete(sourceRef);
+            } else {
+                sourceRef.setOntologyRelationDict(target);
+                relationReferenceRepository.save(sourceRef);
+            }
+        }
+    }
+
+    private void addRelationAsSynonym(OntologyRelationDict source, OntologyRelationDict target, Long workspaceId) {
+        String sourceName = source.getRelationKo();
+        boolean alreadySynonym = relationSynonymsRepository.findByRelationId(target.getId()).stream()
+                .anyMatch(s -> s.getSynonym().equalsIgnoreCase(sourceName));
+        boolean sameName = sourceName.equalsIgnoreCase(target.getRelationKo());
+
+        if (!alreadySynonym && !sameName) {
+            OntologyRelationSynonyms newSynonym = OntologyRelationSynonyms.builder()
+                    .workspaceId(workspaceId)
+                    .category(target.getCategory())
+                    .synonym(sourceName)
+                    .relationId(target.getId())
+                    .language("ko")
+                    .status("active")
+                    .build();
+            relationSynonymsRepository.save(newSynonym);
+        }
+
+        if (source.getRelationEn() != null && !source.getRelationEn().isEmpty()) {
+            String sourceNameEn = source.getRelationEn();
+            boolean alreadySynonymEn = relationSynonymsRepository.findByRelationId(target.getId()).stream()
+                    .anyMatch(s -> s.getSynonym().equalsIgnoreCase(sourceNameEn));
+            boolean sameNameEn = sourceNameEn.equalsIgnoreCase(target.getRelationEn());
+
+            if (!alreadySynonymEn && !sameNameEn) {
+                OntologyRelationSynonyms newSynonymEn = OntologyRelationSynonyms.builder()
+                        .workspaceId(workspaceId)
+                        .category(target.getCategory())
+                        .synonym(sourceNameEn)
+                        .relationId(target.getId())
+                        .language("en")
+                        .status("active")
+                        .build();
+                relationSynonymsRepository.save(newSynonymEn);
+            }
+        }
+    }
+
+    private void mergeTripleReferences(OntologyKnowlearnType sourceTriple, OntologyKnowlearnType targetTriple) {
+        List<OntologyKnowlearnReference> sourceRefs = knowlearnReferenceRepository
+                .findByOntologyKnowlearnType(sourceTriple);
+        for (OntologyKnowlearnReference sourceRef : sourceRefs) {
+            boolean exists = knowlearnReferenceRepository.existsByOntologyKnowlearnTypeAndDocumentIdAndChunkId(
+                    targetTriple, sourceRef.getDocumentId(), sourceRef.getChunkId());
+
+            if (exists) {
+                knowlearnReferenceRepository.deleteByDocumentId(sourceRef.getDocumentId());
+            } else {
+                sourceRef.setOntologyKnowlearnType(targetTriple);
+                knowlearnReferenceRepository.save(sourceRef);
             }
         }
     }

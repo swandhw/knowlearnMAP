@@ -18,7 +18,7 @@ public class MailService {
     public void sendEmail(String to, String subject, String text) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("support@dplab.kr"); // Updated sender to match credentials
+            message.setFrom("swandhw@gmail.com");
             message.setTo(to);
             message.setSubject(subject);
             message.setText(text);
@@ -26,7 +26,25 @@ public class MailService {
             log.info("Email sent to: {}", to);
         } catch (Exception e) {
             log.error("Failed to send email to {}", to, e);
-            // In a real system, you might want to throw or handle retries
+        }
+    }
+
+    @Async
+    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        try {
+            jakarta.mail.internet.MimeMessage message = emailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(
+                    message, true, "UTF-8");
+
+            helper.setFrom("swandhw@gmail.com");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true); // true = isHtml
+
+            emailSender.send(message);
+            log.info("HTML Email sent to: {}", to);
+        } catch (Exception e) {
+            log.error("Failed to send HTML email to {}", to, e);
         }
     }
 }

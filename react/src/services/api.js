@@ -39,8 +39,10 @@ export const workspaceApi = {
     /**
      * 모든 워크스페이스 조회
      */
-    getAll: async () => {
-        return await apiCall('/workspaces');
+    getAll: async (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = queryString ? `/workspaces?${queryString}` : '/workspaces';
+        return await apiCall(endpoint);
     },
 
     /**
@@ -132,6 +134,8 @@ export const promptApi = {
 
 /**
  * Ontology API
+/**
+ * Ontology API
  */
 export const ontologyApi = {
     /**
@@ -142,4 +146,78 @@ export const ontologyApi = {
             method: 'POST',
         });
     },
+};
+
+/**
+ * Dictionary API
+ */
+export const dictionaryApi = {
+    getConcepts: async (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        return await apiCall(`/dictionary/concepts?${queryString}`);
+    },
+    getRelations: async (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        return await apiCall(`/dictionary/relations?${queryString}`);
+    },
+    getCategories: async (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        return await apiCall(`/dictionary/categories?${queryString}`);
+    },
+    updateConcept: async (id, data) => {
+        return await apiCall(`/dictionary/concepts/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+    updateRelation: async (id, data) => {
+        return await apiCall(`/dictionary/relations/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+    deleteConcept: async (id) => {
+        return await apiCall(`/dictionary/concepts/${id}`, {
+            method: 'DELETE',
+        });
+    },
+    deleteRelation: async (id) => {
+        return await apiCall(`/dictionary/relations/${id}`, {
+            method: 'DELETE',
+        });
+    },
+    mergeConcepts: async (data) => {
+        return await apiCall('/dictionary/concepts/merge', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+    mergeRelations: async (data) => {
+        return await apiCall('/dictionary/relations/merge', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+};
+
+/**
+ * Upgrade API
+ */
+export const upgradeApi = {
+    request: async (formData) => {
+        const response = await fetch(`${API_BASE_URL}/upgrade/request`, {
+            method: 'POST',
+            body: formData,
+            // Do NOT set Content-Type header for FormData, browser does it with boundary
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || `HTTP error! status: ${response.status}`);
+        }
+
+        // Backend returns plain text message, usually
+        return await response.text();
+    }
 };

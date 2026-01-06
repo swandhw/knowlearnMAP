@@ -29,7 +29,7 @@ public class DomainEntity {
 
     @Column(name = "chunk_to_llm_prompt", length = 100)
     @Builder.Default
-    private String chunkToLlmPrompt = "CHUNLIST_TO_ONOTLOGY";
+    private String chunkToLlmPrompt = "CHUNKLIST_TO_ONTOLOGY";
 
     @Column(name = "is_active")
     @Builder.Default
