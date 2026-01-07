@@ -22,7 +22,7 @@ function NotebookDetail() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const { showAlert } = useAlert();
+    const { showAlert, showConfirm } = useAlert();
 
     // --- State: Layout & Tabs ---
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
@@ -58,14 +58,27 @@ function NotebookDetail() {
     const [slideModalOpen, setSlideModalOpen] = useState(false);
     const [reportModalOpen, setReportModalOpen] = useState(false);
 
+    // Fetch workspace details and sync status
+    useEffect(() => {
+        const fetchWorkspace = async () => {
+            try {
+                const workspace = await workspaceApi.get(id);
+                setNotebook(workspace);
+                setSyncStatus(workspace.syncStatus || 'SYNCED');
+            } catch (error) {
+                console.error('Failed to fetch workspace:', error);
+            }
+        };
+        if (id) {
+            fetchWorkspace();
+        }
+    }, [id]);
+
     // --- Helper Functions ---
     const fetchNotebook = async () => {
         try {
             const data = await workspaceApi.getById(id);
             setNotebook(data);
-            if (data && data.needsArangoSync !== undefined) {
-                setIsSyncNeeded(data.needsArangoSync);
-            }
         } catch (error) {
             console.error('Error fetching notebook:', error);
             // navigate('/workspaces'); // Optional: redirect on error
@@ -200,19 +213,20 @@ function NotebookDetail() {
     // --- Read Only Check ---
     const isReadOnly = notebook?.role !== 'Owner';
 
-    // --- State: Sync Status ---
-    const [isSyncNeeded, setIsSyncNeeded] = useState(false);
+    // --- State: Sync Status (from DB) ---
+    const [syncStatus, setSyncStatus] = useState('SYNCED'); // SYNCED, SYNC_NEEDED, SYNCING
 
     // ... existing handlers ...
 
     const handleDeleteDocument = async (doc) => {
         if (isReadOnly) return;
-        if (!window.confirm(`'${doc.filename}' 문서를 삭제하시겠습니까?`)) return;
+        const confirmed = await showConfirm(`'${doc.filename}' 문서를 삭제하시겠습니까?`);
+        if (!confirmed) return;
         try {
             await documentApi.delete(doc.id);
             setDocuments(prev => prev.filter(d => d.id !== doc.id));
             setSelectedDocumentIds(prev => prev.filter(id => id !== doc.id));
-            setIsSyncNeeded(true); // Mark sync needed on delete
+            setSyncStatus('SYNC_NEEDED'); // Mark sync needed on delete
         } catch (err) {
             console.error('삭제 실패:', err);
             showAlert('문서 삭제 실패');
@@ -240,23 +254,34 @@ function NotebookDetail() {
     const handleUploadComplete = () => {
         fetchDocuments();
         setUploadModalOpen(false);
-        setIsSyncNeeded(true); // Mark sync needed on upload
+        setSyncStatus('SYNC_NEEDED'); // Mark sync needed on upload
     };
 
     const handleSync = async () => {
         if (isReadOnly) return;
-        if (!isSyncNeeded && !window.confirm('변경된 사항이 없습니다. 그래도 동기화를 진행하시겠습니까?')) return;
-        if (isSyncNeeded && !window.confirm('ArangoDB와 동기화를 진행하시겠습니까?')) return;
+
+        // Check if all documents are selected
+        if (selectedDocumentIds.length !== documents.length) {
+            showAlert('동기화를 진행하려면 모든 문서를 선택해야 합니다.');
+            return;
+        }
+
+        if (syncStatus === 'SYNCED') {
+            const confirmed = await showConfirm('변경된 사항이 없습니다. 그래도 동기화를 진행하시겠습니까?');
+            if (!confirmed) return;
+        } else {
+            const confirmed = await showConfirm('ArangoDB와 동기화를 진행하시겠습니까?');
+            if (!confirmed) return;
+        }
 
         setIsSyncing(true);
         try {
             await ontologyApi.sync(id, true);
             showAlert('동기화가 완료되었습니다.');
-            fetchDocuments();
-            setIsSyncNeeded(false); // Reset sync needed
+            setSyncStatus('SYNCED'); // Update status after successful sync
         } catch (error) {
-            console.error('동기화 실패:', error);
-            showAlert('동기화 실패: ' + (error.message || '알 수 없는 오류'));
+            showAlert('동기화 중 오류가 발생했습니다.', 'error');
+            console.error('Sync error:', error);
         } finally {
             setIsSyncing(false);
         }
@@ -282,6 +307,42 @@ function NotebookDetail() {
 
     return (
         <div className="notebook-layout">
+            {/* Sync Status Warning Banner */}
+            {syncStatus === 'SYNC_NEEDED' && (
+                <div style={{
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffc107',
+                    borderRadius: '4px',
+                    padding: '12px 16px',
+                    margin: '0 16px 16px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    color: '#856404'
+                }}>
+                    <span>⚠️</span>
+                    <span><strong>동기화가 필요합니다.</strong> 지식그래프와 챗봇 기능이 제한됩니다. 동기화를 완료해주세요.</span>
+                </div>
+            )}
+            {syncStatus === 'SYNCING' && (
+                <div style={{
+                    backgroundColor: '#d1ecf1',
+                    border: '1px solid #17a2b8',
+                    borderRadius: '4px',
+                    padding: '12px 16px',
+                    margin: '0 16px 16px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    color: '#0c5460'
+                }}>
+                    <span>🔄</span>
+                    <span>동기화 진행 중입니다...</span>
+                </div>
+            )}
+
             {/* Left Panel: Sources */}
             <div className={`panel panel-left ${leftSidebarOpen ? '' : 'collapsed'}`}>
                 <div className="panel-header">

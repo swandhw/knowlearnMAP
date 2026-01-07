@@ -5,7 +5,7 @@ import { useAlert } from '../context/AlertContext';
 import { Menu, Search, Edit2, Trash2, ArrowRightCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, readOnly }) {
-    const { showAlert } = useAlert();
+    const { showAlert, showConfirm } = useAlert();
     const [viewMode, setViewMode] = useState('concept'); // 'concept' or 'relation'
     const [selectedCategory, setSelectedCategory] = useState({ id: 'All', name: 'All', label: '전체' });
     const [data, setData] = useState([]);
@@ -121,7 +121,8 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, rea
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("정말로 삭제하시겠습니까?")) return;
+        const confirmed = await showConfirm("정말로 삭제하시겠습니까?");
+        if (!confirmed) return;
         try {
             if (viewMode === 'concept') {
                 await dictionaryApi.deleteConcept(id);
@@ -153,7 +154,7 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, rea
             fetchData();
             if (onUpdate) onUpdate();
         } catch (error) {
-            alert("이동 실패: " + error.message);
+            showAlert("이동 실패: " + error.message);
         }
     };
 

@@ -190,8 +190,9 @@ public class DocumentService {
             }
         }
 
-        // Mark sync needed
-        workspace.setNeedsArangoSync(true);
+        // Mark sync needed by updating workspace directly
+        workspace.setSyncStatus(WorkspaceEntity.SyncStatus.SYNC_NEEDED);
+        workspace.setLastModifiedAt(java.time.LocalDateTime.now());
         workspaceRepository.save(workspace);
 
         // Fetch Chunk IDs for Ontology Cleanup before deletion (Also needed if we use

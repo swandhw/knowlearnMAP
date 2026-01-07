@@ -65,4 +65,41 @@ public class OpenAiEmbeddingService implements EmbeddingService {
             throw new RuntimeException("임베딩 생성 중 오류 발생: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    public List<List<Double>> embedBatch(List<String> texts) {
+        if (embeddingModel == null) {
+            throw new IllegalStateException("OpenAI Embedding Model이 초기화되지 않았습니다. API Key를 확인하세요.");
+        }
+
+        if (texts == null || texts.isEmpty()) {
+            return List.of();
+        }
+
+        try {
+            log.debug("Generating batch embeddings for {} texts", texts.size());
+
+            // Convert strings to TextSegments
+            List<TextSegment> segments = texts.stream()
+                    .map(TextSegment::from)
+                    .collect(Collectors.toList());
+
+            // Single API call for all texts
+            Response<List<Embedding>> response = embeddingModel.embedAll(segments);
+
+            // Convert Float to Double for each embedding
+            List<List<Double>> result = response.content().stream()
+                    .map(embedding -> embedding.vectorAsList().stream()
+                            .map(Float::doubleValue)
+                            .collect(Collectors.toList()))
+                    .collect(Collectors.toList());
+
+            log.debug("Successfully generated {} embeddings in batch", result.size());
+            return result;
+
+        } catch (Exception e) {
+            log.error("OpenAI 배치 임베딩 생성 실패 (size: {})", texts.size(), e);
+            throw new RuntimeException("배치 임베딩 생성 중 오류 발생: " + e.getMessage(), e);
+        }
+    }
 }

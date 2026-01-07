@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './AddSourceModal.css';
 import { API_URL } from '../config/api';
+import { useAlert } from '../context/AlertContext';
 
 function AddSourceModal({ isOpen, onClose, workspaceId, onUploadComplete }) {
     const [currentView, setCurrentView] = useState('main'); // main, website, youtube, text, drive
@@ -8,11 +9,12 @@ function AddSourceModal({ isOpen, onClose, workspaceId, onUploadComplete }) {
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const modalRef = useRef(null);
+    const { showAlert } = useAlert();
 
     // Demo mode handler
     const handleDemoClick = (e) => {
         e.stopPropagation();
-        alert('데모에서는 지원하지 않습니다.');
+        showAlert('데모에서는 지원하지 않습니다.');
     };
 
     // File upload handler
@@ -23,13 +25,13 @@ function AddSourceModal({ isOpen, onClose, workspaceId, onUploadComplete }) {
 
         // PDF만 허용 (데모)
         if (!file.name.toLowerCase().endsWith('.pdf')) {
-            alert('데모에서는 PDF 파일만 업로드 가능합니다.');
+            showAlert('데모에서는 PDF 파일만 업로드 가능합니다.');
             event.target.value = ''; // Reset input
             return;
         }
 
         if (!workspaceId) {
-            alert('워크스페이스 정보를 찾을 수 없습니다.');
+            showAlert('워크스페이스 정보를 찾을 수 없습니다.');
             return;
         }
 
@@ -62,7 +64,7 @@ function AddSourceModal({ isOpen, onClose, workspaceId, onUploadComplete }) {
 
             console.log('업로드 성공:', result);
 
-            alert('파일이 성공적으로 업로드되었습니다!');
+            showAlert('파일이 성공적으로 업로드되었습니다!');
 
             // 모달 닫기 및 상태 초기화
             event.target.value = ''; // Reset file input
@@ -76,7 +78,7 @@ function AddSourceModal({ isOpen, onClose, workspaceId, onUploadComplete }) {
 
         } catch (error) {
             console.error('업로드 오류:', error);
-            alert(error.message || '파일 업로드 중 오류가 발생했습니다.');
+            showAlert(error.message || '파일 업로드 중 오류가 발생했습니다.');
             event.target.value = ''; // Reset input on error
         } finally {
             setUploading(false);

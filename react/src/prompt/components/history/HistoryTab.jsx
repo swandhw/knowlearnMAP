@@ -56,7 +56,8 @@ const HistoryTab = ({ promptCode, versions }) => {
   const snapshots = snapshotsData?.content || [];
 
   const handleDelete = async (snapshotId) => {
-    if (window.confirm('이 테스트 스냅샷을 삭제하시겠습니까?')) {
+    const confirmed = await showConfirm('이 테스트 스냅샷을 삭제하시겠습니까?');
+    if (confirmed) {
       try {
         await deleteSnapshot.mutateAsync(snapshotId);
       } catch (error) {

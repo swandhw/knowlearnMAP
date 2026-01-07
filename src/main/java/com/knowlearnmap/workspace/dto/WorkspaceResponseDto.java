@@ -36,7 +36,9 @@ public class WorkspaceResponseDto {
     private String folderName;
     private String promptCode;
     private Integer documentCount; // 문서 개수
-    private Boolean needsArangoSync;
+    private String syncStatus; // Changed from needsArangoSync
+    private LocalDateTime lastSyncedAt;
+    private LocalDateTime lastModifiedAt;
     private LocalDateTime createdAt;
     private String createdBy;
     private Boolean isShared;
@@ -61,7 +63,9 @@ public class WorkspaceResponseDto {
         }
         dto.setFolderName(entity.getFolderName());
         dto.setPromptCode(entity.getPromptCode());
-        dto.setNeedsArangoSync(entity.getNeedsArangoSync());
+        dto.setSyncStatus(entity.getSyncStatus() != null ? entity.getSyncStatus().name() : "SYNCED");
+        dto.setLastSyncedAt(entity.getLastSyncedAt());
+        dto.setLastModifiedAt(entity.getLastModifiedAt());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setIsShared(entity.getIsShared());

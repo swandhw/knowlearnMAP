@@ -317,4 +317,36 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         log.info("워크스페이스 삭제 완료 (hard delete): id={}, name={}, docCount={}",
                 workspace.getId(), workspace.getName(), documents.size());
     }
+
+    @Override
+    @Transactional
+    public void markSyncNeeded(Long workspaceId) {
+        WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + workspaceId));
+        workspace.setSyncStatus(WorkspaceEntity.SyncStatus.SYNC_NEEDED);
+        workspace.setLastModifiedAt(java.time.LocalDateTime.now());
+        workspaceRepository.save(workspace);
+        log.info("Workspace {} marked as SYNC_NEEDED", workspaceId);
+    }
+
+    @Override
+    @Transactional
+    public void markSyncing(Long workspaceId) {
+        WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + workspaceId));
+        workspace.setSyncStatus(WorkspaceEntity.SyncStatus.SYNCING);
+        workspaceRepository.save(workspace);
+        log.info("Workspace {} marked as SYNCING", workspaceId);
+    }
+
+    @Override
+    @Transactional
+    public void markSynced(Long workspaceId) {
+        WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + workspaceId));
+        workspace.setSyncStatus(WorkspaceEntity.SyncStatus.SYNCED);
+        workspace.setLastSyncedAt(java.time.LocalDateTime.now());
+        workspaceRepository.save(workspace);
+        log.info("Workspace {} marked as SYNCED", workspaceId);
+    }
 }

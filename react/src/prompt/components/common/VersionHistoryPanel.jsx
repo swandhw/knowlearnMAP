@@ -26,8 +26,8 @@ const VersionHistoryPanel = ({
   onDeleteVersion,
   compareVersions,
 }) => {
-  const { showAlert } = useAlert();
-  const handleVersionClick = (newVersionId) => {
+  const { showAlert, showConfirm } = useAlert();
+  const handleVersionClick = async (newVersionId) => {
     const currentVersion = versions.find(v => v.id === selectedVersion);
     const newVersion = versions.find(v => v.id === newVersionId);
 
@@ -40,7 +40,8 @@ const VersionHistoryPanel = ({
 
     // 하위 버전으로 변경 시 확인
     if (comparison > 0) {
-      if (window.confirm(`버전을 ${currentVersion.version}에서 ${newVersion.version}으로 변경하시겠습니까?`)) {
+      const confirmed = await showConfirm(`버전을 ${currentVersion.version}에서 ${newVersion.version}으로 변경하시겠습니까?`);
+      if (confirmed) {
         onVersionChange?.(newVersionId, newVersion.content);
       }
     } else {
@@ -49,14 +50,15 @@ const VersionHistoryPanel = ({
     }
   };
 
-  const handleDelete = (e, version) => {
+  const handleDelete = async (e, version) => {
     e.stopPropagation();
 
     // 활성화된 버전인지 확인
     if (version.isActive) {
       // 버전이 1개만 있으면 전체 삭제
       if (versions.length === 1) {
-        if (window.confirm(`활성화된 버전을 삭제하면 프롬프트 전체가 삭제됩니다. 계속하시겠습니까?`)) {
+        const confirmed = await showConfirm(`활성화된 버전을 삭제하면 프롬프트 전체가 삭제됩니다. 계속하시겠습니까?`);
+        if (confirmed) {
           onDeleteVersion?.(version.id);
         }
       } else {
@@ -75,7 +77,8 @@ const VersionHistoryPanel = ({
     const isTop5 = top5.some(v => v.id === version.id);
 
     if (isTop5) {
-      if (window.confirm(`버전 ${version.version}을(를) 삭제하시겠습니까?`)) {
+      const confirmed = await showConfirm(`버전 ${version.version}을(를) 삭제하시겠습니까?`);
+      if (confirmed) {
         onDeleteVersion?.(version.id);
       }
     } else {

@@ -23,7 +23,7 @@ function Home() {
     const menuRef = useRef(null);
     const navigate = useNavigate();
     const { isAdmin, isAuthenticated } = useAuth();
-    const { showAlert } = useAlert();
+    const { showAlert, showConfirm } = useAlert();
 
     // 워크스페이스 목록 불러오기
     useEffect(() => {
@@ -81,7 +81,8 @@ function Home() {
     const handleDelete = async (e, notebookId) => {
         e.stopPropagation();
 
-        if (!window.confirm('정말 삭제하시겠습니까?')) {
+        const confirmed = await showConfirm('정말 삭제하시겠습니까?');
+        if (!confirmed) {
             return;
         }
 

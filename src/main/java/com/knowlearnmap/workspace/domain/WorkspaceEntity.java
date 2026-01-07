@@ -60,12 +60,26 @@ public class WorkspaceEntity {
     private String workspaceType;
 
     /**
-     * ArangoDB 동기화 필요 여부
-     * - true: 변경사항 있음 (동기화 필요)
-     * - false: 최신 상태
+     * ArangoDB 동기화 상태
+     * - SYNCED: 동기화 완료
+     * - SYNC_NEEDED: 동기화 필요
+     * - SYNCING: 동기화 중
      */
-    @Column(name = "needs_arango_sync")
-    private Boolean needsArangoSync = false;
+    @Column(name = "sync_status")
+    @Enumerated(EnumType.STRING)
+    private SyncStatus syncStatus = SyncStatus.SYNCED;
+
+    /**
+     * 마지막 동기화 완료 시각
+     */
+    @Column(name = "last_synced_at")
+    private LocalDateTime lastSyncedAt;
+
+    /**
+     * 마지막 수정 시각 (동기화 필요 상태로 변경된 시각)
+     */
+    @Column(name = "last_modified_at")
+    private LocalDateTime lastModifiedAt;
 
     /**
      * 공유된 워크스페이스 여부
@@ -104,8 +118,8 @@ public class WorkspaceEntity {
         if (isActive == null) {
             isActive = true;
         }
-        if (needsArangoSync == null) {
-            needsArangoSync = false;
+        if (syncStatus == null) {
+            syncStatus = SyncStatus.SYNCED;
         }
         if (isShared == null) {
             isShared = false;
@@ -129,5 +143,14 @@ public class WorkspaceEntity {
     public WorkspaceEntity(String name, String description) {
         this.name = name;
         this.description = description;
+    }
+
+    /**
+     * 동기화 상태 Enum
+     */
+    public enum SyncStatus {
+        SYNCED, // 동기화 완료
+        SYNC_NEEDED, // 동기화 필요
+        SYNCING // 동기화 중
     }
 }

@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OntologyToArangoService {
 
-    private static final int BATCH_SIZE = 50;
+    private static final int BATCH_SIZE = 200; // Increased from 50 for better performance
 
     private final WorkspaceRepository workspaceRepository;
     private final OntologyObjectDictRepository objectDictRepository;
@@ -45,6 +45,7 @@ public class OntologyToArangoService {
     private final ArangoDB arangoDB;
     private final com.knowlearnmap.ai.service.EmbeddingService embeddingService;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+    private final com.knowlearnmap.workspace.service.WorkspaceService workspaceService;
     private final OkHttpClient okHttpClient = new OkHttpClient();
 
     @Value("${arangodb.host}")
@@ -60,19 +61,28 @@ public class OntologyToArangoService {
     private String arangoPassword;
 
     public void syncOntologyToArango(Long workspaceId, boolean dropExist) {
-        // 1. Fetch all data from PostgreSQL (Short-lived Transaction)
-        // Use TransactionTemplate to ensure this runs in a transaction despite being an
-        // internal call
-        OntologyData data = transactionTemplate.execute(status -> fetchAllOntologyData(workspaceId));
+        log.info("Starting ArangoDB sync for workspace {}", workspaceId);
 
-        // 2. ArangoDB Setup & Sync (No DB Transaction needed here)
-        if (data != null) {
-            processArangoSync(data, workspaceId, dropExist);
+        try {
+            // Mark as syncing
+            workspaceService.markSyncing(workspaceId);
 
-            // 3. Update Sync Status
-            WorkspaceEntity workspace = workspaceRepository.findById(workspaceId).orElseThrow();
-            workspace.setNeedsArangoSync(false);
-            workspaceRepository.save(workspace);
+            // 1. Fetch all data in a single transaction (RDB)
+            // internal call
+            OntologyData data = transactionTemplate.execute(status -> fetchAllOntologyData(workspaceId));
+
+            // 2. ArangoDB Setup & Sync (No DB Transaction needed here)
+            if (data != null) {
+                processArangoSync(data, workspaceId, dropExist);
+
+                // 3. Mark as synced
+                workspaceService.markSynced(workspaceId);
+            }
+        } catch (Exception e) {
+            // Mark as sync needed on failure
+            workspaceService.markSyncNeeded(workspaceId);
+            log.error("Sync failed for workspace {}", workspaceId, e);
+            throw e;
         }
     }
 
@@ -124,36 +134,57 @@ public class OntologyToArangoService {
         log.info("Starting ArangoDB sync for database: {}", targetDbName);
 
         // ArangoDB Connection Management
-        if (arangoDB.db(targetDbName).exists()) {
-            if (dropExist) {
-                log.info("Dropping existing ArangoDB database: {}", targetDbName);
-                arangoDB.db(targetDbName).drop();
-                arangoDB.createDatabase(targetDbName);
-                log.info("Created new ArangoDB database: {}", targetDbName);
-            } else {
-                log.info("Using existing ArangoDB database: {}", targetDbName);
-            }
-        } else {
+        if (!arangoDB.db(targetDbName).exists()) {
             arangoDB.createDatabase(targetDbName);
             log.info("Created new ArangoDB database: {}", targetDbName);
+        } else {
+            log.info("Using existing ArangoDB database: {}", targetDbName);
         }
 
         ArangoDatabase db = arangoDB.db(targetDbName);
 
+        // Ensure collections exist
         ensureCollection(db, "ObjectNodes");
         ensureCollection(db, "RelationNodes");
         ensureEdgeCollection(db, "KnowlearnEdges");
         ensureGraph(db, "KnowlearnGraph", "KnowlearnEdges", "ObjectNodes");
 
+        // Delete workspace-specific data if dropExist is true
+        if (dropExist) {
+            log.info("Deleting workspace {} data from ArangoDB collections", workspaceId);
+            deleteWorkspaceData(db, workspaceId);
+        }
+
         // Ensure Vector Indexes using Raw API (MDI type for ArangoDB 3.12+)
         ensureVectorIndexRaw(db, "ObjectNodes", "embedding_vector");
         ensureVectorIndexRaw(db, "KnowlearnEdges", "embedding_vector");
 
-        // Execute Sync
+        // Execute Sync in Parallel for Maximum Performance
+        log.info("Starting parallel sync of ObjectNodes and KnowlearnEdges...");
+
+        // First sync ObjectNodes to get the ID mapping
         Map<Long, String> objectIdToKeyMap = syncObjectNodes(db, data.objectDicts, data.objectSynonymsMap, workspaceId);
-        syncRelationNodes(db, data.relationDicts, data.relationSynonymsMap, workspaceId);
-        syncKnowlearnEdges(db, workspaceId, data.objectDicts, data.relationDicts, data.triples, data.objectSynonymsMap,
-                data.relationSynonymsMap, objectIdToKeyMap, data.chunkToDocMap);
+
+        // Then sync RelationNodes and KnowlearnEdges in parallel
+        java.util.concurrent.CompletableFuture<Void> relationFuture = java.util.concurrent.CompletableFuture
+                .runAsync(() -> {
+                    syncRelationNodes(db, data.relationDicts, data.relationSynonymsMap, workspaceId);
+                });
+
+        java.util.concurrent.CompletableFuture<Void> edgesFuture = java.util.concurrent.CompletableFuture
+                .runAsync(() -> {
+                    syncKnowlearnEdges(db, workspaceId, data.objectDicts, data.relationDicts, data.triples,
+                            data.objectSynonymsMap, data.relationSynonymsMap, objectIdToKeyMap, data.chunkToDocMap);
+                });
+
+        // Wait for both to complete
+        try {
+            java.util.concurrent.CompletableFuture.allOf(relationFuture, edgesFuture).join();
+            log.info("Parallel sync completed successfully");
+        } catch (Exception e) {
+            log.error("Error during parallel sync", e);
+            throw new RuntimeException("Parallel sync failed", e);
+        }
 
         log.info("Ontology Sync to ArangoDB Completed Successfully.");
     }
@@ -169,6 +200,69 @@ public class OntologyToArangoService {
         Map<Long, List<OntologyObjectSynonyms>> objectSynonymsMap;
         Map<Long, List<OntologyRelationSynonyms>> relationSynonymsMap;
         Map<Long, Long> chunkToDocMap;
+    }
+
+    /**
+     * Delete all data for a specific workspace from ArangoDB collections
+     * This prevents data loss for other workspaces when syncing
+     */
+    private void deleteWorkspaceData(ArangoDatabase db, Long workspaceId) {
+        log.info("Starting deletion of workspace {} data from ArangoDB", workspaceId);
+
+        Map<String, Object> bindVars = Map.of("workspaceId", workspaceId);
+
+        // Delete ObjectNodes for this workspace (if collection exists)
+        try {
+            if (db.collection("ObjectNodes").exists()) {
+                log.debug("Deleting ObjectNodes for workspace {}", workspaceId);
+                String deleteObjectsAql = "FOR doc IN ObjectNodes " +
+                        "FILTER doc.workspace_id == @workspaceId " +
+                        "REMOVE doc IN ObjectNodes";
+                db.query(deleteObjectsAql, Void.class, bindVars, null);
+                log.info("Successfully deleted ObjectNodes for workspace {}", workspaceId);
+            } else {
+                log.debug("ObjectNodes collection does not exist");
+            }
+        } catch (Exception e) {
+            log.error("Failed to delete ObjectNodes for workspace {}: {}", workspaceId, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete ObjectNodes: " + e.getMessage(), e);
+        }
+
+        // Delete RelationNodes for this workspace (if collection exists)
+        try {
+            if (db.collection("RelationNodes").exists()) {
+                log.debug("Deleting RelationNodes for workspace {}", workspaceId);
+                String deleteRelationsAql = "FOR doc IN RelationNodes " +
+                        "FILTER doc.workspace_id == @workspaceId " +
+                        "REMOVE doc IN RelationNodes";
+                db.query(deleteRelationsAql, Void.class, bindVars, null);
+                log.info("Successfully deleted RelationNodes for workspace {}", workspaceId);
+            } else {
+                log.debug("RelationNodes collection does not exist");
+            }
+        } catch (Exception e) {
+            log.error("Failed to delete RelationNodes for workspace {}: {}", workspaceId, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete RelationNodes: " + e.getMessage(), e);
+        }
+
+        // Delete KnowlearnEdges for this workspace (if collection exists)
+        try {
+            if (db.collection("KnowlearnEdges").exists()) {
+                log.debug("Deleting KnowlearnEdges for workspace {}", workspaceId);
+                String deleteEdgesAql = "FOR edge IN KnowlearnEdges " +
+                        "FILTER edge.workspace_id == @workspaceId " +
+                        "REMOVE edge IN KnowlearnEdges";
+                db.query(deleteEdgesAql, Void.class, bindVars, null);
+                log.info("Successfully deleted KnowlearnEdges for workspace {}", workspaceId);
+            } else {
+                log.debug("KnowlearnEdges collection does not exist");
+            }
+        } catch (Exception e) {
+            log.error("Failed to delete KnowlearnEdges for workspace {}: {}", workspaceId, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete KnowlearnEdges: " + e.getMessage(), e);
+        }
+
+        log.info("Successfully completed deletion of all data for workspace {} from ArangoDB", workspaceId);
     }
 
     private void ensureCollection(ArangoDatabase db, String collectionName) {
@@ -303,8 +397,30 @@ public class OntologyToArangoService {
             Map<Long, List<OntologyObjectReference>> refMap = references.stream()
                     .collect(Collectors.groupingBy(ref -> ref.getOntologyObjectDict().getId()));
 
-            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            // 1. Collect all texts for batch embedding
+            List<String> textsToEmbed = new ArrayList<>();
             for (OntologyObjectDict dict : batchList) {
+                String textToEmbed = String.format("%s (%s): %s",
+                        dict.getTermKo(),
+                        dict.getTermEn(),
+                        dict.getDescription() != null ? dict.getDescription() : "");
+                textsToEmbed.add(textToEmbed);
+            }
+
+            // 2. Generate all embeddings in one API call (FAST!)
+            List<List<Double>> embeddings = null;
+            try {
+                embeddings = embeddingService.embedBatch(textsToEmbed);
+                log.debug("Generated {} embeddings for ObjectNodes batch", embeddings.size());
+            } catch (Exception e) {
+                log.error("Failed to generate batch embeddings for ObjectNodes", e);
+                embeddings = new ArrayList<>();
+            }
+
+            // 3. Build documents with embeddings
+            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            for (int i = 0; i < batchList.size(); i++) {
+                OntologyObjectDict dict = batchList.get(i);
                 String key = idToKeyMap.get(dict.getId());
 
                 List<OntologyObjectSynonyms> synonyms = synonymsMap.getOrDefault(dict.getId(), Collections.emptyList());
@@ -334,22 +450,14 @@ public class OntologyToArangoService {
                 doc.put("document_ids", new ArrayList<>(docIds));
                 doc.put("chunk_ids", new ArrayList<>(chunkIds));
 
-                // Embedding (Slow operation - benefits from parallel)
-                // Embedding (Slow operation - benefits from parallel)
-                try {
-                    String textToEmbed = String.format("%s (%s): %s",
-                            dict.getTermKo(),
-                            dict.getTermEn(),
-                            dict.getDescription() != null ? dict.getDescription() : "");
-                    List<Double> vector = embeddingService.embed(textToEmbed);
-
-                    // Validate Vector for MDI Index (Strict Double Check)
+                // Add embedding from batch result
+                if (embeddings != null && i < embeddings.size()) {
+                    List<Double> vector = embeddings.get(i);
                     if (isValidVector(vector)) {
                         doc.put("embedding_vector", vector);
                     }
-                } catch (Exception e) {
-                    log.error("Failed to generate embedding for object {}: {}", dict.getId(), e.getMessage());
                 }
+
                 arangoBatch.add(doc);
             }
 
@@ -447,8 +555,48 @@ public class OntologyToArangoService {
             Map<Long, List<OntologyKnowlearnReference>> refMap = references.stream()
                     .collect(Collectors.groupingBy(ref -> ref.getOntologyKnowlearnType().getId()));
 
-            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            // 1. Collect all sentences for batch embedding
+            List<String> sentencesToEmbed = new ArrayList<>();
+            List<Boolean> validSentences = new ArrayList<>();
+
             for (OntologyKnowlearnType triple : batchList) {
+                OntologyObjectDict subject = objectMap.get(triple.getSubjectId());
+                OntologyObjectDict object = objectMap.get(triple.getObjectId());
+                OntologyRelationDict relation = relationMap.get(triple.getRelationId());
+
+                if (subject != null && object != null && relation != null) {
+                    String sentenceKo = String.format("%s %s %s",
+                            subject.getTermKo(), relation.getRelationKo(), object.getTermKo());
+
+                    if (sentenceKo != null && !sentenceKo.trim().isEmpty()) {
+                        sentencesToEmbed.add(sentenceKo);
+                        validSentences.add(true);
+                    } else {
+                        validSentences.add(false);
+                    }
+                } else {
+                    validSentences.add(false);
+                }
+            }
+
+            // 2. Generate all embeddings in one API call (FAST!)
+            List<List<Double>> embeddings = null;
+            try {
+                if (!sentencesToEmbed.isEmpty()) {
+                    embeddings = embeddingService.embedBatch(sentencesToEmbed);
+                    log.debug("Generated {} embeddings for KnowlearnEdges batch", embeddings.size());
+                }
+            } catch (Exception e) {
+                log.error("Failed to generate batch embeddings for KnowlearnEdges", e);
+                embeddings = new ArrayList<>();
+            }
+
+            // 3. Build edges with embeddings
+            List<Map<String, Object>> arangoBatch = new ArrayList<>();
+            int embeddingIndex = 0;
+
+            for (int i = 0; i < batchList.size(); i++) {
+                OntologyKnowlearnType triple = batchList.get(i);
                 Map<String, Object> edge = new HashMap<>();
 
                 String edgeKey = String.valueOf(triple.getId());
@@ -502,20 +650,13 @@ public class OntologyToArangoService {
                     edge.put("sentence_ko", sentenceKo);
                     edge.put("sentence_en", sentenceEn);
 
-                    // Embedding Generation for Edge (Fact)
-                    // Embedding Generation for Edge (Fact)
-                    try {
-                        // Use Korean sentence for embedding as it is the primary language
-                        // This uses parallel stream, so it runs concurrently!
-                        if (sentenceKo != null && !sentenceKo.trim().isEmpty()) {
-                            List<Double> vector = embeddingService.embed(sentenceKo);
-                            // Validate Vector for MDI Index
-                            if (isValidVector(vector)) {
-                                edge.put("embedding_vector", vector);
-                            }
+                    // Add embedding from batch result
+                    if (validSentences.get(i) && embeddings != null && embeddingIndex < embeddings.size()) {
+                        List<Double> vector = embeddings.get(embeddingIndex);
+                        if (isValidVector(vector)) {
+                            edge.put("embedding_vector", vector);
                         }
-                    } catch (Exception e) {
-                        log.error("Failed to generate embedding for edge {}: {}", triple.getId(), e.getMessage());
+                        embeddingIndex++;
                     }
 
                     // Synonyms Enrichment

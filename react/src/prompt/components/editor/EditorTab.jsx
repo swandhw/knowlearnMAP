@@ -213,7 +213,8 @@ const EditorTab = ({
       return;
     }
 
-    if (window.confirm(`버전 ${version.version}을(를) 활성화하시겠습니까?`)) {
+    const confirmed = await showConfirm(`버전 ${version.version}을(를) 활성화하시겠습니까?`);
+    if (confirmed) {
       try {
         const result = await publishVersion.mutateAsync({
           code: promptCode,

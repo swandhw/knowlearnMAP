@@ -41,4 +41,19 @@ public interface WorkspaceService {
      * 워크스페이스 삭제 (soft delete)
      */
     void deleteWorkspace(Long id, String username);
+
+    /**
+     * 워크스페이스를 동기화 필요 상태로 변경
+     */
+    void markSyncNeeded(Long workspaceId);
+
+    /**
+     * 워크스페이스를 동기화 중 상태로 변경
+     */
+    void markSyncing(Long workspaceId);
+
+    /**
+     * 워크스페이스를 동기화 완료 상태로 변경
+     */
+    void markSynced(Long workspaceId);
 }

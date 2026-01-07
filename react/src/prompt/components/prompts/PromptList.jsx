@@ -171,9 +171,10 @@ const PromptListContent = () => {
                   </TableCell>
                   <TableCell align="center">
                     <IconButton
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (window.confirm('정말로 이 프롬프트와 관련된 모든 버전 및 스냅샷을 삭제하시겠습니까?')) {
+                        const confirmed = await showConfirm('정말로 이 프롬프트와 관련된 모든 버전 및 스냅샷을 삭제하시겠습니까?');
+                        if (confirmed) {
                           // usePrompts 훅이 리패치 기능을 제공하지 않는다면 window.location.reload()를 임시로 사용하거나,
                           // 훅 내부에서 refetch 메서드를 노출하도록 수정해야 합니다. 
                           // 여기서는 간단히 fetch 로직 구현.

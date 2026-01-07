@@ -6,7 +6,7 @@ const AdminUpgradeRequests = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const { showAlert } = useAlert();
+    const { showAlert, showConfirm } = useAlert();
 
     const fetchRequests = async () => {
         try {
@@ -33,7 +33,8 @@ const AdminUpgradeRequests = () => {
     }, []);
 
     const handleApprove = async (id) => {
-        if (!window.confirm('승인하시겠습니까? 해당 회원의 등급이 변경됩니다.')) return;
+        const confirmed = await showConfirm('승인하시겠습니까? 해당 회원의 등급이 변경됩니다.');
+        if (!confirmed) return;
 
         try {
             const token = localStorage.getItem('token');

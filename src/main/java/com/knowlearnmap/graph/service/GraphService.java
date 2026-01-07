@@ -30,6 +30,13 @@ public class GraphService {
         WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + workspaceId));
 
+        // 2. Check sync status - prevent queries if sync is needed OR syncing
+        if (workspace.getSyncStatus() != WorkspaceEntity.SyncStatus.SYNCED) {
+            String message = workspace.getSyncStatus() == WorkspaceEntity.SyncStatus.SYNCING
+                    ? "동기화가 진행 중입니다. 동기화가 완료될 때까지 기다려주세요."
+                    : "동기화가 필요합니다. 지식그래프를 조회하기 전에 동기화를 완료해주세요.";
+            throw new com.knowlearnmap.common.exception.SyncRequiredException(message);
+        }
         if (workspace.getDomain() == null || workspace.getDomain().getArangoDbName() == null) {
             throw new IllegalArgumentException("ArangoDB not configured for this workspace domain.");
         }

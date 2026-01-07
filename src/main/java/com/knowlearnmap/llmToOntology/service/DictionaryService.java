@@ -30,6 +30,7 @@ public class DictionaryService {
     private final com.knowlearnmap.workspace.repository.WorkspaceRepository workspaceRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final com.knowlearnmap.member.repository.MemberRepository memberRepository;
+    private final com.knowlearnmap.workspace.service.WorkspaceService workspaceService;
 
     private void checkPermission(Long workspaceId, String username) {
         com.knowlearnmap.workspace.domain.WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
@@ -544,11 +545,6 @@ public class DictionaryService {
     }
 
     private void markWorkspaceSyncNeeded(Long workspaceId) {
-        com.knowlearnmap.workspace.domain.WorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
-                .orElse(null);
-        if (workspace != null) {
-            workspace.setNeedsArangoSync(true);
-            workspaceRepository.save(workspace);
-        }
+        workspaceService.markSyncNeeded(workspaceId);
     }
 }
