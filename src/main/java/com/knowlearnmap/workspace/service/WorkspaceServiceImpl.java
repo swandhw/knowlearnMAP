@@ -35,6 +35,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final com.knowlearnmap.domain.repository.DomainRepository domainRepository;
     private final com.knowlearnmap.document.repository.DocumentRepository documentRepository;
     private final MemberRepository memberRepository;
+    private final com.knowlearnmap.document.service.DocumentService documentService;
+    private final com.knowlearnmap.ontologyToArango.service.OntologyArangoCleanupService arangoCleanupService;
 
     @Override
     @Transactional(readOnly = true)
@@ -286,19 +288,33 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new IllegalArgumentException("워크스페이스 삭제 권한이 없습니다 (본인 생성 또는 Admin만 가능)");
         }
 
-        // Soft delete Workspace
-        workspace.setIsActive(false);
-        workspaceRepository.save(workspace);
-
-        // Soft delete Documents
+        // 1. Delete all documents (triggers cascade delete including ArangoDB cleanup)
         List<com.knowlearnmap.document.domain.DocumentEntity> documents = documentRepository
                 .findByWorkspaceIdAndIsActiveTrueOrderByCreatedAtDesc(id);
-        for (com.knowlearnmap.document.domain.DocumentEntity doc : documents) {
-            doc.setIsActive(false);
-        }
-        documentRepository.saveAll(documents); // Batch update
 
-        log.info("워크스페이스 및 내부 문서 삭제 완료 (soft delete): id={}, name={}, docCount={}", workspace.getId(),
-                workspace.getName(), documents.size());
+        log.info("Deleting {} documents in workspace {}", documents.size(), id);
+        for (com.knowlearnmap.document.domain.DocumentEntity doc : documents) {
+            try {
+                documentService.deleteDocument(doc.getId(), username);
+            } catch (Exception e) {
+                log.error("Failed to delete document {}: {}", doc.getId(), e.getMessage());
+                // Continue with other documents
+            }
+        }
+
+        // 2. Delete ArangoDB collections (entire workspace data)
+        if (workspace.getDomain() != null && workspace.getDomain().getArangoDbName() != null) {
+            String dbName = workspace.getDomain().getArangoDbName();
+            arangoCleanupService.deleteWorkspaceCollections(dbName);
+            log.info("ArangoDB collections deleted for workspace {}", id);
+        } else {
+            log.warn("No ArangoDB configured for workspace {}, skipping ArangoDB cleanup", id);
+        }
+
+        // 3. Hard delete workspace
+        workspaceRepository.delete(workspace);
+
+        log.info("워크스페이스 삭제 완료 (hard delete): id={}, name={}, docCount={}",
+                workspace.getId(), workspace.getName(), documents.size());
     }
 }

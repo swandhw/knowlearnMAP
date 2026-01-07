@@ -47,4 +47,25 @@ public class MemberController {
         List<Member> members = memberService.getMembersByDomain(sysop.getDomain());
         return ResponseEntity.ok(members);
     }
+
+    // TEST ONLY: Change user grade
+    @PostMapping("/change-grade")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> changeGrade(
+            @RequestParam String username,
+            @RequestParam String grade,
+            Authentication authentication) {
+        try {
+            Member member = memberRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            Member.Grade newGrade = Member.Grade.valueOf(grade.toUpperCase());
+            member.setGrade(newGrade);
+            memberRepository.save(member);
+
+            return ResponseEntity.ok("Grade changed to " + grade + " for user " + username);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Box,
   Paper,
@@ -25,6 +26,7 @@ const VersionHistoryPanel = ({
   onDeleteVersion,
   compareVersions,
 }) => {
+  const { showAlert } = useAlert();
   const handleVersionClick = (newVersionId) => {
     const currentVersion = versions.find(v => v.id === selectedVersion);
     const newVersion = versions.find(v => v.id === newVersionId);
@@ -59,7 +61,7 @@ const VersionHistoryPanel = ({
         }
       } else {
         // 버전이 2개 이상이면 활성화 버전 삭제 불가
-        alert('활성화된 버전은 삭제할 수 없습니다. 다른 버전을 활성화한 후 삭제해주세요.');
+        showAlert('활성화된 버전은 삭제할 수 없습니다. 다른 버전을 활성화한 후 삭제해주세요.');
       }
       return;
     }

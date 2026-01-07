@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Box,
   Paper,
@@ -41,6 +42,7 @@ const PromptDetailContent = () => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+  const { showAlert } = useAlert();
 
   const { data: promptData, isLoading: promptLoading } = usePromptDetail(code);
   const { data: versionsData, isLoading: versionsLoading } = useVersions(code);
@@ -85,7 +87,7 @@ const PromptDetailContent = () => {
 
   const handleSaveName = async () => {
     if (!editedName.trim()) {
-      alert('이름을 입력해주세요.');
+      showAlert('이름을 입력해주세요.');
       return;
     }
 
@@ -100,7 +102,7 @@ const PromptDetailContent = () => {
       setIsEditingName(false);
     } catch (error) {
       console.error('Failed to update prompt name:', error);
-      alert('이름 수정에 실패했습니다.');
+      showAlert('이름 수정에 실패했습니다.');
     }
   };
 
@@ -125,7 +127,7 @@ const PromptDetailContent = () => {
       setIsEditingDescription(false);
     } catch (error) {
       console.error('Failed to update prompt description:', error);
-      alert('설명 수정에 실패했습니다.');
+      showAlert('설명 수정에 실패했습니다.');
     }
   };
 

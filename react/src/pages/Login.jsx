@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import './Login.css';
 
 const Login = () => {
@@ -10,6 +11,7 @@ const Login = () => {
     const [savePw, setSavePw] = useState(false);
     const [error, setError] = useState('');
     const { login } = useAuth();
+    const { showAlert } = useAlert();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -101,7 +103,7 @@ const Login = () => {
                 <div className="login-footer">
                     <Link to="/signup" style={{ color: '#646cff' }}>Sign Up</Link>
                     <span className="divider">|</span>
-                    <button className="text-btn" onClick={() => alert('구현되지 않았습니다.')}>비번 분실</button>
+                    <button className="text-btn" onClick={() => showAlert('Not implemented yet.', { title: '알림' })}>Forgot Password</button>
                 </div>
             </div>
         </div>

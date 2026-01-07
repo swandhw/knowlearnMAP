@@ -14,7 +14,8 @@
 
 .upgrade-modal-content {
     background-color: #fcfcfc;
-    width: 95%;
+    width: auto;
+    min-width: 950px;
     max-width: 1200px;
     border-radius: 20px;
     padding: 25px;
@@ -23,6 +24,12 @@
     max-height: 95vh;
     overflow-y: auto;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.upgrade-modal-content.form-view {
+    width: auto;
+    min-width: 650px;
+    max-width: 700px;
 }
 
 .upgrade-modal-close {
@@ -102,15 +109,21 @@
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
 }
 
-.plan-card.highlight {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 1px #2563eb;
-}
+/* Removed - Pro should use default gray border like Max */
 
 .plan-card.current-plan {
     border-color: #4caf50;
-    box-shadow: 0 0 0 1px #4caf50;
     background-color: #f9fff9;
+}
+
+.plan-card.current-plan-blue {
+    border-color: #2563eb;
+    background-color: #f0f7ff;
+}
+
+.plan-card.current-plan-blue .plan-btn {
+    background-color: #2563eb;
+    border-color: #2563eb;
 }
 
 .plan-icon {
@@ -184,23 +197,18 @@
     opacity: 0.6;
     background-color: #eee;
     color: #999;
+    border: 1px solid #eee;
 }
 
 .plan-btn.primary {
-    background-color: #2563eb;
+    background-color: #212121;
     color: white;
     border: none;
 }
 
 .plan-btn.primary:hover:not(:disabled) {
-    background-color: #1d4ed8;
+    background-color: #2563eb;
 }
-
-/* Fix for previous CSS which had primary as white/gray. 
-   If we want the "Upgrade to Pro" button to be blue, we need the above.
-   But wait, the previous CSS had primary as white with border.
-   Let's stick to a clean design.
-*/
 
 .plan-btn.accent {
     background-color: #212121;
@@ -209,7 +217,25 @@
 }
 
 .plan-btn.accent:hover:not(:disabled) {
-    background-color: #000;
+    background-color: #2563eb;
+}
+
+/* Hover effect for Pro plan card */
+.plan-card.highlight:hover {
+    border-color: #2563eb;
+}
+
+.plan-card.highlight:hover .plan-btn.primary {
+    background-color: #2563eb;
+}
+
+/* Hover effect for Max plan card */
+.plan-card:hover:has(.plan-btn.accent:not(:disabled)) {
+    border-color: #2563eb;
+}
+
+.plan-card:hover .plan-btn.accent:not(:disabled) {
+    background-color: #2563eb;
 }
 
 .plan-features-list {
@@ -239,4 +265,32 @@
     color: #999;
     font-size: 0.8rem;
     margin-top: 30px;
+}
+
+/* Form Styles */
+.upgrade-form-group {
+    margin-bottom: 15px;
+}
+
+.upgrade-form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+.upgrade-form-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background-color: white;
+    color: #333;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.upgrade-form-input:focus {
+    outline: none;
+    border-color: #2563eb;
 }

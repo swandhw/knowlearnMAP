@@ -40,6 +40,7 @@ public class DocumentService {
     private final PipelineOrchestrator pipelineOrchestrator;
     private final com.knowlearnmap.llmToOntology.service.OntologyPersistenceService ontologyPersistenceService;
     private final com.knowlearnmap.member.repository.MemberRepository memberRepository;
+    private final com.knowlearnmap.ontologyToArango.service.OntologyArangoCleanupService arangoCleanupService;
 
     @Value("${app.document.upload-directory:./uploads}")
     private String uploadDirectory;
@@ -202,6 +203,16 @@ public class DocumentService {
         // violation)
         ontologyPersistenceService.removeDocumentSource(documentId, chunkIds);
         log.info("Ontology source references verified/removed for documentId={}", documentId);
+
+        // ArangoDB Cleanup - Remove document references and delete orphaned records
+        if (workspace.getDomain() != null && workspace.getDomain().getArangoDbName() != null) {
+            String dbName = workspace.getDomain().getArangoDbName();
+            arangoCleanupService.removeDocumentReferences(dbName, workspace.getId(), documentId);
+            arangoCleanupService.deleteOrphanedRecords(dbName, workspace.getId());
+            log.info("ArangoDB cleanup completed for documentId={}", documentId);
+        } else {
+            log.warn("No ArangoDB configured for workspace {}, skipping ArangoDB cleanup", workspace.getId());
+        }
 
         // Hard delete - JPA cascade 설정에 따라 document_page, document_chunk도 삭제됨
         documentRepository.delete(document);

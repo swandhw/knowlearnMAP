@@ -1,10 +1,12 @@
 import React from 'react';
 import { upgradeApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import './UpgradeModal.css';
 
 const UpgradeModal = ({ isOpen, onClose }) => {
     const { user } = useAuth();
+    const { showAlert } = useAlert();
     const [view, setView] = React.useState('plans'); // 'plans', 'form'
     const [targetType, setTargetType] = React.useState('PRO_UPGRADE'); // 'PRO_UPGRADE', 'MAX_CONSULTATION'
     const [loading, setLoading] = React.useState(false);
@@ -37,7 +39,7 @@ const UpgradeModal = ({ isOpen, onClose }) => {
     const handleFileChange = (e) => {
         const selectedFiles = Array.from(e.target.files);
         if (selectedFiles.length > 2) {
-            alert('최대 2개의 파일만 업로드 가능합니다.');
+            showAlert('최대 2개의 파일만 업로드 가능합니다.');
             return;
         }
         setFormData({ ...formData, files: selectedFiles });
@@ -66,11 +68,11 @@ const UpgradeModal = ({ isOpen, onClose }) => {
                 ? 'Pro 업그레이드 신청이 완료되었습니다.\n검토 후 승인 처리됩니다.'
                 : 'Max 상담 신청이 완료되었습니다.\n담당자가 확인 후 연락드리겠습니다.';
 
-            alert(msg);
+            showAlert(msg);
             handleClose();
         } catch (error) {
             console.error('Request failed:', error);
-            alert('오류가 발생했습니다: ' + (error.message || 'Unknown Error'));
+            showAlert('오류가 발생했습니다: ' + (error.message || 'Unknown Error'));
         } finally {
             setLoading(false);
         }
@@ -78,7 +80,7 @@ const UpgradeModal = ({ isOpen, onClose }) => {
 
     return (
         <div className="upgrade-modal-overlay" onClick={handleClose}>
-            <div className="upgrade-modal-content" onClick={e => e.stopPropagation()}>
+            <div className={`upgrade-modal-content ${view === 'form' ? 'form-view' : ''}`} onClick={e => e.stopPropagation()}>
                 <button className="upgrade-modal-close" onClick={handleClose}>&times;</button>
 
                 {view === 'plans' ? (
@@ -115,7 +117,9 @@ const UpgradeModal = ({ isOpen, onClose }) => {
                             </div>
 
                             {/* Pro Plan */}
-                            <div className={`plan-card highlight ${currentGrade === 'PRO' ? 'current-plan' : ''}`}>
+                            <div className={`plan-card highlight ${currentGrade === 'PRO' ? 'current-plan-blue' :
+                                currentGrade === 'MAX' ? 'current-plan' : ''
+                                }`}>
                                 <div className="plan-icon">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                 </div>
@@ -142,7 +146,7 @@ const UpgradeModal = ({ isOpen, onClose }) => {
                             </div>
 
                             {/* Max Plan */}
-                            <div className={`plan-card ${currentGrade === 'MAX' ? 'current-plan' : ''}`}>
+                            <div className={`plan-card ${currentGrade === 'MAX' ? 'current-plan-blue' : ''}`}>
                                 <div className="plan-icon">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><path d="M12 6v6l4 2"></path></svg>
                                 </div>
@@ -184,17 +188,17 @@ const UpgradeModal = ({ isOpen, onClose }) => {
                         </div>
 
                         <form onSubmit={handleSubmit} style={{ maxWidth: '500px', margin: '0 auto' }}>
-                            <div className="form-group" style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>회사명 (또는 소속)</label>
-                                <input type="text" className="modal-input" required value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                            <div className="upgrade-form-group">
+                                <label className="upgrade-form-label">회사명 (또는 소속)</label>
+                                <input type="text" className="upgrade-form-input" required value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} />
                             </div>
-                            <div className="form-group" style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>담당자명</label>
-                                <input type="text" className="modal-input" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                            <div className="upgrade-form-group">
+                                <label className="upgrade-form-label">담당자명</label>
+                                <input type="text" className="upgrade-form-input" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                             </div>
-                            <div className="form-group" style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>핸드폰 번호</label>
-                                <input type="tel" className="modal-input" required value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="010-0000-0000" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                            <div className="upgrade-form-group">
+                                <label className="upgrade-form-label">핸드폰 번호</label>
+                                <input type="tel" className="upgrade-form-input" required value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="010-0000-0000" />
                             </div>
 
                             {targetType === 'PRO_UPGRADE' ? (
@@ -233,7 +237,7 @@ const UpgradeModal = ({ isOpen, onClose }) => {
                                 <div className="form-group" style={{ marginBottom: '25px' }}>
                                     <label style={{
                                         display: 'flex',
-                                        alignItems: 'center',
+                                        alignItems: 'flex-start',
                                         gap: '10px',
                                         cursor: 'pointer',
                                         padding: '15px',
@@ -245,9 +249,9 @@ const UpgradeModal = ({ isOpen, onClose }) => {
                                             type="checkbox"
                                             checked={consentChecked}
                                             onChange={e => setConsentChecked(e.target.checked)}
-                                            style={{ width: '18px', height: '18px', accentColor: '#2563eb' }}
+                                            style={{ width: '18px', height: '18px', accentColor: '#2563eb', marginTop: '2px', flexShrink: 0 }}
                                         />
-                                        <span style={{ fontSize: '0.95rem', color: '#333' }}>
+                                        <span style={{ fontSize: '0.85rem', color: '#333', lineHeight: '1.5' }}>
                                             원활한 상담을 위해 <strong>전문가의 유선 연락</strong>을 수신하는 것에 동의합니다.
                                         </span>
                                     </label>

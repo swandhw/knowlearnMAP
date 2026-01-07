@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Box,
   Paper,
@@ -43,6 +44,7 @@ const HistoryTab = ({ promptCode, versions }) => {
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [responseViewMode, setResponseViewMode] = useState('text');
+  const { showAlert } = useAlert();
 
   const { data: snapshotsData, isLoading, error } = useSnapshots(promptCode, {
     versionId: versionFilter || undefined,
@@ -59,7 +61,7 @@ const HistoryTab = ({ promptCode, versions }) => {
         await deleteSnapshot.mutateAsync(snapshotId);
       } catch (error) {
         console.error('Failed to delete snapshot:', error);
-        alert('삭제에 실패했습니다.');
+        showAlert('삭제에 실패했습니다.');
       }
     }
   };
@@ -317,7 +319,7 @@ const HistoryTab = ({ promptCode, versions }) => {
                       size="small"
                       onClick={() => {
                         navigator.clipboard.writeText(selectedSnapshot.content);
-                        alert('프롬프트 내용이 복사되었습니다.');
+                        showAlert('프롬프트 내용이 복사되었습니다.');
                       }}
                     >
                       <ContentCopyIcon fontSize="small" />
@@ -358,7 +360,7 @@ const HistoryTab = ({ promptCode, versions }) => {
                             ? JSON.stringify(selectedSnapshot.response, null, 2)
                             : getResponseText(selectedSnapshot.response);
                           navigator.clipboard.writeText(textToCopy);
-                          alert('응답 결과가 복사되었습니다.');
+                          showAlert('응답 결과가 복사되었습니다.');
                         }}
                       >
                         <ContentCopyIcon fontSize="small" />

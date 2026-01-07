@@ -35,37 +35,33 @@ function MainLayout() {
             내 워크스페이스
           </NavLink>
 
-          {isAdmin && (
-            <>
-              <NavLink to="/admin/domains" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
-                <Globe size={16} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                도메인 관리
-              </NavLink>
-              <NavLink to="/admin/prompts" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
-                <MessageSquare size={16} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                프롬프트 관리
-              </NavLink>
-              <NavLink to="/admin/upgrades" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
-                <Star size={16} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                승인 관리
-              </NavLink>
-            </>
-          )}
+          <>
+            <NavLink to="/admin/domains" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
+              도메인 관리
+            </NavLink>
+            <NavLink to="/admin/prompts" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
+              프롬프트 관리
+            </NavLink>
+            <NavLink to="/admin/upgrades" className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}>
+              승인 관리
+            </NavLink>
+          </>
         </nav>
 
         <div className="gnb-right">
-          {(!user?.grade || user.grade !== 'MAX') && (
-            <button className="upgrade-btn" onClick={() => setUpgradeModalOpen(true)} title="등급 업그레이드">
-              <ArrowUpCircle size={20} color="#FFD700" />
-            </button>
-          )}
+          {/* Service Info Button with Grade Badge */}
+          <button
+            className="service-info-btn"
+            onClick={() => setUpgradeModalOpen(true)}
+            title="서비스 정보 및 업그레이드"
+          >
+            <span className="service-label">이용 서비스</span>
+            <span className={`grade-tag ${user?.grade?.toLowerCase() || 'free'}`}>
+              {user?.grade || 'FREE'}
+            </span>
+          </button>
 
-          <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {user?.grade && user.grade !== 'FREE' && (
-              <span className={`grade-badge ${user.grade.toLowerCase()}`}>
-                {user.grade}
-              </span>
-            )}
+          <div className="user-info">
             {user?.email || user?.username || 'User'}
           </div>
 

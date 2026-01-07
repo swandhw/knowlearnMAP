@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import './DictionaryView.css';
 import { dictionaryApi } from '../services/api';
+import { useAlert } from '../context/AlertContext';
 import { Menu, Search, Edit2, Trash2, ArrowRightCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, readOnly }) {
+    const { showAlert } = useAlert();
     const [viewMode, setViewMode] = useState('concept'); // 'concept' or 'relation'
     const [selectedCategory, setSelectedCategory] = useState({ id: 'All', name: 'All', label: '전체' });
     const [data, setData] = useState([]);
@@ -114,7 +116,7 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, rea
             fetchData();
             if (onUpdate) onUpdate();
         } catch (error) {
-            alert("저장 실패: " + error.message);
+            showAlert("저장 실패: " + error.message);
         }
     };
 
@@ -129,7 +131,7 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, rea
             fetchData();
             if (onUpdate) onUpdate();
         } catch (error) {
-            alert("삭제 실패: " + error.message);
+            showAlert("삭제 실패: " + error.message);
         }
     };
 

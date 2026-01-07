@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import './Login.css'; // Reuse Login styles
 
 const Signup = () => {
@@ -8,6 +9,7 @@ const Signup = () => {
     // Password fields removed as per request
     const [error, setError] = useState('');
     const { signup } = useAuth();
+    const { showAlert } = useAlert();
     const navigate = useNavigate();
 
     const [agreed, setAgreed] = useState(false);
@@ -15,15 +17,14 @@ const Signup = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!agreed) {
-            setError('서비스 이용을 위해 면책 조항에 동의해야 합니다.');
+            showAlert('면책조항 동의 하세요', { title: '알림' });
             return;
         }
         setError('');
 
         try {
             await signup(email); // Removed password argument
-            alert('인증 이메일이 발송되었습니다. 이메일을 확인하여 인증을 완료해주세요.');
-            navigate('/login');
+            showAlert('인증 이메일이 발송되었습니다. 이메일을 확인하여 인증을 완료해주세요.', { title: '가입 성공', onConfirm: () => navigate('/login') });
         } catch (err) {
             setError(err.response?.data || '회원가입에 실패했습니다.');
         }
@@ -77,7 +78,7 @@ const Signup = () => {
                         </div>
                     </div>
 
-                    <button type="submit" className="login-btn" disabled={!agreed} style={{ opacity: agreed ? 1 : 0.6 }}>
+                    <button type="submit" className="login-btn">
                         SIGN UP
                     </button>
                 </form>

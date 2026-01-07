@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Dialog,
   DialogTitle,
@@ -34,6 +35,7 @@ const PromptFormDialog = ({ open, onClose, initialData = null, mode = 'create' }
   const [extractedVariables, setExtractedVariables] = useState([]); // 변수 추출 결과를 state로 관리
   const [isExpanded, setIsExpanded] = useState(false);
   const prevOpenRef = React.useRef(false);
+  const { showAlert } = useAlert();
 
   // activeTab이 범위를 벗어나면 0으로 리셋
   React.useEffect(() => {
@@ -219,7 +221,7 @@ const PromptFormDialog = ({ open, onClose, initialData = null, mode = 'create' }
     } catch (error) {
       console.error('Failed to create prompt:', error);
       const errorMessage = error.response?.data?.message || error.message || '알 수 없는 오류가 발생했습니다.';
-      alert(`프롬프트 생성 실패: ${errorMessage}`);
+      showAlert(`프롬프트 생성 실패: ${errorMessage}`);
     }
   };
 

@@ -139,14 +139,24 @@ public class GraphService {
             return new GraphDataDto(Collections.emptyList(), edges);
         }
 
-        // 4. Fetch Nodes by IDs
-        String nodeAql = "FOR id IN @ids RETURN DOCUMENT(id)";
+        // 4. Fetch Nodes by IDs with workspace_id filter for performance
+        // Instead of DOCUMENT(id), we query the collections directly with workspace_id
+        // filter
+        String nodeAql = "FOR id IN @ids " +
+                "LET parts = SPLIT(id, '/') " +
+                "LET collectionName = parts[0] " +
+                "LET docKey = parts[1] " +
+                "LET doc = DOCUMENT(collectionName, docKey) " +
+                "FILTER doc != null AND doc.workspace_id == @workspaceId " +
+                "RETURN doc";
+
         Map<String, Object> nodeBindVars = new HashMap<>();
         nodeBindVars.put("ids", nodeIds);
+        nodeBindVars.put("workspaceId", workspaceId);
 
         List<Map<String, Object>> nodes;
         try {
-            log.debug("Executing Node AQL for {} ids", nodeIds.size());
+            log.debug("Executing Node AQL for {} ids with workspace filter", nodeIds.size());
             ArangoCursor<Map> cursor = db.query(nodeAql, Map.class, nodeBindVars,
                     new com.arangodb.model.AqlQueryOptions());
             @SuppressWarnings("unchecked")

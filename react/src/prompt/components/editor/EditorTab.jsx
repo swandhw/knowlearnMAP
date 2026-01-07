@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Box,
   Grid,
@@ -43,6 +44,7 @@ const EditorTab = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
   const createVersion = useCreateVersion();
   const updateVersion = useUpdateVersion();
   const publishVersion = usePublishVersion();
@@ -156,13 +158,13 @@ const EditorTab = ({
 
   const handleSave = async () => {
     if (!selectedVersion) {
-      alert('버전을 선택해주세요.');
+      showAlert('버전을 선택해주세요.');
       return;
     }
 
     const version = versions.find(v => v.id === selectedVersion);
     if (!version) {
-      alert('선택한 버전을 찾을 수 없습니다.');
+      showAlert('선택한 버전을 찾을 수 없습니다.');
       return;
     }
 
@@ -187,27 +189,27 @@ const EditorTab = ({
         }
       });
 
-      alert(`버전 ${version.version}이(가) 저장되었습니다.`);
+      showAlert(`버전 ${version.version}이(가) 저장되었습니다.`);
     } catch (error) {
       console.error('Failed to save version:', error);
-      alert('버전 저장에 실패했습니다.');
+      showAlert('버전 저장에 실패했습니다.');
     }
   };
 
   const handlePublish = async () => {
     if (validation?.missing?.length > 0) {
-      alert('미정의 변수가 있습니다. 변수 스키마를 확인해주세요.');
+      showAlert('미정의 변수가 있습니다. 변수 스키마를 확인해주세요.');
       return;
     }
 
     if (!selectedVersion) {
-      alert('버전을 선택해주세요.');
+      showAlert('버전을 선택해주세요.');
       return;
     }
 
     const version = versions.find(v => v.id === selectedVersion);
     if (!version) {
-      alert('선택한 버전을 찾을 수 없습니다.');
+      showAlert('선택한 버전을 찾을 수 없습니다.');
       return;
     }
 
@@ -219,11 +221,11 @@ const EditorTab = ({
           data: {}
         });
         console.log('Publish result:', result);
-        alert('버전이 활성화되었습니다.');
+        showAlert('버전이 활성화되었습니다.');
       } catch (error) {
         console.error('Failed to publish version:', error);
         console.error('Error details:', error.response?.data);
-        alert(`버전 활성화에 실패했습니다: ${error.response?.data?.message || error.message}`);
+        showAlert(`버전 활성화에 실패했습니다: ${error.response?.data?.message || error.message}`);
       }
     }
   };
@@ -274,10 +276,10 @@ const EditorTab = ({
         }
       });
 
-      alert(`버전 ${nextVersion}이(가) 생성되었습니다.`);
+      showAlert(`버전 ${nextVersion}이(가) 생성되었습니다.`);
     } catch (error) {
       console.error('Failed to copy version:', error);
-      alert('버전 복사에 실패했습니다.');
+      showAlert('버전 복사에 실패했습니다.');
     }
   };
 
@@ -292,7 +294,7 @@ const EditorTab = ({
 
       // 마지막 버전이었다면 목록 화면으로 이동
       if (isLastVersion) {
-        alert('프롬프트가 삭제되었습니다.');
+        showAlert('프롬프트가 삭제되었습니다.');
         navigate('/prompts');
         return;
       }
@@ -303,10 +305,10 @@ const EditorTab = ({
         setContent(activeVersion.content || '');
       }
 
-      alert('버전이 삭제되었습니다.');
+      showAlert('버전이 삭제되었습니다.');
     } catch (error) {
       console.error('Failed to delete version:', error);
-      alert('버전 삭제에 실패했습니다.');
+      showAlert('버전 삭제에 실패했습니다.');
     }
   };
 

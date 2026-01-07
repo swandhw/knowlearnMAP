@@ -8,6 +8,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ImageIcon from '@mui/icons-material/Image';
 import React, { useRef, useState, useEffect } from 'react';
+import { useAlert } from '../context/AlertContext';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -113,6 +114,7 @@ export default function PromptManagement() {
     const [stageDialogOpen, setStageDialogOpen] = useState(false);
     const [stageDetail, setStageDetail] = useState([]);
     const [stageLoading, setStageLoading] = useState(false);
+    const { showAlert } = useAlert();
 
     const fetchKnowledgeList = async () => {
         try {
@@ -211,7 +213,7 @@ export default function PromptManagement() {
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
             if (e.target.files.length > 1) {
-                alert('Not available in demo version');
+                showAlert('Not available in demo version');
                 e.target.value = '';
                 return;
             }
@@ -251,7 +253,7 @@ export default function PromptManagement() {
         setDragActive(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             if (e.dataTransfer.files.length > 1) {
-                alert('Not available in demo version');
+                showAlert('Not available in demo version');
                 return;
             }
             setFiles([e.dataTransfer.files[0]]);
@@ -290,7 +292,7 @@ export default function PromptManagement() {
             setFiles([]);
             fetchKnowledgeList();
         } catch (e) {
-            alert('등록에 실패했습니다.');
+            showAlert('등록에 실패했습니다.');
         }
     };
 
@@ -299,7 +301,7 @@ export default function PromptManagement() {
             const res = await apiCall(`/api/v1/knowlearn/knowledges/${knowledgeId}`);
             setKnowledgeList(prev => prev.map(row => (row.knowledgeId === knowledgeId ? res : row)));
         } catch (e) {
-            alert('행 새로고침 실패');
+            showAlert('행 새로고침 실패');
         }
     };
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Box,
   Grid,
@@ -45,6 +46,7 @@ const TestTab = ({
   const [result, setResult] = useState(null);
   const [resultTab, setResultTab] = useState(0);
   const [satisfaction, setSatisfaction] = useState(0);
+  const { showAlert } = useAlert();
 
   const currentVersion = versions?.find(v => v.id === selectedVersion);
 
@@ -156,10 +158,10 @@ const TestTab = ({
           n
         }
       });
-      alert('환경 설정이 저장되었습니다.');
+      showAlert('환경 설정이 저장되었습니다.');
     } catch (error) {
       console.error('Save llm config failed:', error);
-      alert('환경 설정 저장에 실패했습니다.');
+      showAlert('환경 설정 저장에 실패했습니다.');
     }
   };
 
@@ -168,15 +170,15 @@ const TestTab = ({
       // snapshotId는 result에서 가져와야 함
       const snapshotId = result?.snapshotId;
       if (!snapshotId) {
-        alert('저장할 테스트 결과가 없습니다.');
+        showAlert('저장할 테스트 결과가 없습니다.');
         return;
       }
 
       await testService.saveSatisfaction(snapshotId, satisfaction, '');
-      alert('만족도가 저장되었습니다.');
+      showAlert('만족도가 저장되었습니다.');
     } catch (error) {
       console.error('Save satisfaction failed:', error);
-      alert('만족도 저장에 실패했습니다.');
+      showAlert('만족도 저장에 실패했습니다.');
     }
   };
 

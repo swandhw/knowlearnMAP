@@ -13,7 +13,8 @@
 .gnb-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  /* Changed from space-between */
   padding: 0 24px;
   height: 60px;
   background-color: #ffffff;
@@ -43,16 +44,12 @@
 /* Main Content */
 .main-content {
   flex: 1;
-  padding: 0;
-  /* Remove padding if panels need to touch edges, or keep small padding */
-  width: 100%;
+  padding: 32px 24px;
+  width: 94%;
   max-width: none;
-  /* Explicitly ensure no max-width */
-  margin: 0;
-  /* Explicitly ensure no margin */
+  margin: 0 auto;
   box-sizing: border-box;
   display: flex;
-  /* Ensure children can flex to fill */
   flex-direction: column;
 }
 
@@ -64,6 +61,8 @@
   /* Prevent text wrapping */
   flex-shrink: 0;
   /* Don't shrink menu if screen is small */
+  margin-left: 150px;
+  /* Added spacing */
 }
 
 /* Right side icons/info */
@@ -72,16 +71,64 @@
   align-items: center;
   gap: 16px;
   margin-left: auto;
-  /* Push to right if needed, though justify-between on parent handles it */
+  height: auto;
 }
 
 .user-info {
   font-size: 14px;
   color: #555;
   font-weight: 500;
+  margin-top: 0;
 }
 
-.upgrade-btn,
+/* Service Info Button with Grade Tag */
+.service-info-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.service-info-btn:hover {
+  background-color: #e5e5e5;
+}
+
+.service-label {
+  color: #555;
+}
+
+.grade-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  height: 18px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: var(--color-accent);
+  color: white;
+}
+
+/* Grade Tag Colors - All use accent color now */
+.grade-tag.free,
+.grade-tag.basic,
+.grade-tag.pro,
+.grade-tag.max {
+  background-color: var(--color-accent);
+  color: white;
+}
+
 .logout-btn {
   background: none;
   border: none;
@@ -94,7 +141,6 @@
   transition: background-color 0.2s;
 }
 
-.upgrade-btn:hover,
 .logout-btn:hover {
   background-color: #f0f0f0;
 }

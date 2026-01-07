@@ -14,27 +14,33 @@ import PrivateRoute from './components/PrivateRoute';
 
 import MainLayout from './components/common/MainLayout';
 
+import { AlertProvider } from './context/AlertContext';
+import CustomAlert from './components/common/CustomAlert';
+
 function App() {
   return (
-    <div className="app">
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/verify-email" element={<EmailVerification />} />
-        <Route path="/set-password" element={<SetPassword />} />
+    <AlertProvider>
+      <div className="app">
+        <CustomAlert />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
+          <Route path="/set-password" element={<SetPassword />} />
 
-        <Route element={<PrivateRoute />}>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<DomainSelection />} />
-            <Route path="/workspaces" element={<Home />} />
-            <Route path="/notebook/:id" element={<NotebookDetail />} />
-            <Route path="/admin/*" element={<Admin />} />
-            <Route path="/prompts" element={<PromptList />} />
-            <Route path="/prompts/:code" element={<PromptDetail />} />
+          <Route element={<PrivateRoute />}>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<DomainSelection />} />
+              <Route path="/workspaces" element={<Home />} />
+              <Route path="/notebook/:id" element={<NotebookDetail />} />
+              <Route path="/admin/*" element={<Admin />} />
+              <Route path="/prompts" element={<PromptList />} />
+              <Route path="/prompts/:code" element={<PromptDetail />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </div>
+        </Routes>
+      </div>
+    </AlertProvider>
   );
 }
 

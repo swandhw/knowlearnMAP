@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import { useAlert } from '../context/AlertContext';
 import './KnowledgeGraphModal.css';
 import { API_URL } from '../config/api';
 
 export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, initialSelectedDocIds = [], documents = [] }) {
+    const { showAlert } = useAlert();
     const [fullGraphData, setFullGraphData] = useState({ nodes: [], links: [] });
     const [graphData, setGraphData] = useState({ nodes: [], links: [] });
     const graphRef = useRef();
@@ -84,7 +86,7 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
             } catch (fetchError) {
                 if (fetchError.name === 'AbortError') {
                     console.error("Graph fetch timed out");
-                    alert("데이터 요청 시간이 초과되었습니다.");
+                    showAlert("데이터 요청 시간이 초과되었습니다.");
                 } else {
                     throw fetchError;
                 }
@@ -161,7 +163,7 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
         });
 
         if (startNodes.length === 0) {
-            alert('검색 결과가 없습니다.');
+            showAlert('검색 결과가 없습니다.');
             setIsSearching(false);
             return;
         }

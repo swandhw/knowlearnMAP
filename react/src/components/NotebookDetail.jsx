@@ -4,6 +4,7 @@ import { workspaceApi, ontologyApi } from '../services/api';
 
 import { documentApi } from '../services/documentApi';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, MessageSquare, Network, Book, FileText, Presentation, FileBarChart, Plus, Upload, Trash2, Search, RefreshCw } from 'lucide-react';
 
 import DocumentSourceItem from './DocumentSourceItem';
@@ -21,6 +22,7 @@ function NotebookDetail() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const { showAlert } = useAlert();
 
     // --- State: Layout & Tabs ---
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
@@ -213,7 +215,7 @@ function NotebookDetail() {
             setIsSyncNeeded(true); // Mark sync needed on delete
         } catch (err) {
             console.error('삭제 실패:', err);
-            alert('문서 삭제 실패');
+            showAlert('문서 삭제 실패');
         }
     };
 
@@ -249,12 +251,12 @@ function NotebookDetail() {
         setIsSyncing(true);
         try {
             await ontologyApi.sync(id, true);
-            alert('동기화가 완료되었습니다.');
+            showAlert('동기화가 완료되었습니다.');
             fetchDocuments();
             setIsSyncNeeded(false); // Reset sync needed
         } catch (error) {
             console.error('동기화 실패:', error);
-            alert('동기화 실패: ' + (error.message || '알 수 없는 오류'));
+            showAlert('동기화 실패: ' + (error.message || '알 수 없는 오류'));
         } finally {
             setIsSyncing(false);
         }

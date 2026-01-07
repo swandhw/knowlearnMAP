@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import { useAlert } from '../context/AlertContext';
 import './KnowledgeGraphModal.css'; // Reusing styles
 import { API_URL } from '../config/api';
 
 export default function KnowledgeMapView({ workspaceId, documents = [], initialSelectedDocIds = [] }) {
+    const { showAlert } = useAlert();
     const [fullGraphData, setFullGraphData] = useState({ nodes: [], links: [] });
     const [graphData, setGraphData] = useState({ nodes: [], links: [] });
     const graphRef = useRef();
@@ -161,7 +163,7 @@ export default function KnowledgeMapView({ workspaceId, documents = [], initialS
         });
 
         if (startNodes.length === 0) {
-            alert('검색 결과가 없습니다.');
+            showAlert('검색 결과가 없습니다.');
             setIsSearching(false);
             return;
         }

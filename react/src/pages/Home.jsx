@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { workspaceApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 // CSS is imported globally or via MainLayout, but we keep Home specific tweaks if any
 // import './Home.css'; 
 
@@ -22,6 +23,7 @@ function Home() {
     const menuRef = useRef(null);
     const navigate = useNavigate();
     const { isAdmin, isAuthenticated } = useAuth();
+    const { showAlert } = useAlert();
 
     // 워크스페이스 목록 불러오기
     useEffect(() => {
@@ -89,7 +91,7 @@ function Home() {
             setOpenMenuId(null);
         } catch (err) {
             console.error('삭제 실패:', err);
-            alert('삭제에 실패했습니다.');
+            showAlert('삭제에 실패했습니다.');
         }
     };
 
@@ -106,7 +108,7 @@ function Home() {
 
     const handleRenameSubmit = async () => {
         if (!newName.trim()) {
-            alert('워크스페이스 이름을 입력해주세요.');
+            showAlert('워크스페이스 이름을 입력해주세요.');
             return;
         }
 
@@ -125,7 +127,7 @@ function Home() {
             setNewName('');
         } catch (err) {
             console.error('이름 변경 실패:', err);
-            alert('이름 변경에 실패했습니다.');
+            showAlert('이름 변경에 실패했습니다.');
         }
     };
 
@@ -135,7 +137,7 @@ function Home() {
             if (isAdmin) {
                 selectedDomainId = localStorage.getItem('admin_selected_domain_id');
                 if (!selectedDomainId) {
-                    alert("도메인을 선택해야 합니다."); // Should be redirected already but safety check
+                    showAlert("도메인을 선택해야 합니다."); // Should be redirected already but safety check
                     return;
                 }
             }
@@ -154,7 +156,7 @@ function Home() {
             navigate(`/notebook/${created.id}`, { state: { openAddSource: true } });
         } catch (err) {
             console.error('워크스페이스 생성 실패:', err);
-            alert('워크스페이스 생성에 실패했습니다.');
+            showAlert('워크스페이스 생성에 실패했습니다.');
         }
     };
 
@@ -164,43 +166,9 @@ function Home() {
 
     return (
         <div className="home-container">
-            {/* Toolbar */}
             <div className="toolbar">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <h1 className="page-title">워크스페이스</h1>
-                    {/* Filter Tabs */}
-                    <div style={{ display: 'flex', background: '#f1f3f4', borderRadius: '8px', padding: '2px' }}>
-                        <button
-                            onClick={() => setFilter('MY')}
-                            style={{
-                                padding: '6px 12px',
-                                border: 'none',
-                                borderRadius: '6px',
-                                background: filter === 'MY' ? '#fff' : 'transparent',
-                                boxShadow: filter === 'MY' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                cursor: 'pointer',
-                                fontWeight: filter === 'MY' ? '600' : '400',
-                                fontSize: '14px'
-                            }}
-                        >
-                            내 워크스페이스
-                        </button>
-                        <button
-                            onClick={() => setFilter('ALL')}
-                            style={{
-                                padding: '6px 12px',
-                                border: 'none',
-                                borderRadius: '6px',
-                                background: filter === 'ALL' ? '#fff' : 'transparent',
-                                boxShadow: filter === 'ALL' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                cursor: 'pointer',
-                                fontWeight: filter === 'ALL' ? '600' : '400',
-                                fontSize: '14px'
-                            }}
-                        >
-                            전체 (공유)
-                        </button>
-                    </div>
                 </div>
 
 

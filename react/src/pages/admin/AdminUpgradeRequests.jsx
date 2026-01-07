@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../../config/api';
+import { useAlert } from '../../context/AlertContext';
 
 const AdminUpgradeRequests = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const { showAlert } = useAlert();
 
     const fetchRequests = async () => {
         try {
@@ -47,10 +49,10 @@ const AdminUpgradeRequests = () => {
                 throw new Error(errText || '승인 실패');
             }
 
-            alert('승인되었습니다.');
+            showAlert('승인되었습니다.');
             fetchRequests(); // Refresh list
         } catch (err) {
-            alert(err.message);
+            showAlert(err.message);
         }
     };
 

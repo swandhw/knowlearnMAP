@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAlert } from '../context/AlertContext';
 import './Login.css';
 import { API_URL } from '../config/api';
 
@@ -10,6 +11,7 @@ const SetPassword = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [status, setStatus] = useState('');
     const [token, setToken] = useState('');
+    const { showAlert } = useAlert();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -30,8 +32,7 @@ const SetPassword = () => {
 
         try {
             await axios.post(`${API_URL}/api/auth/set-password`, { token, password });
-            alert('Password set successfully. Please login.');
-            navigate('/login');
+            showAlert('비밀번호가 성공적으로 설정되었습니다. 로그인해주세요.', { title: '성공', onConfirm: () => navigate('/login') });
         } catch (err) {
             setStatus('Failed to set password. Token may be invalid or expired.');
         }

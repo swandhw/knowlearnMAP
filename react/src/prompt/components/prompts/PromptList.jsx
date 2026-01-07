@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAlert } from '../../../context/AlertContext';
 import {
   Add as AddIcon,
   Home as HomeIcon,
@@ -34,6 +35,7 @@ const PromptListContent = () => {
     isActive: true
   });
   const [openDialog, setOpenDialog] = useState(false);
+  const { showAlert } = useAlert();
 
   const { data, isLoading, error } = usePrompts(filters);
 
@@ -180,7 +182,7 @@ const PromptListContent = () => {
                               if (res.ok) {
                                 window.location.reload();
                               } else {
-                                alert('삭제 실패');
+                                showAlert('삭제 실패');
                               }
                             });
                         }
