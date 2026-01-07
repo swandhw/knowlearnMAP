@@ -6,7 +6,6 @@ import com.knowlearnmap.document.domain.DocumentChunk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -162,6 +161,7 @@ public class OntologyPersistenceService {
         if (!objectReferenceRepository.existsByOntologyObjectDictAndDocumentIdAndChunkId(dict, docId, chunkId)) {
             OntologyObjectReference ref = OntologyObjectReference.builder()
                     .ontologyObjectDict(dict)
+                    .workspaceId(dict.getWorkspaceId())
                     .documentId(docId)
                     .chunkId(chunkId)
                     .build();
@@ -275,6 +275,7 @@ public class OntologyPersistenceService {
         if (!relationReferenceRepository.existsByOntologyRelationDictAndDocumentIdAndChunkId(dict, docId, chunkId)) {
             OntologyRelationReference ref = OntologyRelationReference.builder()
                     .ontologyRelationDict(dict)
+                    .workspaceId(dict.getWorkspaceId())
                     .documentId(docId)
                     .chunkId(chunkId)
                     .build();
@@ -365,6 +366,7 @@ public class OntologyPersistenceService {
                 chunkId)) {
             OntologyKnowlearnReference ref = OntologyKnowlearnReference.builder()
                     .ontologyKnowlearnType(triple)
+                    .workspaceId(triple.getWorkspaceId())
                     .documentId(docId)
                     .chunkId(chunkId)
                     .build();

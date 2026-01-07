@@ -11,7 +11,8 @@ import lombok.*;
 @Builder
 @Table(name = "ontology_relation_reference", indexes = {
         @Index(name = "idx_rel_ref_doc_id", columnList = "document_id"),
-        @Index(name = "idx_rel_ref_chunk_id", columnList = "chunk_id")
+        @Index(name = "idx_rel_ref_chunk_id", columnList = "chunk_id"),
+        @Index(name = "idx_rel_ref_workspace_id", columnList = "workspace_id")
 })
 public class OntologyRelationReference {
 
@@ -22,6 +23,9 @@ public class OntologyRelationReference {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ontology_relation_id", nullable = false)
     private OntologyRelationDict ontologyRelationDict;
+
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
 
     @Column(name = "document_id", nullable = false)
     private Long documentId;

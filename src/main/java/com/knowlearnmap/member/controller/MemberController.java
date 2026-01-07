@@ -56,7 +56,7 @@ public class MemberController {
             @RequestParam String grade,
             Authentication authentication) {
         try {
-            Member member = memberRepository.findByUsername(username)
+            Member member = memberRepository.findByEmail(username)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             Member.Grade newGrade = Member.Grade.valueOf(grade.toUpperCase());
