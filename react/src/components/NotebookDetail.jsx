@@ -59,6 +59,21 @@ function NotebookDetail() {
     const [slideModalOpen, setSlideModalOpen] = useState(false);
     const [reportModalOpen, setReportModalOpen] = useState(false);
 
+    // --- State: Document Viewer ---
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [selectedDocument, setSelectedDocument] = useState(null);
+    const [documentPages, setDocumentPages] = useState([]);
+    const [loadingPages, setLoadingPages] = useState(false);
+
+    // Search & Navigation
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentResultIndex, setCurrentResultIndex] = useState(0);
+    const [searchResults, setSearchResults] = useState([]);
+
+    // Pagination
+    const [currentPageNum, setCurrentPageNum] = useState(1);
+    const [itemsPerPage] = useState(5);
+
     // --- Helper Functions ---
     const fetchNotebook = async () => {
         try {
@@ -226,7 +241,94 @@ function NotebookDetail() {
         );
     };
 
-    // --- Read Only Check ---
+    // --- Document Viewer Handlers ---
+    const fetchDocumentPages = async (documentId) => {
+        try {
+            setLoadingPages(true);
+            const pages = await documentApi.getPages(documentId);
+            setDocumentPages(pages);
+        } catch (error) {
+            console.error('Failed to load pages:', error);
+            showAlert('페이지를 불러오는데 실패했습니다.');
+        } finally {
+            setLoadingPages(false);
+        }
+    };
+
+    const closeDocumentViewer = () => {
+        setViewerOpen(false);
+        setSelectedDocument(null);
+        setDocumentPages([]);
+        setSearchQuery('');
+        setSearchResults([]);
+        setCurrentResultIndex(0);
+        setCurrentPageNum(1);
+    };
+
+    // Search logic - find all matches
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            setCurrentResultIndex(0);
+            return;
+        }
+
+        const results = [];
+        documentPages.forEach(page => {
+            const regex = new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            let match;
+            let matchIndex = 0;
+            while ((match = regex.exec(page.content)) !== null) {
+                results.push({
+                    pageId: page.id,
+                    pageNumber: page.pageNumber,
+                    matchIndex: matchIndex++
+                });
+            }
+        });
+        setSearchResults(results);
+        setCurrentResultIndex(0);
+    }, [searchQuery, documentPages]);
+
+    // Highlight function
+    const highlightText = (text, query, pageId) => {
+        if (!query.trim()) return text;
+
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
+        let matchIndex = 0;
+
+        return parts.map((part, i) => {
+            if (part.toLowerCase() === query.toLowerCase()) {
+                const isCurrent = searchResults[currentResultIndex]?.pageId === pageId &&
+                    searchResults[currentResultIndex]?.matchIndex === matchIndex;
+                matchIndex++;
+                return (
+                    <mark
+                        key={i}
+                        className={isCurrent ? 'highlight-current' : 'highlight'}
+                    >
+                        {part}
+                    </mark>
+                );
+            }
+            return part;
+        });
+    };
+
+    const goToPreviousResult = () => {
+        if (currentResultIndex > 0) {
+            setCurrentResultIndex(currentResultIndex - 1);
+        }
+    };
+
+    const goToNextResult = () => {
+        if (currentResultIndex < searchResults.length - 1) {
+            setCurrentResultIndex(currentResultIndex + 1);
+        }
+    };
+
+    // --- Event Handlers: Tabs ---
     const isReadOnly = notebook?.role !== 'Owner';
 
     // --- State: Sync Status (from DB) ---
@@ -291,6 +393,7 @@ function NotebookDetail() {
         }
 
         setIsSyncing(true);
+        setSyncStatus('SYNCING'); // Show "동기화 중" status
         try {
             await ontologyApi.sync(id, true);
             showAlert('동기화가 완료되었습니다.');
@@ -298,6 +401,7 @@ function NotebookDetail() {
         } catch (error) {
             showAlert('동기화 중 오류가 발생했습니다.', 'error');
             console.error('Sync error:', error);
+            setSyncStatus('SYNC_NEEDED'); // Revert to sync needed on error
         } finally {
             setIsSyncing(false);
         }
@@ -315,6 +419,16 @@ function NotebookDetail() {
         if ((tab === 'graph' || tab === 'dictionary') && selectedDocumentIds.length === 0 && documents.length > 0) {
             setSelectedDocumentIds(documents.map(d => d.id));
         }
+
+        // Auto-collapse sidebars for graph and dictionary tabs
+        if (tab === 'graph' || tab === 'dictionary') {
+            setLeftSidebarOpen(false);
+            setRightSidebarOpen(false);
+        } else if (tab === 'chat') {
+            setLeftSidebarOpen(true);
+            setRightSidebarOpen(true);
+        }
+
         setActiveTab(tab);
     };
 
@@ -369,7 +483,7 @@ function NotebookDetail() {
             </div>
             <div className="notebook-layout">
                 {/* Left Panel: Sources */}
-                <div className={`panel panel-left ${leftSidebarOpen ? '' : 'collapsed'}`}>
+                <div className={`panel panel-left ${leftSidebarOpen ? '' : 'collapsed'} ${viewerOpen ? 'viewer-active' : ''}`}>
                     <div className="panel-header">
                         {leftSidebarOpen && <div className="panel-title"><FileText size={18} /> 소스 자료</div>}
                         <button className="panel-toggle-btn" onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}>
@@ -380,8 +494,8 @@ function NotebookDetail() {
                         {leftSidebarOpen ? (
                             <>
                                 {/* Sync Status Warning - Compact */}
-                                {syncStatus === 'SYNC_NEEDED' && (
-                                    <div style={{
+                                {!viewerOpen && syncStatus === 'SYNC_NEEDED' && (
+                                    <div className="sync-status-warning" style={{
                                         backgroundColor: '#fff3cd',
                                         border: '1px solid #ffc107',
                                         borderRadius: '4px',
@@ -397,8 +511,8 @@ function NotebookDetail() {
                                         <span><strong>동기화 필요</strong> - 지식그래프/챗봇 제한됨</span>
                                     </div>
                                 )}
-                                {syncStatus === 'SYNCING' && (
-                                    <div style={{
+                                {!viewerOpen && syncStatus === 'SYNCING' && (
+                                    <div className="sync-status-warning" style={{
                                         backgroundColor: '#d1ecf1',
                                         border: '1px solid #17a2b8',
                                         borderRadius: '4px',
@@ -414,103 +528,183 @@ function NotebookDetail() {
                                         <span>동기화 진행 중...</span>
                                     </div>
                                 )}
-                                <div className="source-actions" style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    {!isReadOnly && (
-                                        <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
-                                            width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                                            backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
-                                        }}>
-                                            <Plus size={18} /> 소스 추가
-                                        </button>
-                                    )}
+                                {!viewerOpen && (
+                                    <div className="source-actions" style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        {!isReadOnly && (
+                                            <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
+                                                width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                                backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+                                            }}>
+                                                <Plus size={18} /> 소스 추가
+                                            </button>
+                                        )}
 
-                                    <div style={{ position: 'relative' }}>
-                                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-                                        <input
-                                            type="text"
-                                            placeholder="찾아내 새 소스 검색하세요"
-                                            style={{ width: '100%', padding: '8px 8px 8px 36px', borderRadius: '8px', border: 'none', backgroundColor: '#f1f3f4', fontSize: '13px' }}
-                                        />
-                                    </div>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', cursor: 'pointer' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
                                             <input
-                                                type="checkbox"
-                                                checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                                onChange={handleSelectAll}
-                                                style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+                                                type="text"
+                                                placeholder="찾아내 새 소스 검색하세요"
+                                                style={{ width: '100%', padding: '8px 8px 8px 36px', borderRadius: '8px', border: 'none', backgroundColor: '#f1f3f4', fontSize: '13px' }}
                                             />
-                                            모두 선택
-                                        </label>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            {!isReadOnly && (
-                                                <button
-                                                    onClick={handleSync}
-                                                    title="동기화 (ArangoDB)"
-                                                    disabled={isSyncing}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: isSyncing ? 'wait' : 'pointer',
-                                                        color: syncStatus !== 'SYNCED' ? '#d93025' : '#5f6368', // Red if sync needed, else Grey
-                                                        padding: '4px',
-                                                        opacity: isSyncing ? 0.6 : 1
-                                                    }}
-                                                >
-                                                    <RefreshCw size={16} className={isSyncing ? "spin-animation" : ""} />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleTabChange('graph')}
-                                                disabled={selectedDocumentIds.length === 0}
-                                                title="지식 그래프"
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
-                                                    color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
-                                                    padding: '4px'
-                                                }}
-                                            >
-                                                <Network size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleTabChange('dictionary')}
-                                                disabled={selectedDocumentIds.length === 0}
-                                                title="사전"
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
-                                                    color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
-                                                    padding: '4px'
-                                                }}
-                                            >
-                                                <Book size={16} />
-                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                                    onChange={handleSelectAll}
+                                                    style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+                                                />
+                                                모두 선택
+                                            </label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                {!isReadOnly && (
+                                                    <>
+                                                        <button
+                                                            onClick={handleSync}
+                                                            title="동기화 (ArangoDB)"
+                                                            disabled={isSyncing}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                cursor: isSyncing ? 'wait' : 'pointer',
+                                                                color: syncStatus === 'SYNCED' ? '#5f6368' : '#d93025',
+                                                                padding: '4px',
+                                                                opacity: isSyncing ? 0.6 : 1
+                                                            }}
+                                                        >
+                                                            <RefreshCw
+                                                                size={16}
+                                                                className={syncStatus === 'SYNCING' ? "spin-animation" : ""}
+                                                            />
+                                                        </button>
+                                                        <span style={{
+                                                            fontSize: '12px',
+                                                            color: syncStatus === 'SYNCED' ? '#5f6368' : '#d93025',
+                                                            fontWeight: syncStatus === 'SYNCED' ? 'normal' : '500'
+                                                        }}>
+                                                            {syncStatus === 'SYNCED' && '동기화 완료'}
+                                                            {syncStatus === 'SYNC_NEEDED' && '동기화 필요'}
+                                                            {syncStatus === 'SYNCING' && '동기화 중'}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="source-list">
-                                    {documents.length === 0 ? (
-                                        <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
-                                            등록된 문서가 없습니다.<br />자료를 추가해보세요.
-                                        </div>
+                                )}
+                                <div className={`source-list ${viewerOpen ? 'viewer-mode' : ''}`}>
+                                    {!viewerOpen ? (
+                                        // Document List
+                                        documents.length === 0 ? (
+                                            <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
+                                                등록된 문서가 없습니다.<br />자료를 추가해보세요.
+                                            </div>
+                                        ) : (
+                                            documents.map(doc => (
+                                                <DocumentSourceItem
+                                                    key={doc.id}
+                                                    document={doc}
+                                                    progress={progressMap[doc.id]}
+                                                    isChecked={selectedDocumentIds.includes(doc.id)}
+                                                    onCheckChange={handleCheckDocument}
+                                                    onSelect={() => {
+                                                        setSelectedDocument(doc);
+                                                        setViewerOpen(true);
+                                                        fetchDocumentPages(doc.id);
+                                                    }}
+                                                    onRename={handleRenameDocument}
+                                                    onDelete={handleDeleteDocument}
+                                                    readOnly={isReadOnly}
+                                                />
+                                            ))
+                                        )
                                     ) : (
-                                        documents.map(doc => (
-                                            <DocumentSourceItem
-                                                key={doc.id}
-                                                document={doc}
-                                                progress={progressMap[doc.id]} // Pass polling status
-                                                isChecked={selectedDocumentIds.includes(doc.id)}
-                                                onCheckChange={handleCheckDocument}
-                                                onSelect={() => {/* Maybe preview? */ }}
-                                                onRename={handleRenameDocument}
-                                                onDelete={handleDeleteDocument}
-                                                readOnly={isReadOnly}
-                                            />
-                                        ))
+                                        // Document Viewer
+                                        <div className="document-viewer-panel">
+                                            {/* Header */}
+                                            <div className="viewer-panel-header">
+                                                <h3 className="viewer-document-title">{selectedDocument?.filename}</h3>
+                                                <button
+                                                    className="close-viewer-btn"
+                                                    onClick={closeDocumentViewer}
+                                                    aria-label="닫기"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+
+                                            {/* Search & Controls */}
+                                            <div className="viewer-controls">
+                                                <div className="search-section">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="페이지 내 검색..."
+                                                        value={searchQuery}
+                                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                                        className="search-input"
+                                                    />
+                                                    {searchResults.length > 0 && (
+                                                        <div className="search-navigation">
+                                                            <button
+                                                                onClick={goToPreviousResult}
+                                                                disabled={currentResultIndex === 0}
+                                                                title="이전 찾기"
+                                                            >
+                                                                ▲
+                                                            </button>
+                                                            <span className="result-counter">
+                                                                {currentResultIndex + 1} / {searchResults.length}
+                                                            </span>
+                                                            <button
+                                                                onClick={goToNextResult}
+                                                                disabled={currentResultIndex === searchResults.length - 1}
+                                                                title="다음 찾기"
+                                                            >
+                                                                ▼
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="pagination-controls">
+                                                    <button
+                                                        onClick={() => setCurrentPageNum(p => Math.max(1, p - 1))}
+                                                        disabled={currentPageNum === 1}
+                                                    >
+                                                        ◀
+                                                    </button>
+                                                    <span>{currentPageNum} / {Math.ceil(documentPages.length / itemsPerPage) || 1}</span>
+                                                    <button
+                                                        onClick={() => setCurrentPageNum(p => Math.min(Math.ceil(documentPages.length / itemsPerPage), p + 1))}
+                                                        disabled={currentPageNum === Math.ceil(documentPages.length / itemsPerPage)}
+                                                    >
+                                                        ▶
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="viewer-content">
+                                                {loadingPages ? (
+                                                    <div className="viewer-loading">로딩 중...</div>
+                                                ) : (
+                                                    documentPages
+                                                        .slice((currentPageNum - 1) * itemsPerPage, currentPageNum * itemsPerPage)
+                                                        .map(page => (
+                                                            <div key={page.id} className="page-section">
+                                                                <div className="page-header">
+                                                                    <span>Page {page.pageNumber}</span>
+                                                                </div>
+                                                                <div className="page-content">
+                                                                    {highlightText(page.content, searchQuery, page.id)}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                )}
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             </>
@@ -526,6 +720,11 @@ function NotebookDetail() {
                         <button
                             className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
                             onClick={() => handleTabChange('chat')}
+                            disabled={selectedDocumentIds.length === 0 || syncStatus === 'SYNCING' || syncStatus === 'SYNC_NEEDED'}
+                            style={{
+                                opacity: (selectedDocumentIds.length === 0 || syncStatus === 'SYNCING' || syncStatus === 'SYNC_NEEDED') ? 0.5 : 1,
+                                cursor: (selectedDocumentIds.length === 0 || syncStatus === 'SYNCING' || syncStatus === 'SYNC_NEEDED') ? 'not-allowed' : 'pointer'
+                            }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                 <MessageSquare size={16} /> 채팅
@@ -534,6 +733,11 @@ function NotebookDetail() {
                         <button
                             className={`tab-btn ${activeTab === 'graph' ? 'active' : ''}`}
                             onClick={() => handleTabChange('graph')}
+                            disabled={selectedDocumentIds.length === 0 || syncStatus === 'SYNCING' || syncStatus === 'SYNC_NEEDED'}
+                            style={{
+                                opacity: (selectedDocumentIds.length === 0 || syncStatus === 'SYNCING' || syncStatus === 'SYNC_NEEDED') ? 0.5 : 1,
+                                cursor: (selectedDocumentIds.length === 0 || syncStatus === 'SYNCING' || syncStatus === 'SYNC_NEEDED') ? 'not-allowed' : 'pointer'
+                            }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                 <Network size={16} /> 지식 그래프
@@ -542,6 +746,11 @@ function NotebookDetail() {
                         <button
                             className={`tab-btn ${activeTab === 'dictionary' ? 'active' : ''}`}
                             onClick={() => handleTabChange('dictionary')}
+                            disabled={selectedDocumentIds.length === 0}
+                            style={{
+                                opacity: selectedDocumentIds.length === 0 ? 0.5 : 1,
+                                cursor: selectedDocumentIds.length === 0 ? 'not-allowed' : 'pointer'
+                            }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                 <Book size={16} /> 사전
@@ -631,22 +840,22 @@ function NotebookDetail() {
                     <div className="panel-body">
                         {rightSidebarOpen ? (
                             <>
-                                <div className="studio-item">
+                                <div className="studio-item" onClick={() => setSlideModalOpen(true)} style={{ cursor: 'pointer' }}>
                                     <div className="studio-icon"><Presentation size={20} /></div>
                                     <div className="studio-info">
                                         <h4>슬라이드 생성</h4>
                                         <p>문서를 기반으로 발표 자료 생성</p>
                                     </div>
-                                    <button className="studio-action-btn" onClick={() => setSlideModalOpen(true)}><Plus size={16} /></button>
+                                    <button className="studio-action-btn" onClick={(e) => { e.stopPropagation(); setSlideModalOpen(true); }}><Plus size={16} /></button>
                                 </div>
 
-                                <div className="studio-item">
+                                <div className="studio-item" onClick={() => setReportModalOpen(true)} style={{ cursor: 'pointer' }}>
                                     <div className="studio-icon"><FileBarChart size={20} /></div>
                                     <div className="studio-info">
                                         <h4>보고서 작성</h4>
                                         <p>데이터 분석 및 리포트 작성</p>
                                     </div>
-                                    <button className="studio-action-btn" onClick={() => setReportModalOpen(true)}><Plus size={16} /></button>
+                                    <button className="studio-action-btn" onClick={(e) => { e.stopPropagation(); setReportModalOpen(true); }}><Plus size={16} /></button>
                                 </div>
 
                                 <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
