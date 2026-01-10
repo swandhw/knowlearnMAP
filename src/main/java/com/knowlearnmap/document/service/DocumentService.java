@@ -134,6 +134,12 @@ public class DocumentService {
             log.error("파이프라인 시작 실패 (문서는 저장됨): documentId={}", savedDocument.getId(), e);
         }
 
+        // 8. Mark workspace as needing sync
+        workspace.setSyncStatus(WorkspaceEntity.SyncStatus.SYNC_NEEDED);
+        workspace.setLastModifiedAt(java.time.LocalDateTime.now());
+        workspaceRepository.save(workspace);
+        log.info("Workspace sync status updated to SYNC_NEEDED: workspaceId={}", workspaceId);
+
         return DocumentResponseDto.from(savedDocument, 0L, 0L);
     }
 

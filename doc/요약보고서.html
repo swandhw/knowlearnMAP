@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문화 콘텐츠 글로벌 현상 심층 분석: 전략 컨설팅 보고서</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/subsets/Paperlogy-dynamic-subset.css" type="text/css"/>
+    <style>
+        body {
+            font-family: "Paperlogy", -apple-system, BlinkMacSystemFont, "Segoe UI",Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f7f4; /* Vibrant Creative Background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #1f2937; /* Vibrant Creative Text */
+        }
+        .container {
+            width: 90vw;
+            max-width: 1280px;
+            height: 95vh;
+            max-height: 990px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: linear-gradient(90deg, #8A2BE2, #FF1493); /* Vibrant Creative Primary/Accent */
+            color: white;
+            font-size: 1em;
+            font-weight: 700;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+        .header-title {
+            font-size: 2.1em;
+        }
+        .header-date {
+            font-size: 1.5em;
+        }
+        .main-content {
+            display: flex;
+            flex-grow: 1;
+            padding: 25px 30px;
+            gap: 25px;
+        }
+        .left-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .right-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb; /* Subtle border for cards */
+        }
+        .card-title {
+            font-size: 1.25em;
+            font-weight: 700;
+            color: #8A2BE2; /* Vibrant Creative Primary */
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f3e8ff; /* Lighter border for title */
+            padding-bottom: 8px;
+        }
+        .summary-text {
+            font-size: 1em;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .kpi-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #4b5563; /* Slightly darker text for KPIs */
+        }
+        .kpi-item span {
+            font-size: 1.8em;
+            color: #FF1493; /* Vibrant Creative Accent */
+        }
+        .kpi-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #1f2937; /* Vibrant Creative Text */
+        }
+        .chart-placeholder {
+            height: 250px;
+            background-color: #fce4ec; /* Lighter pinkish background for charts */
+            border: 1px dashed #FF1493; /* Accent color dashed border */
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9em;
+            color: #8A2BE2; /* Primary color for chart text */
+            text-align: center;
+            padding: 10px;
+        }
+        .chart-bar-container {
+            width: 60%;
+            height: 100%;
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .chart-bar {
+            flex: 1;
+            border-radius: 3px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            color: white;
+            font-size: 1.2em;
+            padding-bottom: 5px;
+        }
+        .chart-title {
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .key-points ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .key-points li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+        .key-points li::before {
+            content: '•';
+            color: #FF1493; /* Accent color for bullet points */
+            font-size: 1.2em;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        .highlight-message {
+            background-color: #f3e8ff; /* Lighter purple background for highlight */
+            border-left: 5px solid #8A2BE2; /* Primary color border */
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #8A2BE2; /* Primary color for highlight text */
+            text-align: center;
+            border-radius: 8px;
+        }
+        footer {
+            padding: 10px 30px;
+            background-color: #f8f7f4; /* Vibrant Creative Background */
+            text-align: right;
+            font-size: 0.85em;
+            color: #6b7280; /* Gray text for footer */
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">문화 콘텐츠 글로벌 현상: 성공 요인 및 성장 전략</div>
+            <div class="header-date">2025년 6월 13일</div>
+        </header>
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="card">
+                    <div class="card-title">요약 (Executive Summary)</div>
+                    <p class="summary-text">
+                        오늘날 문화 콘텐츠는 단순한 엔터테인먼트를 넘어 디지털 플랫폼과 강력한 팬덤 경제에 의해 주도되는 전 세계적인 문화 및 경제 현상으로 진화했습니다. 이는 경제적, 문화적, 사회적 파급효과를 창출하며 국가의 소프트 파워를 강화하고 있습니다.
+                    </p>
+                </div>
+                <div class="card">
+                    <div class="card-title">핵심 성과 지표 (KPIs)</div>
+                    <div class="kpi-grid">
+                        <div class="kpi-item">
+                            <span>📈</span>
+                            <div>
+                                <div class="kpi-value">296억 달러</div>
+                                <div>2024년 글로벌 음반 시장 규모</div>
+                            </div>
+                        </div>
+                        <div class="kpi-item">
+                            <span>💰</span>
+                            <div>
+                                <div class="kpi-value">1조 2,377억 원</div>
+                                <div>2023년 해외 총 매출액</div>
+                            </div>
+                        </div>
+                        <div class="kpi-item">
+                            <span>👥</span>
+                            <div>
+                                <div class="kpi-value">350만 명</div>
+                                <div>주요 4대 기획사 코어 팬 수 (2023년 기준)</div>
+                            </div>
+                        </div>
+                        <div class="kpi-item">
+                            <span>🌐</span>
+                            <div>
+                                <div class="kpi-value">8조 원</div>
+                                <div>2022년 팬덤 산업 규모</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">데이터 시각화: 주요 수익원 비중 변화</div>
+                    <div class="chart-placeholder">
+                        <div class="chart-title">주요 엔터테인먼트 기획사 수익원 구성 (2025년 1분기 기준, 예시)</div>
+                        <div class="chart-bar-container">
+                            <div class="chart-bar" style="height: calc(31 / 41.7 * 100%); background-color: #8A2BE2;"><div>콘서트<br>31%</div></div>
+                            <div class="chart-bar" style="height: 100%; background-color: #FF1493;"><div>간접<br>41.7%</div></div>
+                            <div class="chart-bar" style="height: calc(27.3 / 41.7 * 100%); background-color: #A052ED;"><div>앨범/디지털<br>27.3%</div></div>
+                        </div>
+                        <p style="margin-top: 10px; font-size: 0.9em; color: #6b7280;">(특정 기업 2025년 1분기 기준. 콘서트 수익이 앨범/디지털 판매 수익을 넘어섰습니다.)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="right-panel">
+                <div class="card key-points">
+                    <div class="card-title">핵심 포인트</div>
+                    <ul>
+                        <li><p><strong>수익원 다각화 필수:</strong> 물리적 앨범 판매 둔화로 콘서트, 스트리밍, 굿즈 등 수익원 다각화가 전략적 중요성 증대.</p>
+                        </li>
+                        <li><p><strong>기술 접목 가속화:</strong> AI (가상 아이돌, 음악 제작) 및 메타버스 (가상 콘서트, NFT) 활용으로 팬 참여 및 수익 모델 혁신.</p>
+                        </li>
+                        <li><p><strong>강력한 소프트 파워:</strong> 문화 콘텐츠는 국가 브랜드 인지도 및 관련 산업 (관광, 뷰티, 패션 등) 성장을 견인하는 핵심 동력.</p>
+                        </li>
+                        <li><p><strong>진화하는 팬덤:</strong> 팬덤은 단순 소비자를 넘어 콘텐츠 확산 및 비즈니스 모델(팬덤 경제)의 핵심 동력으로 진화.</p>
+                        </li>
+                        <li><p><strong>윤리적 과제:</strong> AI 콘텐츠 저작권, 사생활 침해 문제, 문화 전유 등 기술 발전 및 팬덤 확산에 따른 윤리적 고려 필요.</p>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">전략적 제언</div>
+                    <div class="highlight-message">
+                        문화 콘텐츠는 기술과 팬덤의 결합을 통해 글로벌 현상으로 진화했으며, 지속 성장을 위해 혁신과 윤리적 균형이 필수적입니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer>
+            출처: 글로벌 문화 콘텐츠 영향력 분석 보고서
+        </footer>
+    </div>
+</body>
+</html>

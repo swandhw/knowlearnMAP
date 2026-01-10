@@ -25,7 +25,8 @@ const apiCall = async (endpoint, options = {}) => {
             throw new Error(data.message || '요청 실패');
         }
 
-        return data.data; // ApiResponse의 data 필드 반환
+        // ApiResponse 래퍼가 있으면 data.data 반환, 없으면 data 그대로 반환
+        return data.data !== undefined ? data.data : data;
     } catch (error) {
         console.error('API 호출 실패:', error);
         throw error;

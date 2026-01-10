@@ -33,21 +33,19 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, rea
         try {
             const params = { type: viewMode, workspaceId };
             if (initialSelectedDocIds.length > 0) {
-                // Pass as comma separated or repeat? URLSearchParams handles repeat if array passed to append, 
-                // but api wrapper uses URLSearchParams constructor which handles object?
-                // Need to ensure array is handled correctly. 
-                // api.js uses new URLSearchParams(params).toString().
-                // Standard URLSearchParams handles arrays by comma separating or repeating keys depending on implementation?
-                // Actually JS URLSearchParams joining array with comma is standard behavior for string conversion?
-                // Let's manually join for safety or check. 
-                // Spring accepts repeating param `documentIds=1&documentIds=2` or comma `documentIds=1,2`.
-                // Let's safely join.
                 params.documentIds = initialSelectedDocIds.join(',');
             }
             const result = await dictionaryApi.getCategories(params);
-            setCategories(['All', ...result]);
+            // Add null safety - result might be undefined or not an array
+            if (Array.isArray(result)) {
+                setCategories(['All', ...result]);
+            } else {
+                console.warn('Categories result is not an array:', result);
+                setCategories(['All']);
+            }
         } catch (error) {
             console.error("Failed to fetch categories", error);
+            setCategories(['All']); // Fallback to default
         }
     }, [workspaceId, viewMode, initialSelectedDocIds]);
 
@@ -73,9 +71,17 @@ function DictionaryView({ workspaceId, initialSelectedDocIds = [], onUpdate, rea
                 result = await dictionaryApi.getRelations(params);
             }
 
-            setData(result.content);
-            setTotalPages(result.totalPages);
-            setTotalElements(result.totalElements);
+            // Add null safety - result might be undefined
+            if (result && result.content) {
+                setData(result.content);
+                setTotalPages(result.totalPages || 0);
+                setTotalElements(result.totalElements || 0);
+            } else {
+                console.warn('Dictionary result is invalid:', result);
+                setData([]);
+                setTotalPages(0);
+                setTotalElements(0);
+            }
         } catch (error) {
             console.error("Failed to fetch dictionary data", error);
         } finally {

@@ -82,10 +82,16 @@ public class SearchDebugService {
 
         try {
             boolean filterDocs = documentIds != null && !documentIds.isEmpty();
+
+            // Fixed AQL query - use LENGTH(INTERSECTION(...)) for array filtering
             String aql = "FOR doc IN ObjectNodes " +
-                    "FILTER doc.workspace_id == @wsId " +
-                    (filterDocs ? "AND @docIds ANY IN doc.document_ids " : "") +
-                    "AND (CONTAINS(LOWER(doc.label), LOWER(@query)) OR CONTAINS(LOWER(doc.description), LOWER(@query))) "
+                    "FILTER doc.workspace_id == @wsId ";
+
+            if (filterDocs) {
+                aql += "AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
+            }
+
+            aql += "AND (CONTAINS(LOWER(doc.label), LOWER(@query)) OR CONTAINS(LOWER(doc.description), LOWER(@query))) "
                     +
                     "LIMIT 5 " +
                     "RETURN { content: CONCAT(doc.label, ': ', doc.description), id: doc._key, score: 1.0 }";
@@ -121,20 +127,29 @@ public class SearchDebugService {
 
         try {
             boolean filterDocs = documentIds != null && !documentIds.isEmpty();
-            // Search both ObjectNodes (Entities) and KnowlearnEdges (Facts)
+
+            // Fixed AQL query - use LENGTH(INTERSECTION(...)) for array filtering
             String aql = "LET nodes = ( " +
                     "  FOR doc IN ObjectNodes " +
-                    "  FILTER doc.workspace_id == @wsId AND doc.embedding_vector != null " +
-                    (filterDocs ? "AND @docIds ANY IN doc.document_ids " : "") +
-                    "  LET score = COSINE_SIMILARITY(doc.embedding_vector, @vector) " +
+                    "  FILTER doc.workspace_id == @wsId AND doc.embedding_vector != null ";
+
+            if (filterDocs) {
+                aql += "AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
+            }
+
+            aql += "  LET score = COSINE_SIMILARITY(doc.embedding_vector, @vector) " +
                     "  RETURN { type: 'Node', content: CONCAT(doc.label_ko, ': ', doc.description), id: doc._key, score: score } "
                     +
                     ") " +
                     "LET edges = ( " +
                     "  FOR doc IN KnowlearnEdges " +
-                    "  FILTER doc.workspace_id == @wsId AND doc.embedding_vector != null " +
-                    (filterDocs ? "AND @docIds ANY IN doc.document_ids " : "") +
-                    "  LET score = COSINE_SIMILARITY(doc.embedding_vector, @vector) " +
+                    "  FILTER doc.workspace_id == @wsId AND doc.embedding_vector != null ";
+
+            if (filterDocs) {
+                aql += "AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
+            }
+
+            aql += "  LET score = COSINE_SIMILARITY(doc.embedding_vector, @vector) " +
                     "  RETURN { type: 'Edge', content: doc.sentence_ko, id: doc._key, score: score } " +
                     ") " +
                     "FOR result IN UNION(nodes, edges) " +

@@ -302,11 +302,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             }
         }
 
-        // 2. Delete ArangoDB collections (entire workspace data)
+        // 2. Delete ArangoDB data for this workspace only (by workspace_id)
         if (workspace.getDomain() != null && workspace.getDomain().getArangoDbName() != null) {
             String dbName = workspace.getDomain().getArangoDbName();
-            arangoCleanupService.deleteWorkspaceCollections(dbName);
-            log.info("ArangoDB collections deleted for workspace {}", id);
+            arangoCleanupService.deleteWorkspaceData(dbName, id);
+            log.info("ArangoDB data deleted for workspace {}", id);
         } else {
             log.warn("No ArangoDB configured for workspace {}, skipping ArangoDB cleanup", id);
         }

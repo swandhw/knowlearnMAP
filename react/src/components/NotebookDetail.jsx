@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { workspaceApi, ontologyApi } from '../services/api';
 
 import { documentApi } from '../services/documentApi';
+import { chatApi } from '../services/chatApi';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, MessageSquare, Network, Book, FileText, Presentation, FileBarChart, Plus, Upload, Trash2, Search, RefreshCw } from 'lucide-react';
@@ -58,29 +59,16 @@ function NotebookDetail() {
     const [slideModalOpen, setSlideModalOpen] = useState(false);
     const [reportModalOpen, setReportModalOpen] = useState(false);
 
-    // Fetch workspace details and sync status
-    useEffect(() => {
-        const fetchWorkspace = async () => {
-            try {
-                const workspace = await workspaceApi.get(id);
-                setNotebook(workspace);
-                setSyncStatus(workspace.syncStatus || 'SYNCED');
-            } catch (error) {
-                console.error('Failed to fetch workspace:', error);
-            }
-        };
-        if (id) {
-            fetchWorkspace();
-        }
-    }, [id]);
-
     // --- Helper Functions ---
     const fetchNotebook = async () => {
         try {
             const data = await workspaceApi.getById(id);
             setNotebook(data);
+            // Fetch sync status
+            setSyncStatus(data.syncStatus || 'SYNCED');
         } catch (error) {
             console.error('Error fetching notebook:', error);
+            setLoading(false); // Stop loading even on error
             // navigate('/workspaces'); // Optional: redirect on error
         }
     };
@@ -175,16 +163,44 @@ function NotebookDetail() {
         setIsProcessing(true);
 
         try {
-            // Mock response for now, replace with actual API call
-            // const response = await chatApi.send(id, inputMessage, selectedDocumentIds);
-            setTimeout(() => {
-                setMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: `Echo: ${userMsg.content} (Backend integration pending)`,
-                    timestamp: new Date()
-                }]);
-                setIsProcessing(false);
-            }, 1000);
+            // Call chat API with RAG and ontology search
+            const response = await chatApi.send(id, inputMessage, selectedDocumentIds);
+
+            // Format response message with RAG and ontology results
+            let responseContent = '';
+
+            if (response.ragResults && response.ragResults.length > 0) {
+                responseContent += '**RAG 검색 결과:**\n\n';
+                response.ragResults.forEach((result, idx) => {
+                    responseContent += `${idx + 1}. (Score: ${result.score.toFixed(2)}) ${result.content}\n`;
+                    if (result.metadata?.filename) {
+                        responseContent += `   📄 ${result.metadata.filename}`;
+                        if (result.metadata?.page) {
+                            responseContent += ` (p.${result.metadata.page})`;
+                        }
+                        responseContent += '\n';
+                    }
+                    responseContent += '\n';
+                });
+            }
+
+            if (response.ontologyResults && response.ontologyResults.length > 0) {
+                responseContent += '\n**온톨로지 검색 결과:**\n\n';
+                response.ontologyResults.forEach((result, idx) => {
+                    responseContent += `${idx + 1}. (Score: ${result.score.toFixed(2)}) ${result.content}\n\n`;
+                });
+            }
+
+            if (!responseContent) {
+                responseContent = '검색 결과가 없습니다. 다른 질문을 시도해보세요.';
+            }
+
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: responseContent,
+                timestamp: new Date()
+            }]);
+            setIsProcessing(false);
         } catch (error) {
             console.error('Chat error:', error);
             setIsProcessing(false);
@@ -305,350 +321,377 @@ function NotebookDetail() {
     // --- Render ---
     if (loading) return <div className="loading-screen">Loading Workspace...</div>;
 
+    // Null safety: prevent crash if notebook hasn't loaded yet
+    if (!notebook) {
+        return <div className="loading-screen">Loading Workspace Data...</div>;
+    }
+
     return (
-        <div className="notebook-layout">
-            {/* Sync Status Warning Banner */}
-            {syncStatus === 'SYNC_NEEDED' && (
-                <div style={{
-                    backgroundColor: '#fff3cd',
-                    border: '1px solid #ffc107',
-                    borderRadius: '4px',
-                    padding: '12px 16px',
-                    margin: '0 16px 16px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    color: '#856404'
+        <>
+            <div className="notebook-welcome-header" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px 24px'
+            }}>
+                <div className="workspace-icon-large" style={{ fontSize: '32px' }}>
+                    {notebook.icon || '📄'}
+                </div>
+                <div style={{ flex: 1 }}>
+                    <h1 className="workspace-title" style={{
+                        fontSize: '32px',
+                        fontWeight: '700',
+                        color: '#202124',
+                        margin: 0,
+                        lineHeight: '1.3',
+                        letterSpacing: '-2px'
+                    }}>
+                        {notebook.name || 'Untitled notebook'}
+                    </h1>
+                    {notebook.description && (
+                        <div className="workspace-description" style={{
+                            fontSize: '14px',
+                            color: '#5f6368',
+                            marginTop: '4px',
+                            lineHeight: '1.4'
+                        }}>
+                            {notebook.description}
+                        </div>
+                    )}
+                </div>
+                <div className="workspace-meta" style={{
+                    fontSize: '13px',
+                    color: '#5f6368',
+                    whiteSpace: 'nowrap'
                 }}>
-                    <span>⚠️</span>
-                    <span><strong>동기화가 필요합니다.</strong> 지식그래프와 챗봇 기능이 제한됩니다. 동기화를 완료해주세요.</span>
+                    소스 {documents.length}개
                 </div>
-            )}
-            {syncStatus === 'SYNCING' && (
-                <div style={{
-                    backgroundColor: '#d1ecf1',
-                    border: '1px solid #17a2b8',
-                    borderRadius: '4px',
-                    padding: '12px 16px',
-                    margin: '0 16px 16px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    color: '#0c5460'
-                }}>
-                    <span>🔄</span>
-                    <span>동기화 진행 중입니다...</span>
-                </div>
-            )}
-
-            {/* Left Panel: Sources */}
-            <div className={`panel panel-left ${leftSidebarOpen ? '' : 'collapsed'}`}>
-                <div className="panel-header">
-                    {leftSidebarOpen && <div className="panel-title"><FileText size={18} /> 소스 자료</div>}
-                    <button className="panel-toggle-btn" onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}>
-                        {leftSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
-                    </button>
-                </div>
-                <div className="panel-body">
-                    {leftSidebarOpen ? (
-                        <>
-                            <div className="source-actions" style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {!isReadOnly && (
-                                    <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
-                                        width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                                        backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+            </div>
+            <div className="notebook-layout">
+                {/* Left Panel: Sources */}
+                <div className={`panel panel-left ${leftSidebarOpen ? '' : 'collapsed'}`}>
+                    <div className="panel-header">
+                        {leftSidebarOpen && <div className="panel-title"><FileText size={18} /> 소스 자료</div>}
+                        <button className="panel-toggle-btn" onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}>
+                            {leftSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+                        </button>
+                    </div>
+                    <div className="panel-body">
+                        {leftSidebarOpen ? (
+                            <>
+                                {/* Sync Status Warning - Compact */}
+                                {syncStatus === 'SYNC_NEEDED' && (
+                                    <div style={{
+                                        backgroundColor: '#fff3cd',
+                                        border: '1px solid #ffc107',
+                                        borderRadius: '4px',
+                                        padding: '8px 12px',
+                                        marginBottom: '12px',
+                                        fontSize: '12px',
+                                        color: '#856404',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
                                     }}>
-                                        <Plus size={18} /> 소스 추가
-                                    </button>
+                                        <span>⚠️</span>
+                                        <span><strong>동기화 필요</strong> - 지식그래프/챗봇 제한됨</span>
+                                    </div>
                                 )}
+                                {syncStatus === 'SYNCING' && (
+                                    <div style={{
+                                        backgroundColor: '#d1ecf1',
+                                        border: '1px solid #17a2b8',
+                                        borderRadius: '4px',
+                                        padding: '8px 12px',
+                                        marginBottom: '12px',
+                                        fontSize: '12px',
+                                        color: '#0c5460',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                    }}>
+                                        <span>🔄</span>
+                                        <span>동기화 진행 중...</span>
+                                    </div>
+                                )}
+                                <div className="source-actions" style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {!isReadOnly && (
+                                        <button className="add-source-btn" onClick={() => setUploadModalOpen(true)} style={{
+                                            width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+                                        }}>
+                                            <Plus size={18} /> 소스 추가
+                                        </button>
+                                    )}
 
-                                <div style={{ position: 'relative' }}>
-                                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-                                    <input
-                                        type="text"
-                                        placeholder="찾아내 새 소스 검색하세요"
-                                        style={{ width: '100%', padding: '8px 8px 8px 36px', borderRadius: '8px', border: 'none', backgroundColor: '#f1f3f4', fontSize: '13px' }}
-                                    />
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', cursor: 'pointer' }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
                                         <input
-                                            type="checkbox"
-                                            checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                            onChange={handleSelectAll}
+                                            type="text"
+                                            placeholder="찾아내 새 소스 검색하세요"
+                                            style={{ width: '100%', padding: '8px 8px 8px 36px', borderRadius: '8px', border: 'none', backgroundColor: '#f1f3f4', fontSize: '13px' }}
                                         />
-                                        모두 선택
-                                    </label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        {!isReadOnly && (
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                                onChange={handleSelectAll}
+                                                style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+                                            />
+                                            모두 선택
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            {!isReadOnly && (
+                                                <button
+                                                    onClick={handleSync}
+                                                    title="동기화 (ArangoDB)"
+                                                    disabled={isSyncing}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: isSyncing ? 'wait' : 'pointer',
+                                                        color: syncStatus !== 'SYNCED' ? '#d93025' : '#5f6368', // Red if sync needed, else Grey
+                                                        padding: '4px',
+                                                        opacity: isSyncing ? 0.6 : 1
+                                                    }}
+                                                >
+                                                    <RefreshCw size={16} className={isSyncing ? "spin-animation" : ""} />
+                                                </button>
+                                            )}
                                             <button
-                                                onClick={handleSync}
-                                                title="동기화 (ArangoDB)"
-                                                disabled={isSyncing}
+                                                onClick={() => handleTabChange('graph')}
+                                                disabled={selectedDocumentIds.length === 0}
+                                                title="지식 그래프"
                                                 style={{
                                                     background: 'none',
                                                     border: 'none',
-                                                    cursor: isSyncing ? 'wait' : 'pointer',
-                                                    color: isSyncNeeded ? '#d93025' : '#5f6368', // Red if needed, else Grey
-                                                    padding: '4px',
-                                                    opacity: isSyncing ? 0.6 : 1
+                                                    cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
+                                                    color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
+                                                    padding: '4px'
                                                 }}
                                             >
-                                                <RefreshCw size={16} className={isSyncing ? "spin-animation" : ""} />
+                                                <Network size={16} />
                                             </button>
-                                        )}
-                                        <button
-                                            onClick={() => handleTabChange('graph')}
-                                            disabled={selectedDocumentIds.length === 0}
-                                            title="지식 그래프"
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
-                                                color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
-                                                padding: '4px'
-                                            }}
-                                        >
-                                            <Network size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleTabChange('dictionary')}
-                                            disabled={selectedDocumentIds.length === 0}
-                                            title="사전"
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
-                                                color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
-                                                padding: '4px'
-                                            }}
-                                        >
-                                            <Book size={16} />
-                                        </button>
+                                            <button
+                                                onClick={() => handleTabChange('dictionary')}
+                                                disabled={selectedDocumentIds.length === 0}
+                                                title="사전"
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: selectedDocumentIds.length > 0 ? 'pointer' : 'not-allowed',
+                                                    color: selectedDocumentIds.length > 0 ? '#d93025' : '#ccc',
+                                                    padding: '4px'
+                                                }}
+                                            >
+                                                <Book size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="source-list">
-                                {documents.length === 0 ? (
-                                    <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
-                                        등록된 문서가 없습니다.<br />자료를 추가해보세요.
-                                    </div>
-                                ) : (
-                                    documents.map(doc => (
-                                        <DocumentSourceItem
-                                            key={doc.id}
-                                            document={doc}
-                                            progress={progressMap[doc.id]} // Pass polling status
-                                            isChecked={selectedDocumentIds.includes(doc.id)}
-                                            onCheckChange={handleCheckDocument}
-                                            onSelect={() => {/* Maybe preview? */ }}
-                                            onRename={handleRenameDocument}
-                                            onDelete={handleDeleteDocument}
-                                            readOnly={isReadOnly}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="vertical-text">SOURCE</div>
-                    )}
-                </div>
-            </div>
-
-            {/* Center Panel: Content */}
-            <div className="panel panel-center">
-                <div className="tabs-header">
-                    <button
-                        className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('chat')}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <MessageSquare size={16} /> 채팅
-                        </div>
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'graph' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('graph')}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <Network size={16} /> 지식 그래프
-                        </div>
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'dictionary' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('dictionary')}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <Book size={16} /> 사전
-                        </div>
-                    </button>
+                                <div className="source-list">
+                                    {documents.length === 0 ? (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
+                                            등록된 문서가 없습니다.<br />자료를 추가해보세요.
+                                        </div>
+                                    ) : (
+                                        documents.map(doc => (
+                                            <DocumentSourceItem
+                                                key={doc.id}
+                                                document={doc}
+                                                progress={progressMap[doc.id]} // Pass polling status
+                                                isChecked={selectedDocumentIds.includes(doc.id)}
+                                                onCheckChange={handleCheckDocument}
+                                                onSelect={() => {/* Maybe preview? */ }}
+                                                onRename={handleRenameDocument}
+                                                onDelete={handleDeleteDocument}
+                                                readOnly={isReadOnly}
+                                            />
+                                        ))
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="vertical-text">SOURCE</div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="tab-content">
-                    {activeTab === 'chat' && (
-                        <div className="chat-container">
-                            <div className="chat-messages">
-                                {messages.length === 0 && notebook && (
-                                    <div className="notebook-welcome-header">
-                                        <div className="workspace-icon-large" style={{ fontSize: '48px', marginBottom: '16px' }}>
-                                            {notebook.icon || '📄'}
-                                        </div>
-                                        <h1 className="workspace-title" style={{ fontSize: '32px', fontWeight: '400', color: '#202124', marginBottom: '8px', lineHeight: '1.2' }}>
-                                            {notebook.name || 'Untitled notebook'}
-                                        </h1>
-                                        <div className="workspace-meta" style={{ fontSize: '13px', color: '#5f6368', marginBottom: '24px' }}>
-                                            소스 {documents.length}개
-                                        </div>
-                                        {notebook.description && (
-                                            <div className="workspace-description" style={{ fontSize: '16px', color: '#3c4043', lineHeight: '1.6', maxWidth: '800px' }}>
-                                                {notebook.description}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {messages.map((msg, idx) => (
-                                    <div key={idx} className={`message ${msg.role}`} style={{
-                                        display: 'flex', flexDirection: 'column',
-                                        alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                                        marginBottom: '16px'
-                                    }}>
-                                        <div style={{
-                                            maxWidth: '80%', padding: '12px 16px', borderRadius: '12px',
-                                            backgroundColor: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5',
-                                            color: '#333', fontSize: '14px', lineHeight: '1.5'
+                {/* Center Panel: Content */}
+                <div className="panel panel-center">
+                    <div className="tabs-header">
+                        <button
+                            className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('chat')}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                <MessageSquare size={16} /> 채팅
+                            </div>
+                        </button>
+                        <button
+                            className={`tab-btn ${activeTab === 'graph' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('graph')}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                <Network size={16} /> 지식 그래프
+                            </div>
+                        </button>
+                        <button
+                            className={`tab-btn ${activeTab === 'dictionary' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('dictionary')}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                <Book size={16} /> 사전
+                            </div>
+                        </button>
+                    </div>
+
+                    <div className="tab-content">
+                        {activeTab === 'chat' && (
+                            <div className="chat-container">
+                                <div className="chat-messages">
+                                    {messages.map((msg, idx) => (
+                                        <div key={idx} className={`message ${msg.role}`} style={{
+                                            display: 'flex', flexDirection: 'column',
+                                            alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                            marginBottom: '16px'
                                         }}>
-                                            {msg.content}
+                                            <div style={{
+                                                maxWidth: '80%', padding: '12px 16px', borderRadius: '12px',
+                                                backgroundColor: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5',
+                                                color: '#333', fontSize: '14px', lineHeight: '1.5'
+                                            }}>
+                                                {msg.content}
+                                            </div>
+                                            <span style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
+                                                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
                                         </div>
-                                        <span style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
-                                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                ))}
-                                <div ref={messagesEndRef} />
-                            </div>
-                            <div className="message-input-area">
-                                <textarea
-                                    value={inputMessage}
-                                    onChange={(e) => setInputMessage(e.target.value)}
-                                    onKeyPress={handleKeyPress}
-                                    placeholder="질문을 입력하세요..."
-                                    style={{
-                                        width: '100%', height: '80px', padding: '12px', borderRadius: '8px',
-                                        border: '1px solid #ddd', resize: 'none', fontFamily: 'inherit'
-                                    }}
-                                    disabled={isProcessing}
-                                />
-                                <div style={{ textAlign: 'right', marginTop: '8px' }}>
+                                    ))}
+                                    <div ref={messagesEndRef} />
+                                </div>
+                                <div className="message-input-area" style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                                    <textarea
+                                        value={inputMessage}
+                                        onChange={(e) => setInputMessage(e.target.value)}
+                                        onKeyPress={handleKeyPress}
+                                        placeholder="질문을 입력하세요..."
+                                        style={{
+                                            flex: 1, height: '48px', padding: '12px', borderRadius: '8px',
+                                            border: '1px solid #ddd', resize: 'none', fontFamily: 'inherit'
+                                        }}
+                                        disabled={isProcessing}
+                                    />
                                     <button
                                         onClick={handleSendMessage}
                                         disabled={!inputMessage.trim() || isProcessing}
                                         style={{
-                                            padding: '8px 24px', backgroundColor: '#1a73e8', color: 'white',
-                                            border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isProcessing ? 0.7 : 1
+                                            padding: '12px 24px', height: '48px', backgroundColor: '#1a73e8', color: 'white',
+                                            border: 'none', borderRadius: '8px', cursor: 'pointer', opacity: isProcessing ? 0.7 : 1,
+                                            fontWeight: '500', whiteSpace: 'nowrap'
                                         }}
                                     >
                                         전송
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {activeTab === 'graph' && (
-                        <KnowledgeMapView
-                            workspaceId={id}
-                            documents={documents}
-                            initialSelectedDocIds={selectedDocumentIds}
-                            readOnly={isReadOnly}
-                        />
-                    )}
+                        {activeTab === 'graph' && (
+                            <KnowledgeMapView
+                                workspaceId={id}
+                                documents={documents}
+                                initialSelectedDocIds={selectedDocumentIds}
+                                readOnly={isReadOnly}
+                            />
+                        )}
 
-                    {activeTab === 'dictionary' && (
-                        <DictionaryView
-                            workspaceId={id}
-                            initialSelectedDocIds={selectedDocumentIds}
-                            onUpdate={handleContentUpdate}
-                            readOnly={isReadOnly}
-                        />
-                    )}
+                        {activeTab === 'dictionary' && (
+                            <DictionaryView
+                                workspaceId={id}
+                                initialSelectedDocIds={selectedDocumentIds}
+                                onUpdate={handleContentUpdate}
+                                readOnly={isReadOnly}
+                            />
+                        )}
+                    </div>
                 </div>
+
+                {/* Right Panel: Studio */}
+                <div className={`panel panel-right ${rightSidebarOpen ? '' : 'collapsed'}`}>
+                    <div className="panel-header">
+                        <button className="panel-toggle-btn" onClick={() => setRightSidebarOpen(!rightSidebarOpen)} style={{ marginRight: 'auto' }}>
+                            {rightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+                        </button>
+                        {rightSidebarOpen && <div className="panel-title">스튜디오</div>}
+                    </div>
+                    <div className="panel-body">
+                        {rightSidebarOpen ? (
+                            <>
+                                <div className="studio-item">
+                                    <div className="studio-icon"><Presentation size={20} /></div>
+                                    <div className="studio-info">
+                                        <h4>슬라이드 생성</h4>
+                                        <p>문서를 기반으로 발표 자료 생성</p>
+                                    </div>
+                                    <button className="studio-action-btn" onClick={() => setSlideModalOpen(true)}><Plus size={16} /></button>
+                                </div>
+
+                                <div className="studio-item">
+                                    <div className="studio-icon"><FileBarChart size={20} /></div>
+                                    <div className="studio-info">
+                                        <h4>보고서 작성</h4>
+                                        <p>데이터 분석 및 리포트 작성</p>
+                                    </div>
+                                    <button className="studio-action-btn" onClick={() => setReportModalOpen(true)}><Plus size={16} /></button>
+                                </div>
+
+                                <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>최근 생성물</h4>
+                                    <div style={{ fontSize: '12px', color: '#999', textAlign: 'center', padding: '10px' }}>
+                                        생성된 항목이 없습니다.
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="vertical-text">STUDIO</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Modals */}
+                <AddSourceModal
+                    isOpen={uploadModalOpen}
+                    onClose={() => setUploadModalOpen(false)}
+                    onUploadComplete={handleUploadComplete}
+                    workspaceId={id}
+                />
+
+                <RenameDialog
+                    isOpen={renameDialogOpen}
+                    onClose={() => setRenameDialogOpen(false)}
+                    title="문서 이름 변경"
+                    currentName={documentToRename?.filename || ''}
+                    onConfirm={handleRenameConfirm}
+                />
+
+                <SlideCreationModal
+                    isOpen={slideModalOpen}
+                    onClose={() => setSlideModalOpen(false)}
+                    workspaceId={id}
+                />
+
+                <ReportGenerationModal
+                    isOpen={reportModalOpen}
+                    onClose={() => setReportModalOpen(false)}
+                    workspaceId={id}
+                />
+
             </div>
-
-            {/* Right Panel: Studio */}
-            <div className={`panel panel-right ${rightSidebarOpen ? '' : 'collapsed'}`}>
-                <div className="panel-header">
-                    <button className="panel-toggle-btn" onClick={() => setRightSidebarOpen(!rightSidebarOpen)} style={{ marginRight: 'auto' }}>
-                        {rightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-                    </button>
-                    {rightSidebarOpen && <div className="panel-title">스튜디오</div>}
-                </div>
-                <div className="panel-body">
-                    {rightSidebarOpen ? (
-                        <>
-                            <div className="studio-item">
-                                <div className="studio-icon"><Presentation size={20} /></div>
-                                <div className="studio-info">
-                                    <h4>슬라이드 생성</h4>
-                                    <p>문서를 기반으로 발표 자료 생성</p>
-                                </div>
-                                <button className="studio-action-btn" onClick={() => setSlideModalOpen(true)}><Plus size={16} /></button>
-                            </div>
-
-                            <div className="studio-item">
-                                <div className="studio-icon"><FileBarChart size={20} /></div>
-                                <div className="studio-info">
-                                    <h4>보고서 작성</h4>
-                                    <p>데이터 분석 및 리포트 작성</p>
-                                </div>
-                                <button className="studio-action-btn" onClick={() => setReportModalOpen(true)}><Plus size={16} /></button>
-                            </div>
-
-                            <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>최근 생성물</h4>
-                                <div style={{ fontSize: '12px', color: '#999', textAlign: 'center', padding: '10px' }}>
-                                    생성된 항목이 없습니다.
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="vertical-text">STUDIO</div>
-                    )}
-                </div>
-            </div>
-
-            {/* Modals */}
-            <AddSourceModal
-                isOpen={uploadModalOpen}
-                onClose={() => setUploadModalOpen(false)}
-                onUploadComplete={handleUploadComplete}
-                workspaceId={id}
-            />
-
-            <RenameDialog
-                isOpen={renameDialogOpen}
-                onClose={() => setRenameDialogOpen(false)}
-                title="문서 이름 변경"
-                currentName={documentToRename?.filename || ''}
-                onConfirm={handleRenameConfirm}
-            />
-
-            <SlideCreationModal
-                isOpen={slideModalOpen}
-                onClose={() => setSlideModalOpen(false)}
-                workspaceId={id}
-            />
-
-            <ReportGenerationModal
-                isOpen={reportModalOpen}
-                onClose={() => setReportModalOpen(false)}
-                workspaceId={id}
-            />
-
-        </div>
+        </>
     );
 }
 

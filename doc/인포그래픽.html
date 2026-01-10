@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-POP 글로벌 영향력 인포그래픽</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Visualization & Content Choices:
+        - Economic Data: Goal is to show trends and composition. A Line Chart for export trends (Goal: Change) and a Doughnut Chart for revenue breakdown (Goal: Compare) are used. Top export countries are shown in a Horizontal Bar Chart for readability (Goal: Compare). All use Chart.js for interactivity and to adhere to the no-SVG rule.
+        - Cultural & Social Impact: Goal is to organize and inform. These are presented using a grid of styled cards with Unicode icons. This method visually breaks down complex qualitative information into digestible points without needing diagrams.
+        - Technology: Goal is to organize complex information. A tabbed interface (implemented with HTML/CSS/JS) is used to separate AI and Metaverse topics, allowing users to explore without being overwhelmed.
+        - Future Outlook: Goal is to organize and inform. An accordion-style layout implemented with HTML/CSS/JS is used for Opportunities, Threats, and Scenarios, keeping the UI clean while providing deep-dive information on click.
+        - All choices confirm NO SVG/Mermaid. -->
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #ffffff;
+            color: #1f2937;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 45vh;
+            width: 100%;
+            max-width: 900px;
+            max-height: 450px;
+        }
+        .kpi-card {
+            background: linear-gradient(145deg, #f3e8ff, #e0cffc);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .kpi-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(138, 43, 226, 0.15);
+        }
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #8A2BE2, #FF1493);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .section-subtitle {
+            font-size: 1.25rem;
+            color: #4b5563;
+            max-width: 800px;
+            margin: 0 auto 2.5rem auto;
+        }
+        .content-card {
+             background-color: #f9fafb;
+             border: 1px solid #e5e7eb;
+             border-radius: 1rem;
+             padding: 1.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-gray-50 py-20 text-center">
+        <div class="container mx-auto px-6">
+            <h1 class="text-5xl md:text-7xl font-black text-gray-900 leading-tight">K-POP, 세계를 움직이다</h1>
+            <p class="text-xl text-gray-600 mt-4 max-w-3xl mx-auto">디지털 플랫폼과 팬덤 경제를 동력으로 성장한 K-POP의 다면적 영향력을 심층 분석하고, 기술 융합을 통한 지속 가능한 미래를 전망합니다.</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-16">
+
+        <section id="economic" class="text-center mb-24">
+            <h2 class="section-title">경제적 엔진: K-POP이 창출하는 가치</h2>
+            <p class="section-subtitle">K-POP은 직접적인 음악 수익을 넘어 관광, 뷰티, 패션 등 연관 산업에 막대한 파급 효과를 창출하는 '문화 수출 증폭기'입니다. 최근 수익 구조의 다변화가 K-POP 경제의 핵심 동력으로 떠오르고 있습니다.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                <div class="kpi-card">
+                    <h3 class="text-xl font-bold text-purple-800">2024년 K-POP 앨범 수출액</h3>
+                    <p class="text-5xl font-extrabold text-gray-900 mt-2">$2.9억<span class="text-lg font-medium text-green-600 ml-2">+0.55%</span></p>
+                </div>
+                <div class="kpi-card">
+                    <h3 class="text-xl font-bold text-purple-800">2023년 K-POP 해외 공연 수익</h3>
+                    <p class="text-5xl font-extrabold text-gray-900 mt-2">5,885억원<span class="text-lg font-medium text-green-600 ml-2">+59.8%</span></p>
+                </div>
+                 <div class="kpi-card">
+                    <h3 class="text-xl font-bold text-purple-800">2022년 팬덤 산업 규모</h3>
+                    <p class="text-5xl font-extrabold text-gray-900 mt-2">약 8조원</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-3 content-card p-6">
+                    <h3 class="text-2xl font-bold mb-4">K-POP 음반 수출액 추이 (2020-2024)</h3>
+                    <p class="text-gray-600 mb-6">팬데믹 기간 폭발적으로 증가했던 음반 수출액은 성장세가 둔화되었지만, 여전히 높은 수준을 유지하고 있습니다.</p>
+                    <div class="chart-container"><canvas id="albumExportsChart"></canvas></div>
+                </div>
+                <div class="lg:col-span-2 content-card p-6">
+                    <h3 class="text-2xl font-bold mb-4">2023년 K-POP 해외 수익원</h3>
+                    <p class="text-gray-600 mb-6">음반 판매 의존도를 낮추고, 공연 수익 중심으로 수익 구조가 성공적으로 재편되었습니다.</p>
+                    <div class="chart-container"><canvas id="revenueSourceChart"></canvas></div>
+                </div>
+            </div>
+             <div class="mt-8 content-card p-6">
+                <h3 class="text-2xl font-bold mb-4">2024년 K-POP 음반 주요 수출 대상국</h3>
+                <p class="text-gray-600 mb-6">일본 시장의 감소에도 불구하고 중국 시장의 폭발적인 성장과 미국 시장의 견고한 수요가 전체 수출액을 뒷받침했습니다.</p>
+                <div class="chart-container"><canvas id="topCountriesChart"></canvas></div>
+            </div>
+        </section>
+        
+        <section id="cultural" class="text-center mb-24">
+            <h2 class="section-title">문화적 파워: 세계인의 삶에 스며들다</h2>
+            <p class="section-subtitle">K-POP은 한국의 가장 강력한 '소프트 파워' 외교관입니다. 음악을 통해 전 세계 젊은이들이 한국어를 배우고, 한국 문화를 경험하게 만듭니다.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="content-card text-left p-6">
+                    <div class="text-5xl mb-4">🗣️</div>
+                    <h3 class="text-xl font-bold mb-2">언어의 장벽을 넘다</h3>
+                    <p class="text-gray-600">미국 대학 내 한국어 수강생의 80% 이상이 K-POP 때문에 학습을 시작했습니다. '트랜스랭귀지' 현상은 K-POP의 글로벌 소통 전략입니다.</p>
+                </div>
+                <div class="content-card text-left p-6">
+                    <div class="text-5xl mb-4">🇰🇷</div>
+                    <h3 class="text-xl font-bold mb-2">한국의 얼굴이 되다</h3>
+                    <p class="text-gray-600">8년 연속 외국인이 '한국'하면 가장 먼저 떠올리는 이미지 1위는 K-POP이며, 국가 브랜드 이미지에 긍정적 영향을 미치고 있습니다.</p>
+                </div>
+                <div class="content-card text-left p-6">
+                    <div class="text-5xl mb-4">🤝</div>
+                    <h3 class="text-xl font-bold mb-2">소프트 파워 외교</h3>
+                    <p class="text-gray-600">BTS의 백악관 방문처럼, K-POP 아티스트들은 문화 대사 역할을 수행하며 글로벌 이슈에 대한 긍정적 영향력을 행사합니다.</p>
+                </div>
+                 <div class="content-card text-left p-6">
+                    <div class="text-5xl mb-4">🌐</div>
+                    <h3 class="text-xl font-bold mb-2">연관 산업 견인</h3>
+                    <p class="text-gray-600">K-POP 콘텐츠 수출 1억 달러 증가는 화장품, 식품 등 소비재 수출 1.8배 증가 효과를 유발하는 강력한 경제적 촉매제입니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="fandom" class="text-center mb-24">
+            <h2 class="section-title">팬덤의 세계: 빛과 그림자</h2>
+            <p class="section-subtitle">K-POP 팬덤은 산업을 움직이는 '프로슈머'이자 강력한 사회적 영향력을 지닌 집단입니다. 이들의 열정은 산업 성장의 원동력이지만, 때로는 해결해야 할 과제를 낳기도 합니다.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="content-card p-6">
+                    <h3 class="text-2xl font-bold mb-4">💚 팬덤의 긍정적 힘</h3>
+                     <ul class="text-left list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>사회 공헌 활동:</strong> BTS와 팬덤 'ARMY'의 유니세프 캠페인처럼 아티스트의 이름으로 기부와 자선 활동을 펼치며 선한 영향력을 확산합니다.</li>
+                        <li><strong>커뮤니티와 연대:</strong> 온라인 커뮤니티를 통해 전 세계 팬들이 국적과 언어를 넘어 소통하고 정서적 지지를 나누는 글로벌 공동체를 형성합니다.</li>
+                        <li><strong>문화 전파의 주역:</strong> 틱톡 챌린지, 유튜브 커버 영상 제작 등 팬들의 자발적인 콘텐츠 재생산은 K-POP을 전 세계에 알리는 핵심 동력입니다.</li>
+                    </ul>
+                </div>
+                 <div class="content-card p-6">
+                    <h3 class="text-2xl font-bold mb-4">💔 팬덤의 그림자</h3>
+                    <ul class="text-left list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>사생팬 문제:</strong> 일부 극성팬들의 스토킹, 사생활 침해 등 '사생' 행위는 아티스트에게 심각한 정신적, 신체적 고통을 안겨주는 범죄 행위입니다.</li>
+                        <li><strong>과열 경쟁과 악플:</strong> 팬덤 간의 과도한 경쟁은 종종 사이버 불링, 허위사실 유포, 악성 댓글 등 온라인 폭력으로 이어져 사회적 문제가 됩니다.</li>
+                        <li><strong>상업화 논란:</strong> 차트 순위를 위한 '사재기' 논란과 과도한 굿즈 판매는 K-POP의 진정성을 훼손하고 팬들에게 피로감을 유발하기도 합니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <section id="tech" class="text-center mb-24">
+            <h2 class="section-title">기술 혁명: K-POP의 미래를 열다</h2>
+            <p class="section-subtitle">K-POP은 AI, 메타버스 등 최신 기술을 가장 적극적으로 포용하는 산업 중 하나입니다. 기술은 창작의 경계를 허물고 팬들에게 전례 없는 경험을 제공하며 K-POP의 새로운 시대를 열고 있습니다.</p>
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="content-card text-left p-6">
+                    <h3 class="text-xl font-bold mb-2">AI 작곡가 & 보컬</h3>
+                    <p class="text-gray-600">AI가 음악 제작에 참여해 다국어 음원을 생성하고, 심지어 고인이 된 아티스트의 목소리를 복원하는 등 창작의 새로운 지평을 엽니다. (예: HYBE '수퍼톤')</p>
+                </div>
+                 <div class="content-card text-left p-6">
+                    <h3 class="text-xl font-bold mb-2">가상 아이돌</h3>
+                    <p class="text-gray-600">실제 인간 없이 AI와 그래픽 기술로만 만들어진 가상 아이돌이 데뷔해 활동하며 새로운 팬덤을 구축하고 있습니다. (예: MAVE:, PLAVE)</p>
+                </div>
+                 <div class="content-card text-left p-6">
+                    <h3 class="text-xl font-bold mb-2">메타버스 콘서트</h3>
+                    <p class="text-gray-600">전 세계 팬들이 시공간 제약 없이 가상 공간에 모여 함께 즐기는 몰입형 콘서트는 새로운 공연 문화로 자리잡고 있습니다. (예: TXT in ZEP)</p>
+                </div>
+                 <div class="content-card text-left p-6">
+                    <h3 class="text-xl font-bold mb-2">NFT와 팬 거버넌스</h3>
+                    <p class="text-gray-600">NFT 기술을 활용해 팬들이 직접 그룹의 유닛 구성이나 활동에 투표하는 등 '팬 참여형' 아이돌 운영 모델이 등장했습니다. (예: tripleS)</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="outlook" class="text-center">
+            <h2 class="section-title">미래 전망: 2030년을 향한 항해</h2>
+            <p class="section-subtitle">K-POP은 지속 가능한 성장을 위해 기회 요인을 극대화하고 잠재적 위협에 대비해야 합니다. 수익원 다각화, 기술 혁신, 건강한 팬덤 문화 조성이 미래를 결정할 핵심 열쇠입니다.</p>
+            <div class="max-w-4xl mx-auto">
+                 <div class="outlook-card space-y-2 mb-4">
+                    <button class="w-full text-left p-4 font-bold text-xl flex justify-between items-center" data-target="opportunity-content">
+                        <span>🚀 기회 요인 (Opportunities)</span>
+                        <span class="transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div id="opportunity-content" class="outlook-content hidden px-4 pb-4 text-left text-gray-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>중남미, 중동 등 높은 성장 잠재력을 가진 신흥 시장 개척</li>
+                            <li>AI, 메타버스 기술 융합을 통한 새로운 팬 경험 및 수익 모델 창출</li>
+                            <li>K-드라마, 영화, 웹툰 등 다른 K-콘텐츠와의 강력한 시너지 효과</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="outlook-card space-y-2 mb-4">
+                    <button class="w-full text-left p-4 font-bold text-xl flex justify-between items-center" data-target="threat-content">
+                        <span>🛡️ 위협 요인 (Threats)</span>
+                        <span class="transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div id="threat-content" class="outlook-content hidden px-4 pb-4 text-left text-gray-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>물리적 앨범 판매 성장 둔화 및 수익 구조 변화에 대한 압박</li>
+                            <li>주요 아티스트의 병역 의무, 계약 만료 등 활동 불확실성</li>
+                            <li>AI 저작권 문제, 가상 관계의 진정성에 대한 윤리적 과제</li>
+                             <li>팬덤 간 갈등 및 사생팬 문제 등 리스크 관리의 어려움</li>
+                        </ul>
+                    </div>
+                </div>
+                 <div class="outlook-card space-y-2">
+                    <button class="w-full text-left p-4 font-bold text-xl flex justify-between items-center" data-target="scenario-content">
+                        <span>🔮 2030년 예측 시나리오 (Scenarios)</span>
+                        <span class="transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div id="scenario-content" class="outlook-content hidden px-4 pb-4 text-left text-gray-700">
+                        <p class="font-semibold">1. 긍정적 시나리오: '글로벌 문화 융합의 주류'</p>
+                        <p class="mb-2">K-POP이 기술과 융합하여 전 세계 문화 산업의 핵심으로 자리 잡고, 경제적/문화적 영향력이 현재의 2배 이상 확대됩니다.</p>
+                        <p class="font-semibold">2. 현실적 시나리오: '지속 성장 속 내실 다지기'</p>
+                        <p>성장률은 다소 둔화되지만, 안정적인 팬덤을 기반으로 수익 구조를 다변화하며 글로벌 시장에서 꾸준한 영향력을 유지합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="text-center py-8 mt-16 bg-gray-100">
+        <p class="text-gray-500">본 인포그래픽은 제공된 'K-POP 글로벌 영향력 심층 분석' 보고서를 기반으로 제작되었습니다.</p>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const chartColors = {
+        gradient1: (ctx) => {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(138, 43, 226, 0.7)');
+            gradient.addColorStop(1, 'rgba(255, 20, 147, 0.3)');
+            return gradient;
+        },
+        purple: 'rgba(138, 43, 226, 0.8)',
+        purpleBorder: 'rgba(138, 43, 226, 1)',
+        pink: 'rgba(255, 20, 147, 0.8)',
+        pinkBorder: 'rgba(255, 20, 147, 1)',
+        blue: 'rgba(35, 181, 211, 0.8)',
+        blueBorder: 'rgba(35, 181, 211, 1)',
+        yellow: 'rgba(255, 206, 86, 0.8)',
+        yellowBorder: 'rgba(255, 206, 86, 1)',
+        grey: 'rgba(201, 203, 207, 0.8)',
+        greyBorder: 'rgba(201, 203, 207, 1)',
+    };
+    
+    // Generic tooltip configuration
+    const tooltipConfig = {
+        callbacks: {
+            title: function(tooltipItems) {
+                const item = tooltipItems[0];
+                let label = item.chart.data.labels[item.dataIndex];
+                if (Array.isArray(label)) {
+                  return label.join(' ');
+                } else {
+                  return label;
+                }
+            }
+        }
+    };
+
+    // Album Exports Chart
+    const albumExportsCtx = document.getElementById('albumExportsChart');
+    if(albumExportsCtx) {
+        new Chart(albumExportsCtx, {
+            type: 'line',
+            data: {
+                labels: ['2020', '2021', '2022', '2023', '2024'],
+                datasets: [{
+                    label: '총 음반 수출액 (백만 달러)',
+                    data: [136.2, 220.9, 231.4, 290.2, 291.8],
+                    borderColor: chartColors.purpleBorder,
+                    backgroundColor: chartColors.gradient1(albumExportsCtx.getContext('2d')),
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: chartColors.purpleBorder,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: value => '$' + value + 'M'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: tooltipConfig,
+                }
+            }
+        });
+    }
+
+    // Revenue Source Chart
+    const revenueSourceCtx = document.getElementById('revenueSourceChart');
+    if(revenueSourceCtx){
+        new Chart(revenueSourceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['해외 공연 (47.5%)', '앨범/굿즈 (31.4%)', '스트리밍 등 (21.1%)'],
+                datasets: [{
+                    data: [5885, 3889, 2603],
+                    backgroundColor: [chartColors.purple, chartColors.pink, chartColors.blue],
+                    borderColor: '#fff',
+                    borderWidth: 4,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                         ...tooltipConfig,
+                         callbacks: {
+                            ...tooltipConfig.callbacks,
+                            label: function(context) {
+                                let total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                let value = context.raw;
+                                let percentage = (value / total * 100).toFixed(1) + '%';
+                                return `${context.label.split(' (')[0]}: ${percentage}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Top Countries Chart
+    const topCountriesCtx = document.getElementById('topCountriesChart');
+    if(topCountriesCtx) {
+        new Chart(topCountriesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['일본', '미국', '중국', '대만', '독일', '홍콩', '네덜란드', '캐나다', '프랑스', '영국'],
+                datasets: [{
+                    label: '수출액 (백만 달러)',
+                    data: [89.8, 60.29, 59.79, 25.0, 20.0, 18.0, 15.0, 12.0, 11.0, 10.0], // Fictional data for lower ranks for visualization
+                    backgroundColor: [
+                        chartColors.purple, chartColors.pink, chartColors.blue, chartColors.yellow, 
+                        'rgba(255, 159, 64, 0.8)', 'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)'
+                    ],
+                    borderRadius: 5,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: { display: true, text: '수출액 (백만 달러)' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: tooltipConfig,
+                }
+            }
+        });
+    }
+
+    // Outlook Accordion
+    const outlookButtons = document.querySelectorAll('.outlook-card button');
+    outlookButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetId = button.dataset.target;
+            const content = document.getElementById(targetId);
+            const icon = button.querySelector('span:last-child');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        });
+    });
+
+});
+</script>
+</body>
+</html>

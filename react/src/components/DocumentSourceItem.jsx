@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { FileText, Edit2, Trash2 } from 'lucide-react';
 import './DocumentSourceItem.css';
 
 function DocumentSourceItem({
@@ -114,7 +115,7 @@ function DocumentSourceItem({
             {/* 문서 정보 (클릭 시 상세 보기) */}
             <div className="document-content" onClick={onSelect}>
                 <div className="source-header">
-                    <span className="source-icon">📄</span>
+                    <FileText size={16} className="source-icon" />
                     <div className="source-info">
                         <div className="source-name" title={document.filename}>
                             {document.filename}
@@ -171,13 +172,15 @@ function DocumentSourceItem({
                                 className="menu-item"
                                 onClick={() => handleMenuItemClick('rename')}
                             >
-                                제목수정
+                                <Edit2 size={14} />
+                                <span>제목수정</span>
                             </button>
                             <button
                                 className="menu-item delete"
                                 onClick={() => handleMenuItemClick('delete')}
                             >
-                                삭제
+                                <Trash2 size={14} />
+                                <span>삭제</span>
                             </button>
                         </div>
                     )}

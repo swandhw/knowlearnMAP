@@ -17,13 +17,14 @@
 /* 체크박스 */
 .document-checkbox {
   flex-shrink: 0;
-  padding: 2px;
+  padding: 0 2px;
+  display: flex;
   cursor: pointer;
 }
 
 .document-checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 13px;
+  height: 13px;
   cursor: pointer;
   margin: 0;
 }
@@ -78,7 +79,9 @@
 }
 
 .menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 3px;
   width: 100%;
   padding: 10px 16px;
   border: none;
@@ -106,12 +109,12 @@
 .source-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 4px;
 }
 
 .source-icon {
-  font-size: 24px;
   flex-shrink: 0;
+  color: #666;
 }
 
 .source-info {
@@ -120,9 +123,10 @@
 }
 
 .source-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: #333;
+  line-height: 1.2;
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;

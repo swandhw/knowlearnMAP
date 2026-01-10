@@ -44,13 +44,14 @@
 /* Main Content */
 .main-content {
   flex: 1;
-  padding: 32px 24px;
+  padding: 0 24px 32px 24px;
   width: 94%;
   max-width: none;
   margin: 0 auto;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  background-color: transparent;
 }
 
 /* Ensure GNB items don't wrap and have consistent alignment */
@@ -63,6 +64,25 @@
   /* Don't shrink menu if screen is small */
   margin-left: 150px;
   /* Added spacing */
+}
+
+.menu-item {
+  padding: 18px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.menu-item:hover {
+  color: #333;
+}
+
+.menu-item.active {
+  color: #1a73e8;
+  border-bottom-color: #1a73e8;
 }
 
 /* Right side icons/info */

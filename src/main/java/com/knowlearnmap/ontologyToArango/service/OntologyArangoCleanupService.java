@@ -229,13 +229,15 @@ public class OntologyArangoCleanupService {
     }
 
     /**
-     * Workspace 삭제 시 모든 ArangoDB 컬렉션 삭제
+     * Workspace 삭제 시 해당 워크스페이스의 ArangoDB 데이터만 삭제
+     * (ObjectNodes, RelationNodes, KnowlearnEdges만 삭제)
      * 
-     * @param dbName ArangoDB 데이터베이스 이름
+     * @param dbName      ArangoDB 데이터베이스 이름
+     * @param workspaceId 삭제할 워크스페이스 ID
      */
-    public void deleteWorkspaceCollections(String dbName) {
+    public void deleteWorkspaceData(String dbName, Long workspaceId) {
         if (dbName == null || dbName.isEmpty()) {
-            log.warn("ArangoDB name is null, skipping workspace collections cleanup");
+            log.warn("ArangoDB name is null, skipping workspace data cleanup");
             return;
         }
 
@@ -246,41 +248,50 @@ public class OntologyArangoCleanupService {
                 return;
             }
 
-            log.info("Deleting all workspace collections from ArangoDB: dbName={}", dbName);
+            log.info("Deleting workspace {} data from ArangoDB: dbName={}", workspaceId, dbName);
 
-            // Delete all ontology collections
-            String[] collections = {
-                    "ontology_knowlearn_reference",
-                    "ontology_knowlearn_dict",
-                    "ontology_knowlearn_synonyms",
-                    "ontology_object_reference",
-                    "ontology_object_dict",
-                    "ontology_relation_reference",
-                    "ontology_relation_dict",
-                    "KnowlearnNodes",
-                    "KnowlearnEdges"
-            };
+            Map<String, Object> bindVars = new HashMap<>();
+            bindVars.put("workspaceId", workspaceId);
 
-            for (String collectionName : collections) {
-                try {
-                    ArangoCollection collection = db.collection(collectionName);
-                    if (collection.exists()) {
-                        collection.drop();
-                        log.info("Dropped collection: {}", collectionName);
-                    } else {
-                        log.debug("Collection {} does not exist, skipping", collectionName);
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to drop collection {}: {}", collectionName, e.getMessage());
-                    // Continue with other collections
-                }
-            }
+            // Delete ObjectNodes for this workspace
+            deleteFromCollection(db, "ObjectNodes", workspaceId, bindVars);
 
-            log.info("All workspace collections deleted successfully from ArangoDB");
+            // Delete RelationNodes for this workspace
+            deleteFromCollection(db, "RelationNodes", workspaceId, bindVars);
+
+            // Delete KnowlearnEdges for this workspace
+            deleteFromCollection(db, "KnowlearnEdges", workspaceId, bindVars);
+
+            log.info("Workspace {} data deleted successfully from ArangoDB", workspaceId);
 
         } catch (Exception e) {
-            log.error("Failed to delete workspace collections from ArangoDB: dbName={}", dbName, e);
+            log.error("Failed to delete workspace {} data from ArangoDB: dbName={}", workspaceId, dbName, e);
             // Don't throw - allow workspace deletion to proceed
+        }
+    }
+
+    /**
+     * 특정 컬렉션에서 workspace_id에 해당하는 데이터 삭제
+     */
+    private void deleteFromCollection(ArangoDatabase db, String collectionName, Long workspaceId,
+            Map<String, Object> bindVars) {
+        try {
+            ArangoCollection collection = db.collection(collectionName);
+            if (!collection.exists()) {
+                log.debug("Collection {} does not exist, skipping", collectionName);
+                return;
+            }
+
+            String aql = "FOR doc IN " + collectionName + " " +
+                    "FILTER doc.workspace_id == @workspaceId " +
+                    "REMOVE doc IN " + collectionName;
+
+            db.query(aql, Void.class, bindVars, null);
+            log.info("Deleted workspace {} data from collection {}", workspaceId, collectionName);
+
+        } catch (Exception e) {
+            log.error("Failed to delete from collection {}: {}", collectionName, e.getMessage());
+            // Continue with other collections
         }
     }
 }

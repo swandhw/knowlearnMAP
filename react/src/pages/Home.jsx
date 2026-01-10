@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Edit2, Trash2 } from 'lucide-react';
 import { workspaceApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
@@ -314,19 +315,15 @@ function Home() {
                                                         className="menu-item"
                                                         onClick={(e) => handleRename(e, notebook.id)}
                                                     >
-                                                        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                                            <path d="M2 12.88V16h3.12L14.06 7.06l-3.12-3.12L2 12.88zM16.71 4.71l-2.42-2.42a1 1 0 0 0-1.42 0l-1.83 1.83 3.12 3.12 1.83-1.83a1 1 0 0 0 0-1.42l.72-.72z" />
-                                                        </svg>
-                                                        제목 수정
+                                                        <Edit2 size={14} />
+                                                        <span>제목 수정</span>
                                                     </button>
                                                     <button
                                                         className="menu-item delete"
                                                         onClick={(e) => handleDelete(e, notebook.id)}
                                                     >
-                                                        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                                            <path d="M6 16c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V6H6v10zm1-9h4v9H7V7zm6.5-5H11L10.5 1h-3l-.5 1H4.5v2h9V2z" />
-                                                        </svg>
-                                                        삭제
+                                                        <Trash2 size={14} />
+                                                        <span>삭제</span>
                                                     </button>
                                                 </div>
                                             )}
@@ -359,13 +356,15 @@ function Home() {
                                                     className="menu-item"
                                                     onClick={(e) => handleRename(e, notebook.id)}
                                                 >
-                                                    제목 수정
+                                                    <Edit2 size={14} />
+                                                    <span>제목 수정</span>
                                                 </button>
                                                 <button
                                                     className="menu-item delete"
                                                     onClick={(e) => handleDelete(e, notebook.id)}
                                                 >
-                                                    삭제
+                                                    <Trash2 size={14} />
+                                                    <span>삭제</span>
                                                 </button>
                                             </div>
                                         )}

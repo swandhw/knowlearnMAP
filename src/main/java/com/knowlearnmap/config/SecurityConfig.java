@@ -30,7 +30,8 @@ public class SecurityConfig {
                                 "/*.json",
                                 "/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/api/graph/**",
                                 "/api/dictionary/**", "/api/documents/**", "/api/pipeline/**", "/api/ontology/**",
-                                "/api/v1/prompts/**", "/actuator/**", "/api/workspaces/**", "/api/domains/**",
+                                "/api/v1/prompts/**", "/api/chat/**", "/actuator/**", "/api/workspaces/**",
+                                "/api/domains/**",
                                 "/api/upgrade/**")
                         .permitAll()
                         .anyRequest().authenticated())
