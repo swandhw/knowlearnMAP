@@ -57,6 +57,9 @@ const Login = () => {
     return (
         <div className="login-container">
             <div className="login-card">
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                    <img src="/knowlearn_logo.png" alt="KNOWLEARN MAP" style={{ height: '48px' }} />
+                </div>
                 <h1>SIGN IN</h1>
                 {error && <div className="error-message">{error}</div>}
                 <form onSubmit={handleSubmit}>

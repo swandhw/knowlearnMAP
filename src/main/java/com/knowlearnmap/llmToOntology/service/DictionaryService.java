@@ -61,6 +61,14 @@ public class DictionaryService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<DictionaryDto> searchConcepts(Long workspaceId, String keyword,
+            org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<OntologyObjectDict> page = objectDictRepository.searchByKeyword(
+                workspaceId, keyword, pageable);
+        return page.map(this::convertToDto);
+    }
+
     private DictionaryDto convertToDto(OntologyObjectDict obj) {
         List<OntologyObjectSynonyms> synonyms = objectSynonymsRepository.findByObjectId(obj.getId());
         String synStr = synonyms.stream().map(OntologyObjectSynonyms::getSynonym).collect(Collectors.joining(", "));
@@ -103,6 +111,14 @@ public class DictionaryService {
                     .findByWorkspaceIdAndDocumentIds(workspaceId, documentIds, pageable);
             return page.map(this::convertRelToDto);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<DictionaryDto> searchRelations(Long workspaceId, String keyword,
+            org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<OntologyRelationDict> page = relationDictRepository.searchByKeyword(
+                workspaceId, keyword, pageable);
+        return page.map(this::convertRelToDto);
     }
 
     private DictionaryDto convertRelToDto(OntologyRelationDict rel) {
@@ -419,7 +435,8 @@ public class DictionaryService {
     }
 
     @Transactional
-    public void mergeRelations(Long sourceId, Long targetId, Long workspaceId, String username) {
+    public void mergeRelations(Long sourceId, Long targetId, Long workspaceId, boolean keepSourceAsSynonym,
+            String username) {
         checkPermission(workspaceId, username);
         if (sourceId.equals(targetId)) {
             throw new IllegalArgumentException("Cannot merge a relation into itself.");
@@ -448,7 +465,9 @@ public class DictionaryService {
         }
 
         // Add Source Name as Synonym to Target
-        addRelationAsSynonym(sourceRelation, targetRelation, workspaceId);
+        if (keepSourceAsSynonym) {
+            addRelationAsSynonym(sourceRelation, targetRelation, workspaceId);
+        }
 
         // 3. Update Triples using this relation
         List<OntologyKnowlearnType> triplesUsingSource = knowlearnTypeRepository
@@ -536,7 +555,7 @@ public class DictionaryService {
                     targetTriple, sourceRef.getDocumentId(), sourceRef.getChunkId());
 
             if (exists) {
-                knowlearnReferenceRepository.deleteByDocumentId(sourceRef.getDocumentId());
+                knowlearnReferenceRepository.delete(sourceRef);
             } else {
                 sourceRef.setOntologyKnowlearnType(targetTriple);
                 knowlearnReferenceRepository.save(sourceRef);

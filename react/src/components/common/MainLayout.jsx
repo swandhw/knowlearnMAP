@@ -21,8 +21,7 @@ function MainLayout() {
       <header className="gnb-header">
         <div className="gnb-left">
           <Link to="/workspaces" className="site-logo">
-            <LayoutGrid size={24} color="#1a73e8" />
-            <span>KNOWLEARN MAP</span>
+            <img src="/knowlearn_logo.png" alt="KNOWLEARN MAP" style={{ height: '32px' }} />
           </Link>
         </div>
 

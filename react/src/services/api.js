@@ -18,7 +18,8 @@ const apiCall = async (endpoint, options = {}) => {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
 
         // 백엔드 ApiResponse 포맷 처리
         if (data.success === false) {

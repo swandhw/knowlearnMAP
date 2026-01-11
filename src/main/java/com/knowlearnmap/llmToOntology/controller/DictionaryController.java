@@ -21,7 +21,11 @@ public class DictionaryController {
     public ResponseEntity<org.springframework.data.domain.Page<DictionaryDto>> getConcepts(
             @RequestParam Long workspaceId,
             @RequestParam(required = false) List<Long> documentIds,
+            @RequestParam(required = false) String search,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        if (search != null && !search.trim().isEmpty()) {
+            return ResponseEntity.ok(dictionaryService.searchConcepts(workspaceId, search, pageable));
+        }
         return ResponseEntity.ok(dictionaryService.getConcepts(workspaceId, documentIds, pageable));
     }
 
@@ -29,7 +33,11 @@ public class DictionaryController {
     public ResponseEntity<org.springframework.data.domain.Page<DictionaryDto>> getRelations(
             @RequestParam Long workspaceId,
             @RequestParam(required = false) List<Long> documentIds,
+            @RequestParam(required = false) String search,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        if (search != null && !search.trim().isEmpty()) {
+            return ResponseEntity.ok(dictionaryService.searchRelations(workspaceId, search, pageable));
+        }
         return ResponseEntity.ok(dictionaryService.getRelations(workspaceId, documentIds, pageable));
     }
 
@@ -95,9 +103,14 @@ public class DictionaryController {
         Long sourceId = Long.valueOf(request.get("sourceId").toString());
         Long targetId = Long.valueOf(request.get("targetId").toString());
         Long workspaceId = Long.valueOf(request.get("workspaceId").toString());
-        String mode = request.getOrDefault("mode", "move").toString(); // default to move for safety
 
-        boolean keepSourceAsSynonym = "move".equalsIgnoreCase(mode);
+        boolean keepSourceAsSynonym;
+        if (request.containsKey("keepSourceAsSynonym")) {
+            keepSourceAsSynonym = Boolean.parseBoolean(request.get("keepSourceAsSynonym").toString());
+        } else {
+            String mode = request.getOrDefault("mode", "move").toString();
+            keepSourceAsSynonym = "move".equalsIgnoreCase(mode);
+        }
 
         dictionaryService.mergeConcepts(sourceId, targetId, workspaceId, keepSourceAsSynonym, username);
         return ResponseEntity.ok().build();
@@ -114,7 +127,12 @@ public class DictionaryController {
         Long targetId = Long.valueOf(request.get("targetId").toString());
         Long workspaceId = Long.valueOf(request.get("workspaceId").toString());
 
-        dictionaryService.mergeRelations(sourceId, targetId, workspaceId, username);
+        boolean keepSourceAsSynonym = true;
+        if (request.containsKey("keepSourceAsSynonym")) {
+            keepSourceAsSynonym = Boolean.parseBoolean(request.get("keepSourceAsSynonym").toString());
+        }
+
+        dictionaryService.mergeRelations(sourceId, targetId, workspaceId, keepSourceAsSynonym, username);
         return ResponseEntity.ok().build();
     }
 

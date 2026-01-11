@@ -4,7 +4,7 @@ import { useAlert } from '../context/AlertContext';
 import './KnowledgeGraphModal.css';
 import { API_URL } from '../config/api';
 
-export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, initialSelectedDocIds = [], documents = [] }) {
+export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, initialSelectedDocIds = [], documents = [], overrideData = null }) {
     const { showAlert } = useAlert();
     const [fullGraphData, setFullGraphData] = useState({ nodes: [], links: [] });
     const [graphData, setGraphData] = useState({ nodes: [], links: [] });
@@ -27,6 +27,13 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
     // ...
 
     const fetchGraphData = async (docIds = selectedDocumentIds) => {
+        // [Override] If overrideData is provided (e.g. from Chat), use it directly
+        if (overrideData) {
+            setFullGraphData(overrideData);
+            setGraphData(overrideData);
+            return;
+        }
+
         // [User Requirement] If no document is selected, show nothing.
         if (!docIds || docIds.length === 0) {
             setFullGraphData({ nodes: [], links: [] });
@@ -118,7 +125,7 @@ export default function KnowledgeGraphModal({ isOpen, onClose, workspaceId, init
     useEffect(() => {
         fetchGraphData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDocumentIds]);
+    }, [selectedDocumentIds, overrideData]);
 
     const handleDocumentToggle = (docId) => {
         const newSelected = selectedDocumentIds.includes(docId)

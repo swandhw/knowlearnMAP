@@ -179,8 +179,9 @@ public class DocumentService {
      */
     /**
      * Document 삭제 (Hard Delete - cascade로 pages, chunks도 삭제됨)
+     * REQUIRES_NEW: 독립적인 트랜잭션으로 실행하여 부모 트랜잭션에 영향을 주지 않음
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void deleteDocument(Long documentId, String username) {
         DocumentEntity document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다: " + documentId));

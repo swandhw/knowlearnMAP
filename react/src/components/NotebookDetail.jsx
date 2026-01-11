@@ -11,6 +11,8 @@ import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Message
 import DocumentSourceItem from './DocumentSourceItem';
 import AddSourceModal from './AddSourceModal';
 import KnowledgeMapView from './KnowledgeMapView';
+import KnowledgeGraphModal from './KnowledgeGraphModal';
+import MiniKnowledgeGraph from './MiniKnowledgeGraph';
 import DictionaryView from './DictionaryView';
 import RenameDialog from './RenameDialog';
 import SlideCreationModal from './SlideCreationModal';
@@ -167,6 +169,10 @@ function NotebookDetail() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, fetchDocuments]);
 
+    // --- State: Chat Graph ---
+    const [chatGraphData, setChatGraphData] = useState({ nodes: [], links: [] });
+    const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
+
     // --- Event Handlers: Chat ---
     const handleSendMessage = async (e) => {
         e?.preventDefault();
@@ -176,10 +182,74 @@ function NotebookDetail() {
         setMessages(prev => [...prev, userMsg]);
         setInputMessage('');
         setIsProcessing(true);
+        // Clear previous graph data on new search? Optional. Let's keep it until new results come.
+        // setChatGraphData({ nodes: [], links: [] }); 
 
         try {
             // Call chat API with RAG and ontology search
-            const response = await chatApi.send(id, inputMessage, selectedDocumentIds);
+            // If all documents are selected, pass null to use workspace-level filtering (more efficient)
+            // If partial selection, pass the list of IDs
+            const isAllSelected = documents.length > 0 && selectedDocumentIds.length === documents.length;
+            const documentIdsToSend = isAllSelected ? null : selectedDocumentIds;
+
+            const response = await chatApi.send(id, inputMessage, documentIdsToSend);
+
+            // Process Ontology Results for Graph
+            if (response.ontologyResults && response.ontologyResults.length > 0) {
+                const newNodes = new Map();
+                const newLinks = [];
+
+                response.ontologyResults.forEach(result => {
+                    const meta = result.metadata || {};
+                    if (meta.type === 'Node') {
+                        if (!newNodes.has(meta.id)) {
+                            newNodes.set(meta.id, {
+                                id: meta.id,
+                                name: meta.label || result.content.split(':')[0], // Fallback
+                                group: 'entity',
+                                val: 1
+                            });
+                        }
+                    } else if (meta.type === 'Edge') {
+                        if (meta.source && meta.target) {
+                            newLinks.push({
+                                source: meta.source,
+                                target: meta.target,
+                                label_ko: result.content
+                            });
+
+                            // Ensure valid source/target nodes exist
+                            if (!newNodes.has(meta.source)) {
+                                newNodes.set(meta.source, {
+                                    id: meta.source,
+                                    name: meta.sourceLabel || "Unknown",
+                                    group: 'entity',
+                                    val: 1
+                                });
+                            }
+                            if (!newNodes.has(meta.target)) {
+                                newNodes.set(meta.target, {
+                                    id: meta.target,
+                                    name: meta.targetLabel || "Unknown",
+                                    group: 'entity',
+                                    val: 1
+                                });
+                            }
+                        }
+                    }
+                });
+
+                setChatGraphData({
+                    nodes: Array.from(newNodes.values()),
+                    links: newLinks
+                });
+            } else {
+                // Clear graph if no results? Or keep previous?
+                // User might want to see previous. But if new query has no results, showing old graph is confusing.
+                // Let's clear it if response is successful but empty.
+                // setChatGraphData({ nodes: [], links: [] });
+            }
+
 
             // Format response message with RAG and ontology results
             let responseContent = '';
@@ -193,6 +263,15 @@ function NotebookDetail() {
                         if (result.metadata?.page) {
                             responseContent += ` (p.${result.metadata.page})`;
                         }
+                        if (result.metadata?.chunk_id) {
+                            responseContent += ` [ChunkID: ${result.metadata.chunk_id}]`;
+                        }
+                        if (result.metadata?.document_id) {
+                            responseContent += ` [DocID: ${result.metadata.document_id}]`;
+                        }
+                        if (result.metadata?.workspace_id) {
+                            responseContent += ` [WS: ${result.metadata.workspace_id}]`;
+                        }
                         responseContent += '\n';
                     }
                     responseContent += '\n';
@@ -202,7 +281,11 @@ function NotebookDetail() {
             if (response.ontologyResults && response.ontologyResults.length > 0) {
                 responseContent += '\n**온톨로지 검색 결과:**\n\n';
                 response.ontologyResults.forEach((result, idx) => {
-                    responseContent += `${idx + 1}. (Score: ${result.score.toFixed(2)}) ${result.content}\n\n`;
+                    responseContent += `${idx + 1}. (Score: ${result.score.toFixed(2)}) ${result.content}`;
+                    if (result.metadata?.id) {
+                        responseContent += ` [ID: ${result.metadata.id}]`;
+                    }
+                    responseContent += '\n\n';
                 });
             }
 
@@ -787,16 +870,17 @@ function NotebookDetail() {
                                         value={inputMessage}
                                         onChange={(e) => setInputMessage(e.target.value)}
                                         onKeyPress={handleKeyPress}
-                                        placeholder="질문을 입력하세요..."
+                                        placeholder={selectedDocumentIds.length === 0 ? "대화할 문서를 선택해주세요." : "질문을 입력하세요..."}
                                         style={{
                                             flex: 1, height: '48px', padding: '12px', borderRadius: '8px',
-                                            border: '1px solid #ddd', resize: 'none', fontFamily: 'inherit'
+                                            border: '1px solid #ddd', resize: 'none', fontFamily: 'inherit',
+                                            backgroundColor: selectedDocumentIds.length === 0 ? '#f5f5f5' : 'white'
                                         }}
-                                        disabled={isProcessing}
+                                        disabled={isProcessing || selectedDocumentIds.length === 0}
                                     />
                                     <button
                                         onClick={handleSendMessage}
-                                        disabled={!inputMessage.trim() || isProcessing}
+                                        disabled={!inputMessage.trim() || isProcessing || selectedDocumentIds.length === 0}
                                         style={{
                                             padding: '12px 24px', height: '48px', backgroundColor: '#1a73e8', color: 'white',
                                             border: 'none', borderRadius: '8px', cursor: 'pointer', opacity: isProcessing ? 0.7 : 1,
@@ -829,46 +913,51 @@ function NotebookDetail() {
                     </div>
                 </div>
 
-                {/* Right Panel: Studio */}
+                {/* Right Panel: Studio / Mini Graph */}
                 <div className={`panel panel-right ${rightSidebarOpen ? '' : 'collapsed'}`}>
                     <div className="panel-header">
-                        <button className="panel-toggle-btn" onClick={() => setRightSidebarOpen(!rightSidebarOpen)} style={{ marginRight: 'auto' }}>
+                        <button className="panel-toggle-btn" onClick={() => setRightSidebarOpen(!rightSidebarOpen)} style={{ marginRight: 'auto', paddingLeft: '8px' }}>
                             {rightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
                         </button>
-                        {rightSidebarOpen && <div className="panel-title">스튜디오</div>}
+                        {rightSidebarOpen && <div className="panel-title" style={{ marginRight: '8px' }}>스튜디오</div>}
                     </div>
-                    <div className="panel-body">
-                        {rightSidebarOpen ? (
-                            <>
-                                <div className="studio-item" onClick={() => setSlideModalOpen(true)} style={{ cursor: 'pointer' }}>
-                                    <div className="studio-icon"><Presentation size={20} /></div>
-                                    <div className="studio-info">
-                                        <h4>슬라이드 생성</h4>
-                                        <p>문서를 기반으로 발표 자료 생성</p>
-                                    </div>
-                                    <button className="studio-action-btn" onClick={(e) => { e.stopPropagation(); setSlideModalOpen(true); }}><Plus size={16} /></button>
-                                </div>
+                    {rightSidebarOpen && (
+                        <div className="panel-body">
+                            {/* Mini Knowledge Graph (Chat Driven) */}
+                            {chatGraphData.nodes.length > 0 && (
+                                <MiniKnowledgeGraph
+                                    nodes={chatGraphData.nodes}
+                                    links={chatGraphData.links}
+                                    onExpand={() => setIsGraphModalOpen(true)}
+                                />
+                            )}
 
-                                <div className="studio-item" onClick={() => setReportModalOpen(true)} style={{ cursor: 'pointer' }}>
-                                    <div className="studio-icon"><FileBarChart size={20} /></div>
-                                    <div className="studio-info">
-                                        <h4>보고서 작성</h4>
-                                        <p>데이터 분석 및 리포트 작성</p>
-                                    </div>
-                                    <button className="studio-action-btn" onClick={(e) => { e.stopPropagation(); setReportModalOpen(true); }}><Plus size={16} /></button>
+                            <div className="studio-item" onClick={() => setSlideModalOpen(true)} style={{ cursor: 'pointer' }}>
+                                <div className="studio-icon"><Presentation size={20} /></div>
+                                <div className="studio-info">
+                                    <h4>슬라이드 생성</h4>
+                                    <p>문서를 기반으로 발표 자료 생성</p>
                                 </div>
+                                <button className="studio-action-btn" onClick={(e) => { e.stopPropagation(); setSlideModalOpen(true); }}><Plus size={16} /></button>
+                            </div>
 
-                                <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
-                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>최근 생성물</h4>
-                                    <div style={{ fontSize: '12px', color: '#999', textAlign: 'center', padding: '10px' }}>
-                                        생성된 항목이 없습니다.
-                                    </div>
+                            <div className="studio-item" onClick={() => setReportModalOpen(true)} style={{ cursor: 'pointer' }}>
+                                <div className="studio-icon"><FileBarChart size={20} /></div>
+                                <div className="studio-info">
+                                    <h4>보고서 작성</h4>
+                                    <p>데이터 분석 및 리포트 작성</p>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="vertical-text">STUDIO</div>
-                        )}
-                    </div>
+                                <button className="studio-action-btn" onClick={(e) => { e.stopPropagation(); setReportModalOpen(true); }}><Plus size={16} /></button>
+                            </div>
+
+                            <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>최근 생성물</h4>
+                                <div style={{ fontSize: '12px', color: '#999', textAlign: 'center', padding: '10px' }}>
+                                    생성된 항목이 없습니다.
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Modals */}

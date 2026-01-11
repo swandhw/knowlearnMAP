@@ -72,4 +72,10 @@ public interface OntologyObjectDictRepository extends JpaRepository<OntologyObje
         @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o.category FROM OntologyObjectDict o WHERE o.workspaceId = :workspaceId AND o.category IS NOT NULL ORDER BY o.category ASC")
         List<String> findDistinctCategoriesByWorkspaceId(
                         @org.springframework.data.repository.query.Param("workspaceId") Long workspaceId);
+
+        @org.springframework.data.jpa.repository.Query("SELECT DISTINCT o FROM OntologyObjectDict o WHERE o.workspaceId = :workspaceId AND (LOWER(o.termKo) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(o.termEn) LIKE LOWER(CONCAT('%', :keyword, '%')) OR EXISTS (SELECT s FROM OntologyObjectSynonyms s WHERE s.objectId = o.id AND LOWER(s.synonym) LIKE LOWER(CONCAT('%', :keyword, '%')))) ORDER BY o.id DESC")
+        org.springframework.data.domain.Page<OntologyObjectDict> searchByKeyword(
+                        @org.springframework.data.repository.query.Param("workspaceId") Long workspaceId,
+                        @org.springframework.data.repository.query.Param("keyword") String keyword,
+                        org.springframework.data.domain.Pageable pageable);
 }

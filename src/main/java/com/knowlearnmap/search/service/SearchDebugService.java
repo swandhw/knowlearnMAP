@@ -70,7 +70,10 @@ public class SearchDebugService {
                         .score(entry.getValue())
                         .metadata(Map.of("page",
                                 entry.getKey().getPageNumber() != null ? entry.getKey().getPageNumber() : 0,
-                                "filename", entry.getKey().getDocument().getFilename()))
+                                "filename", entry.getKey().getDocument().getFilename(),
+                                "chunk_id", entry.getKey().getId(),
+                                "document_id", entry.getKey().getDocument().getId(),
+                                "workspace_id", entry.getKey().getDocument().getWorkspace().getId()))
                         .build())
                 .collect(Collectors.toList());
     }
@@ -88,7 +91,8 @@ public class SearchDebugService {
                     "FILTER doc.workspace_id == @wsId ";
 
             if (filterDocs) {
-                aql += "AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
+                // Safely check intersection only if document_ids exists and is an array
+                aql += "AND doc.document_ids != null AND IS_ARRAY(doc.document_ids) AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
             }
 
             aql += "AND (CONTAINS(LOWER(doc.label), LOWER(@query)) OR CONTAINS(LOWER(doc.description), LOWER(@query))) "
@@ -134,11 +138,11 @@ public class SearchDebugService {
                     "  FILTER doc.workspace_id == @wsId AND doc.embedding_vector != null ";
 
             if (filterDocs) {
-                aql += "AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
+                aql += "AND doc.document_ids != null AND IS_ARRAY(doc.document_ids) AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
             }
 
             aql += "  LET score = COSINE_SIMILARITY(doc.embedding_vector, @vector) " +
-                    "  RETURN { type: 'Node', content: CONCAT(doc.label_ko, ': ', doc.description), id: doc._key, score: score } "
+                    "  RETURN { type: 'Node', content: CONCAT(doc.label_ko, ': ', doc.description), id: doc._key, score: score, label: doc.label_ko } "
                     +
                     ") " +
                     "LET edges = ( " +
@@ -146,15 +150,16 @@ public class SearchDebugService {
                     "  FILTER doc.workspace_id == @wsId AND doc.embedding_vector != null ";
 
             if (filterDocs) {
-                aql += "AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
+                aql += "AND doc.document_ids != null AND IS_ARRAY(doc.document_ids) AND LENGTH(INTERSECTION(doc.document_ids, @docIds)) > 0 ";
             }
 
             aql += "  LET score = COSINE_SIMILARITY(doc.embedding_vector, @vector) " +
-                    "  RETURN { type: 'Edge', content: doc.sentence_ko, id: doc._key, score: score } " +
+                    "  RETURN { type: 'Edge', content: doc.sentence_ko, id: doc._key, score: score, source: doc._from, target: doc._to, sourceLabel: DOCUMENT(doc._from).label_ko, targetLabel: DOCUMENT(doc._to).label_ko } "
+                    +
                     ") " +
                     "FOR result IN UNION(nodes, edges) " +
                     "SORT result.score DESC " +
-                    "LIMIT 5 " +
+                    "LIMIT 10 " +
                     "RETURN result";
 
             Map<String, Object> bindVars = new HashMap<>();
@@ -174,7 +179,22 @@ public class SearchDebugService {
                 results.add(SearchResult.builder()
                         .content(prefix + doc.get("content"))
                         .score(((Number) doc.get("score")).doubleValue())
-                        .metadata(Map.of("id", doc.get("id"), "type", type))
+                Map<String, Object> metadata = new HashMap<>();
+                metadata.put("id", doc.get("id"));
+                metadata.put("type", type);
+                if (type.equals("Node")) {
+                    metadata.put("label", doc.get("label"));
+                } else if (type.equals("Edge")) {
+                    metadata.put("source", doc.get("source"));
+                    metadata.put("target", doc.get("target"));
+                    metadata.put("sourceLabel", doc.get("sourceLabel"));
+                    metadata.put("targetLabel", doc.get("targetLabel"));
+                }
+
+                results.add(SearchResult.builder()
+                        .content(prefix + doc.get("content"))
+                        .score(((Number) doc.get("score")).doubleValue())
+                        .metadata(metadata)
                         .build());
             }
             return results;

@@ -271,7 +271,8 @@ export default function KnowledgeMapView({ workspaceId, documents = [], initialS
                 <button className="kg-btn primary" onClick={handleSearch}>검색</button>
                 <button className="kg-btn secondary" onClick={handleReset}>초기화</button>
 
-                <div style={{ position: 'relative', marginLeft: 'auto' }}>
+                {/* Hiding Document Filter as requested - User prefers controlling selection via Left Sidebar only */}
+                <div style={{ position: 'relative', marginLeft: 'auto', display: 'none' }}>
                     <button
                         className="kg-btn secondary"
                         onClick={() => setIsDocDropdownOpen(!isDocDropdownOpen)}
